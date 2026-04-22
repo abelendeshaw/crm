@@ -43,10 +43,8 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   users as initialUsers,
-  SELAMNEW_PRODUCTS,
   userProductAccess,
   type CRMUser,
-  type SelamnewProduct,
   type UserStatus,
   type UserRole,
 } from "@/data/userManagementData";
@@ -172,7 +170,6 @@ export function UsersTab() {
   const [inviteForm, setInviteForm] = useState({
     candidateId: "",
     role: "Sales Rep" as UserRole,
-    assignedProducts: ["CRM"] as SelamnewProduct[],
     approvalResponsibility: "Role",
   });
 
@@ -230,7 +227,6 @@ export function UsersTab() {
     setInviteForm({
       candidateId: "",
       role: "Sales Rep",
-      assignedProducts: ["CRM"],
       approvalResponsibility: "Role",
     });
   };
@@ -742,29 +738,6 @@ export function UsersTab() {
                 </p>
               )}
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label className="text-xs text-[#6b7280]">Assigned Products *</Label>
-              <div className="grid grid-cols-2 gap-2 rounded-md border border-[#e5e7eb] p-3">
-                {SELAMNEW_PRODUCTS.map((product) => (
-                  <label key={product} className="flex items-center gap-2 text-sm text-[#4b5563]">
-                    <Checkbox
-                      checked={inviteForm.assignedProducts.includes(product)}
-                      onCheckedChange={(checked) =>
-                        setInviteForm((f) => ({
-                          ...f,
-                          assignedProducts: checked
-                            ? f.assignedProducts.includes(product)
-                              ? f.assignedProducts
-                              : [...f.assignedProducts, product]
-                            : f.assignedProducts.filter((p) => p !== product),
-                        }))
-                      }
-                    />
-                    {product}
-                  </label>
-                ))}
-              </div>
-            </div>
             <div className="col-span-2 space-y-1.5">
               <Label className="text-xs text-[#6b7280]">Approval Responsibility</Label>
               <Select
@@ -800,10 +773,7 @@ export function UsersTab() {
               size="sm"
               className="bg-[#4080f0] hover:bg-[#3070e0] text-white"
               onClick={handleInvite}
-              disabled={
-                !inviteForm.candidateId ||
-                inviteForm.assignedProducts.length === 0
-              }
+              disabled={!inviteForm.candidateId}
             >
               Send Invite
             </Button>

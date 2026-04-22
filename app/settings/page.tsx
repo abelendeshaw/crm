@@ -1,10 +1,10 @@
 import { CRMLayout } from "@/components/layout/CRMLayout";
-import { DashboardPage } from "@/modules/DashboardPage";
+import { SettingsPage } from "@/modules/SettingsPage";
 
 export default function Page() {
   return (
     <CRMLayout>
-      <DashboardPage />
+      <SettingsPage />
     </CRMLayout>
   );
 }

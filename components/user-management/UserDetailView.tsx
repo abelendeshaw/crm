@@ -38,6 +38,7 @@ import {
   MODULE_ACTIONS,
   roles,
   teams,
+  userProductAccess,
 } from "@/data/userManagementData";
 import { cn } from "@/lib/utils";
 
@@ -503,145 +504,263 @@ function TeamAccessTab({
   const currentTeamData = teams.find((t) => t.name === user.team);
   const managerData = allUsers.find((u) => u.name === user.manager);
   const otherUsers = allUsers.filter((u) => u.id !== user.id);
+  const productAccess = userProductAccess.find((item) => item.userId === user.id);
+  const usersByName = new Map(allUsers.map((item) => [item.name, item]));
+
+  const managerChain: CRMUser[] = [];
+  let cursor = managerData;
+  while (cursor) {
+    managerChain.unshift(cursor);
+    if (!cursor.manager || cursor.manager === "—") break;
+    const nextManager = usersByName.get(cursor.manager);
+    if (!nextManager || managerChain.some((item) => item.id === nextManager.id)) {
+      break;
+    }
+    cursor = nextManager;
+  }
+
+  const collectReports = (parentName: string, depth: number): CRMUser[] => {
+    if (depth > 3) return [];
+    const direct = allUsers.filter((item) => item.manager === parentName);
+    return direct.flatMap((report) => [
+      report,
+      ...collectReports(report.name, depth + 1),
+    ]);
+  };
+
+  const directReports = allUsers.filter((item) => item.manager === user.name);
+  const reportTree = collectReports(user.name, 1);
+  const rolePath = [...managerChain.map((item) => item.role), user.role].join(" -> ");
+  const upwardChain = [...managerChain].reverse();
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Current Team */}
-      <div>
-        <h3 className="font-medium text-[#1c1e21] mb-1">Team Assignment</h3>
-        <p className="text-xs text-[#9ca3af] mb-3">
-          The team this user belongs to within the organization.
-        </p>
-        {isEditing ? (
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[#6b7280]">Assign to Team</Label>
-            <Select
-              value={user.team}
-              onValueChange={(v) => onChange({ team: v })}
-            >
-              <SelectTrigger className="h-9 border-[#e5e7eb]">
-                <SelectValue placeholder="Select team" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="—">No Team</SelectItem>
-                {teams.map((t) => (
-                  <SelectItem key={t.id} value={t.name}>
-                    {t.name} — {t.department}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : currentTeamData ? (
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#eef2fd] flex items-center justify-center flex-shrink-0">
-                <Users size={18} className="text-[#4080f0]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-[#1c1e21]">
-                  {currentTeamData.name}
-                </p>
-                <p className="text-xs text-[#9ca3af] mt-0.5">
-                  {currentTeamData.department} · {currentTeamData.branch}
-                </p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="font-semibold text-[#4080f0]">
-                  {currentTeamData.membersCount}
-                </p>
-                <p className="text-xs text-[#9ca3af]">Members</p>
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-[#f0f2f7] flex items-center gap-2 text-xs text-[#6b7280]">
-              <User size={11} />
-              <span>
-                Manager:{" "}
-                <span className="font-medium text-[#1c1e21]">
-                  {currentTeamData.manager}
-                </span>
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-[#f9fafb] rounded-lg border border-dashed border-[#d1d5db] p-6 text-center">
-            <Users size={24} className="text-[#d1d5db] mx-auto mb-2" />
-            <p className="text-sm text-[#9ca3af]">
-              Not assigned to any team
-            </p>
-          </div>
-        )}
-      </div>
+    <div className="w-full">
+      <h3 className="font-medium text-[#1c1e21] mb-1">Reporting Structure & Assignment</h3>
+      <p className="text-xs text-[#9ca3af] mb-3">
+        One unified view of hierarchy, team assignment, manager assignment, and product access.
+      </p>
+      <div className="rounded-xl border border-[#dbeafe] bg-white p-6 space-y-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+        <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3">
+          <p className="text-[11px] uppercase tracking-wide text-[#6b7280]">Reporting path</p>
+          <p className="text-sm font-medium text-[#1c1e21]">{rolePath}</p>
+          <p className="text-xs text-[#6b7280] mt-0.5">
+            {managerData
+              ? `${user.name} reports to ${managerData.name} (${managerData.role})`
+              : `${user.name} has no assigned manager`}
+          </p>
+        </div>
 
-      {/* Manager */}
-      <div>
-        <h3 className="font-medium text-[#1c1e21] mb-1">Reports To</h3>
-        <p className="text-xs text-[#9ca3af] mb-3">
-          The manager this user directly reports to.
-        </p>
         {isEditing ? (
-          <div className="space-y-1.5">
-            <Label className="text-xs text-[#6b7280]">Manager</Label>
-            <Select
-              value={user.manager}
-              onValueChange={(v) => onChange({ manager: v })}
-            >
-              <SelectTrigger className="h-9 border-[#e5e7eb]">
-                <SelectValue placeholder="Select manager" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="—">None</SelectItem>
-                {otherUsers.map((u) => (
-                  <SelectItem key={u.id} value={u.name}>
-                    {u.name}{" "}
-                    <span className="text-[#9ca3af]">· {u.role}</span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : managerData ? (
-          <div className="bg-white rounded-lg border border-[#e5e7eb] p-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback
-                  className={`${getAvatarColor(managerData.name)} text-white text-xs font-medium`}
-                >
-                  {getInitials(managerData.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium text-[#1c1e21]">
-                  {managerData.name}
-                </p>
-                <p className="text-xs text-[#9ca3af]">
-                  {managerData.role} · {managerData.department}
-                </p>
-              </div>
-              <span
-                className={cn(
-                  "ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-                  statusConfig[managerData.status].className
-                )}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${statusConfig[managerData.status].dot}`}
-                />
-                {managerData.status}
-              </span>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#6b7280]">Team</Label>
+              <Select value={user.team} onValueChange={(v) => onChange({ team: v })}>
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="—">No Team</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {t.name} — {t.department}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#6b7280]">Reports To</Label>
+              <Select value={user.manager} onValueChange={(v) => onChange({ manager: v })}>
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select manager" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="—">None</SelectItem>
+                  {otherUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.name}>
+                      {u.name} <span className="text-[#9ca3af]">· {u.role}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        ) : (
-          <div className="bg-[#f9fafb] rounded-lg border border-dashed border-[#d1d5db] p-6 text-center">
-            <User size={24} className="text-[#d1d5db] mx-auto mb-2" />
-            <p className="text-sm text-[#9ca3af]">
-              {user.manager === "—"
-                ? "No manager assigned"
-                : user.manager}
+        ) : null}
+
+        <div className="w-full pb-2">
+          <div className="w-full rounded-lg border border-[#dbeafe] bg-[#f8fbff] px-4 py-5">
+            <div className="flex items-center w-full flex-wrap gap-y-3">
+              <MiniPersonCard
+                user={user}
+                accent="bg-[#eef2fd]"
+                active
+                relation="Reporting user"
+              />
+
+              {upwardChain.length > 0 && <RelationConnector label="reports to" />}
+
+              {upwardChain.map((manager, index) => (
+                <div key={manager.id} className="flex items-center">
+                  <MiniPersonCard
+                    user={manager}
+                    accent="bg-[#dbeafe]"
+                    relation={
+                      index === 0 ? "Direct manager" : "Upward chain"
+                    }
+                  />
+                  {index < upwardChain.length - 1 ? (
+                    <RelationConnector label="reports to" />
+                  ) : null}
+                </div>
+              ))}
+
+              {directReports.length > 0 ? (
+                <>
+                  <RelationConnector label="manages" />
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {directReports.map((report, index) => (
+                      <div key={report.id} className="flex items-center">
+                        <MiniPersonCard
+                          user={report}
+                          accent="bg-[#f3f4f6]"
+                          relation={`Reports to ${user.name}`}
+                        />
+                        {index < directReports.length - 1 ? (
+                          <RelationConnector label="and" subtle />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="ml-4 rounded-md border border-dashed border-[#bfdbfe] bg-white px-4 py-3 text-sm text-[#6b7280]">
+                  No direct reports
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
+          <div className="rounded-lg border border-[#e0e7ff] bg-[#f8faff] p-4 text-[#6b7280]">
+            <p className="text-[11px] uppercase tracking-wide mb-1">Assignment</p>
+            <p>
+              Team:{" "}
+              <span className="font-medium text-[#1c1e21]">
+                {currentTeamData ? currentTeamData.name : "Not assigned"}
+              </span>
+            </p>
+            <p className="mt-1">
+              Reports to:{" "}
+              <span className="font-medium text-[#1c1e21]">
+                {managerData ? managerData.name : "None"}
+              </span>
             </p>
           </div>
-        )}
+          <div className="rounded-lg border border-[#e0e7ff] bg-[#f8faff] p-4 text-[#6b7280]">
+            <p className="text-[11px] uppercase tracking-wide mb-1">Access</p>
+            <p>
+              Products:{" "}
+              <span className="font-medium text-[#1c1e21]">
+                {(productAccess?.products ?? ["CRM"]).join(", ")}
+              </span>
+            </p>
+            <p className="mt-1">
+              Role map:{" "}
+              <span className="font-medium text-[#1c1e21]">
+                {(productAccess?.productRoles ?? [{ product: "CRM", role: user.role }])
+                  .map((item) => `${item.product}:${item.role}`)
+                  .join(" | ")}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        <div className="border-t border-[#dbeafe] pt-4 grid grid-cols-1 gap-2 text-xs text-[#6b7280] sm:grid-cols-3">
+          <p>
+            <span className="font-medium text-[#1c1e21]">Manager chain:</span> {managerChain.length}
+          </p>
+          <p>
+            <span className="font-medium text-[#1c1e21]">Direct reports:</span> {directReports.length}
+          </p>
+          <p>
+            <span className="font-medium text-[#1c1e21]">Total below:</span> {reportTree.length}
+          </p>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function MiniPersonCard({
+  user,
+  accent,
+  active = false,
+  relation,
+}: {
+  user: CRMUser;
+  accent: string;
+  active?: boolean;
+  relation?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-[260px] rounded-xl border px-4 py-3 transition-colors shadow-sm",
+        active
+          ? "border-[#60a5fa] bg-[#f0f7ff] shadow-[0_0_0_2px_rgba(96,165,250,0.15)]"
+          : "border-[#dbeafe] bg-white"
+      )}
+    >
+      <div className="flex items-center gap-2">
+        <Avatar className="h-9 w-9">
+          <AvatarFallback
+            className={`${getAvatarColor(user.name)} text-white text-xs font-semibold`}
+          >
+            {getInitials(user.name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#1c1e21]">{user.name}</p>
+          <p className="truncate text-xs text-[#6b7280]">{user.role}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs">
+        <span className={`rounded-md px-2 py-1 font-medium ${accent} text-[#334155]`}>
+          {user.team}
+        </span>
+        <span className="text-[#64748b]">{user.branch}</span>
+      </div>
+      {relation ? (
+        <p className="mt-2 text-xs font-medium text-[#2563eb]">{relation}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function RelationConnector({
+  label,
+  subtle = false,
+}: {
+  label: string;
+  subtle?: boolean;
+}) {
+  return (
+    <div className="mx-2 flex flex-col items-center w-[72px] flex-shrink-0">
+      <div
+        className={cn(
+          "h-[3px] w-full rounded-full",
+          subtle ? "bg-[#bfdbfe]" : "bg-[#60a5fa]"
+        )}
+      />
+      <span
+        className={cn(
+          "mt-1 text-[11px] font-semibold",
+          subtle ? "text-[#64748b]" : "text-[#2563eb]"
+        )}
+      >
+        {label}
+      </span>
     </div>
   );
 }

@@ -5,18 +5,16 @@ import {
   Users,
   Shield,
   UsersRound,
-  Building2,
   Layers,
   ChevronRight,
 } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
 import { TeamsTab } from "@/components/user-management/TeamsTab";
-import { BranchesTab } from "@/components/user-management/BranchesTab";
 import { DepartmentsTab } from "@/components/user-management/DepartmentsTab";
 import { cn } from "@/lib/utils";
 
-type Tab = "users" | "roles" | "teams" | "branches" | "departments";
+type Tab = "users" | "roles" | "teams" | "departments";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode; description: string }[] = [
   {
@@ -36,12 +34,6 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode; description: string
     label: "Teams",
     icon: <UsersRound size={15} />,
     description: "Organize users into collaborative teams",
-  },
-  {
-    id: "branches",
-    label: "Branches",
-    icon: <Building2 size={15} />,
-    description: "Manage office branches and locations",
   },
   {
     id: "departments",
@@ -101,7 +93,6 @@ export function UserManagementPage() {
         {activeTab === "users" && <UsersTab />}
         {activeTab === "roles" && <RolesTab />}
         {activeTab === "teams" && <TeamsTab />}
-        {activeTab === "branches" && <BranchesTab />}
         {activeTab === "departments" && <DepartmentsTab />}
       </div>
     </div>

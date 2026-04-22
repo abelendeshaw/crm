@@ -6,6 +6,9 @@ export type UserRole =
   | "Sales Rep"
   | "Viewer"
   | "Support Agent";
+export type SelamnewProduct = "CRM" | "HRM" | "Payroll" | "Procurement";
+export type ApprovalStatus = "Pending" | "Approved" | "Rejected";
+export type ApprovalAssigneeType = "Role" | "Hierarchy" | "User";
 
 export interface CRMUser {
   id: string;
@@ -22,6 +25,65 @@ export interface CRMUser {
   joinedAt: string;
   lastActive: string;
   customPermissions?: Record<string, Record<string, boolean>>;
+  organizationId?: string;
+  isOrganizationOwner?: boolean;
+}
+
+export interface ProductRoleAssignment {
+  product: SelamnewProduct;
+  role: string;
+}
+
+export interface UserProductAccess {
+  userId: string;
+  products: SelamnewProduct[];
+  productRoles: ProductRoleAssignment[];
+}
+
+export interface OrganizationProfile {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  createdAt: string;
+  branchesCount: number;
+  departmentsCount: number;
+}
+
+export interface ProductSubscription {
+  product: SelamnewProduct;
+  status: "Subscribed" | "Not Subscribed";
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  fullName: string;
+  invitedBy: string;
+  invitedAt: string;
+  status: "Pending" | "Accepted" | "Expired";
+  assignedProducts: SelamnewProduct[];
+  assignedRoles: ProductRoleAssignment[];
+  approvalResponsibilities: ApprovalAssigneeType[];
+}
+
+export interface ApprovalWorkflow {
+  id: string;
+  name: string;
+  scope: "Organization" | "Product";
+  product?: SelamnewProduct;
+  mode: "Single-step" | "Multi-step" | "Manager-based";
+  assigneeType: ApprovalAssigneeType;
+  steps: number;
+  isReusableAcrossProducts: boolean;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  workflowId: string;
+  requester: string;
+  subject: string;
+  currentApprover: string;
+  status: ApprovalStatus;
 }
 
 export interface Role {
@@ -82,6 +144,12 @@ export const CRM_MODULES = [
 ];
 
 export const MODULE_ACTIONS = ["View", "Create", "Edit", "Delete", "Export"];
+export const SELAMNEW_PRODUCTS: SelamnewProduct[] = [
+  "CRM",
+  "HRM",
+  "Payroll",
+  "Procurement",
+];
 
 export const users: CRMUser[] = [
   {
@@ -97,6 +165,8 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-01-15",
     lastActive: "2025-04-21",
+    organizationId: "org-1",
+    isOrganizationOwner: true,
   },
   {
     id: "u2",
@@ -111,6 +181,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-02-10",
     lastActive: "2025-04-20",
+    organizationId: "org-1",
   },
   {
     id: "u3",
@@ -125,6 +196,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-03-05",
     lastActive: "2025-04-19",
+    organizationId: "org-1",
   },
   {
     id: "u4",
@@ -139,6 +211,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-03-12",
     lastActive: "2025-04-18",
+    organizationId: "org-1",
   },
   {
     id: "u5",
@@ -153,6 +226,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-01-20",
     lastActive: "2025-04-21",
+    organizationId: "org-1",
   },
   {
     id: "u6",
@@ -167,6 +241,7 @@ export const users: CRMUser[] = [
     status: "Inactive",
     joinedAt: "2024-04-01",
     lastActive: "2025-03-15",
+    organizationId: "org-1",
   },
   {
     id: "u7",
@@ -181,6 +256,7 @@ export const users: CRMUser[] = [
     status: "Pending",
     joinedAt: "2025-04-10",
     lastActive: "—",
+    organizationId: "org-1",
   },
   {
     id: "u8",
@@ -195,6 +271,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-05-15",
     lastActive: "2025-04-20",
+    organizationId: "org-1",
   },
   {
     id: "u9",
@@ -209,6 +286,7 @@ export const users: CRMUser[] = [
     status: "Active",
     joinedAt: "2024-02-28",
     lastActive: "2025-04-17",
+    organizationId: "org-1",
   },
   {
     id: "u10",
@@ -223,6 +301,7 @@ export const users: CRMUser[] = [
     status: "Suspended",
     joinedAt: "2024-06-01",
     lastActive: "2025-02-10",
+    organizationId: "org-1",
   },
 ];
 
@@ -515,5 +594,123 @@ export const departments: Department[] = [
     teamsCount: 1,
     status: "Active",
     createdAt: "2024-05-01",
+  },
+];
+
+export const organizationProfile: OrganizationProfile = {
+  id: "org-1",
+  name: "Selamnew Trading PLC",
+  ownerUserId: "u1",
+  createdAt: "2024-01-01",
+  branchesCount: branches.length,
+  departmentsCount: departments.length,
+};
+
+export const productSubscriptions: ProductSubscription[] = [
+  { product: "CRM", status: "Subscribed" },
+  { product: "HRM", status: "Subscribed" },
+  { product: "Payroll", status: "Not Subscribed" },
+  { product: "Procurement", status: "Subscribed" },
+];
+
+export const userProductAccess: UserProductAccess[] = [
+  {
+    userId: "u1",
+    products: ["CRM", "HRM", "Procurement"],
+    productRoles: [
+      { product: "CRM", role: "Super Admin" },
+      { product: "HRM", role: "Org Owner" },
+      { product: "Procurement", role: "Approver" },
+    ],
+  },
+  {
+    userId: "u2",
+    products: ["CRM", "Procurement"],
+    productRoles: [
+      { product: "CRM", role: "Sales Manager" },
+      { product: "Procurement", role: "Manager Approver" },
+    ],
+  },
+  {
+    userId: "u3",
+    products: ["CRM"],
+    productRoles: [{ product: "CRM", role: "Sales Rep" }],
+  },
+];
+
+export const invitations: Invitation[] = [
+  {
+    id: "inv-1",
+    email: "yonas@company.com",
+    fullName: "Yonas Tadesse",
+    invitedBy: "Nahom Esrael",
+    invitedAt: "2025-04-10",
+    status: "Pending",
+    assignedProducts: ["CRM"],
+    assignedRoles: [{ product: "CRM", role: "Sales Rep" }],
+    approvalResponsibilities: ["Hierarchy"],
+  },
+  {
+    id: "inv-2",
+    email: "new.manager@company.com",
+    fullName: "New Manager",
+    invitedBy: "Daniel Bekele",
+    invitedAt: "2025-04-18",
+    status: "Accepted",
+    assignedProducts: ["CRM", "HRM"],
+    assignedRoles: [
+      { product: "CRM", role: "Sales Manager" },
+      { product: "HRM", role: "Department Admin" },
+    ],
+    approvalResponsibilities: ["Role", "User"],
+  },
+];
+
+export const approvalWorkflows: ApprovalWorkflow[] = [
+  {
+    id: "wf-1",
+    name: "Leave Request Approval",
+    scope: "Organization",
+    mode: "Manager-based",
+    assigneeType: "Hierarchy",
+    steps: 1,
+    isReusableAcrossProducts: true,
+  },
+  {
+    id: "wf-2",
+    name: "High Value Deal Discount",
+    scope: "Product",
+    product: "CRM",
+    mode: "Multi-step",
+    assigneeType: "Role",
+    steps: 2,
+    isReusableAcrossProducts: false,
+  },
+];
+
+export const approvalRequests: ApprovalRequest[] = [
+  {
+    id: "ar-1",
+    workflowId: "wf-1",
+    requester: "Abel Girma",
+    subject: "Annual leave request",
+    currentApprover: "Sara Tesfaye",
+    status: "Pending",
+  },
+  {
+    id: "ar-2",
+    workflowId: "wf-2",
+    requester: "Biruk Mekonnen",
+    subject: "Discount above approval threshold",
+    currentApprover: "Nahom Esrael",
+    status: "Approved",
+  },
+  {
+    id: "ar-3",
+    workflowId: "wf-2",
+    requester: "Liya Solomon",
+    subject: "Special pricing request",
+    currentApprover: "Biruk Mekonnen",
+    status: "Rejected",
   },
 ];

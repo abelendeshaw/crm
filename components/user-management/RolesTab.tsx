@@ -142,6 +142,89 @@ function RoleCard({
   );
 }
 
+function RoleTabButton({
+  role,
+  isSelected,
+  onClick,
+  onEdit,
+  onDelete,
+}: {
+  role: Role;
+  isSelected: boolean;
+  onClick: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group min-w-[210px] rounded-lg border px-3 py-2 text-left transition-all ${
+        isSelected
+          ? "border-[#4080f0] bg-[#f8fbff] shadow-sm"
+          : "border-[#e5e7eb] bg-white hover:border-[#bfcffa]"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#1c1e21]">{role.name}</p>
+          <p className="truncate text-xs text-[#9ca3af]">{role.usersCount} users</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 hover:bg-[#f0f2f7]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal size={13} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem
+              className="text-sm cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit size={12} className="mr-2" /> Edit Role
+            </DropdownMenuItem>
+            {!role.isSystem && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-sm cursor-pointer text-[#dc2626]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                >
+                  <Trash2 size={12} className="mr-2" /> Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+            roleColorMap[role.name] || "bg-[#eef2fd] text-[#4080f0]"
+          }`}
+        >
+          {role.isSystem ? "System Role" : "Custom Role"}
+        </span>
+        <ChevronRight
+          size={13}
+          className={isSelected ? "text-[#4080f0]" : "text-[#d1d5db] group-hover:text-[#9ca3af]"}
+        />
+      </div>
+    </button>
+  );
+}
+
 function PermissionsMatrix({
   permissions,
   onChange,
@@ -260,39 +343,42 @@ export function RolesTab() {
   };
 
   return (
-    <div className="flex gap-4 h-full flex-col xl:flex-row">
-      {/* Left: Role cards */}
-      <div className="w-full xl:w-[280px] xl:min-w-[280px] flex flex-col gap-3 overflow-y-auto pr-1">
+    <div className="flex h-full flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-[#9ca3af] mb-1">Roles</p>
+          <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-2 pb-1">
+              {roles.map((role) => (
+                <RoleTabButton
+                  key={role.id}
+                  role={role}
+                  isSelected={selectedRole?.id === role.id}
+                  onClick={() => setSelectedRole(role)}
+                  onEdit={() => setEditRole({ ...role })}
+                  onDelete={() => handleDeleteRole(role.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
         <Button
           size="sm"
-          className="bg-[#4080f0] hover:bg-[#3070e0] text-white h-9 w-full mb-1"
+          className="bg-[#4080f0] hover:bg-[#3070e0] text-white h-9 flex-shrink-0"
           onClick={() => setCreateOpen(true)}
         >
           <Plus size={14} className="mr-1.5" />
           Create Role
         </Button>
-        {roles.map((role) => (
-          <RoleCard
-            key={role.id}
-            role={role}
-            isSelected={selectedRole?.id === role.id}
-            onClick={() => setSelectedRole(role)}
-            onEdit={() => setEditRole({ ...role })}
-            onDelete={() => handleDeleteRole(role.id)}
-          />
-        ))}
       </div>
 
-      {/* Right: Permissions matrix */}
       <div className="flex-1 bg-white rounded-lg border border-[#e5e7eb] overflow-hidden flex flex-col">
         {selectedRole ? (
           <>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e7eb]">
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-semibold text-[#1c1e21]">
-                    {selectedRole.name}
-                  </h3>
+                  <h3 className="font-semibold text-[#1c1e21]">{selectedRole.name}</h3>
                   {selectedRole.isSystem && (
                     <span className="flex items-center gap-0.5 text-[10px] text-[#9ca3af] bg-[#f5f5f5] px-1.5 py-0.5 rounded-full">
                       <Lock size={9} />
@@ -300,9 +386,7 @@ export function RolesTab() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-[#9ca3af]">
-                  {selectedRole.description}
-                </p>
+                <p className="text-xs text-[#9ca3af]">{selectedRole.description}</p>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 text-sm text-[#6b7280] bg-[#f5f6fa] px-3 py-1.5 rounded-md">
@@ -320,16 +404,12 @@ export function RolesTab() {
                 </Button>
               </div>
             </div>
-            <div className="overflow-auto flex-1">
-              <PermissionsMatrix
-                permissions={selectedRole.permissions}
-                readOnly={true}
-              />
+            <div className="overflow-auto flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+              <PermissionsMatrix permissions={selectedRole.permissions} readOnly={true} />
             </div>
             <div className="px-5 py-3 border-t border-[#f0f2f7] bg-[#f9fafb] flex items-center gap-4 text-xs text-[#9ca3af]">
               <span className="flex items-center gap-1">
-                <Check size={12} className="text-[#1a8a4a]" /> = Permission
-                Granted
+                <Check size={12} className="text-[#1a8a4a]" /> = Permission Granted
               </span>
               <span className="flex items-center gap-1">
                 <X size={12} className="text-[#d1d5db]" /> = No Access

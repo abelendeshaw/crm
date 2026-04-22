@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "bettercrm",
+  title: "crm",
   description: "bettercrm CRM dashboard",
 };
 

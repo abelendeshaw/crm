@@ -8,7 +8,6 @@ import {
   X,
   Mail,
   Phone,
-  Building2,
   Users,
   MapPin,
   Calendar,
@@ -38,7 +37,6 @@ import {
   MODULE_ACTIONS,
   roles,
   teams,
-  userProductAccess,
 } from "@/data/userManagementData";
 import { cn } from "@/lib/utils";
 
@@ -49,13 +47,6 @@ const ROLES: UserRole[] = [
   "Sales Rep",
   "Viewer",
   "Support Agent",
-];
-const DEPARTMENTS = [
-  "Management",
-  "Sales",
-  "IT",
-  "Finance",
-  "Customer Support",
 ];
 const BRANCHES = [
   "Addis Ababa HQ",
@@ -184,178 +175,181 @@ function ProfileTab({
   const otherUsers = allUsers.filter((u) => u.id !== user.id);
 
   return (
-    <div className="grid grid-cols-1 gap-4 max-w-3xl md:grid-cols-2">
-      <InfoField
-        label="Full Name"
-        value={user.name}
-        isEditing={isEditing}
-        icon={<User size={11} />}
-      >
-        <Input
+    <div className="rounded-lg border border-[#e5e7eb] bg-white p-5">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <InfoField
+          label="Full Name"
           value={user.name}
-          onChange={(e) => onChange({ name: e.target.value })}
-          className="h-9 border-[#e5e7eb]"
-          placeholder="Full name"
-        />
-      </InfoField>
+          isEditing={isEditing}
+          icon={<User size={11} />}
+        >
+          <Input
+            value={user.name}
+            onChange={(e) => onChange({ name: e.target.value })}
+            className="h-9 border-[#e5e7eb]"
+            placeholder="Full name"
+          />
+        </InfoField>
 
-      <InfoField
-        label="Email Address"
-        value={user.email}
-        isEditing={isEditing}
-        icon={<Mail size={11} />}
-      >
-        <Input
-          type="email"
+        <InfoField
+          label="Email Address"
           value={user.email}
-          onChange={(e) => onChange({ email: e.target.value })}
-          className="h-9 border-[#e5e7eb]"
-          placeholder="email@company.com"
-        />
-      </InfoField>
+          isEditing={isEditing}
+          icon={<Mail size={11} />}
+        >
+          <Input
+            type="email"
+            value={user.email}
+            onChange={(e) => onChange({ email: e.target.value })}
+            className="h-9 border-[#e5e7eb]"
+            placeholder="email@company.com"
+          />
+        </InfoField>
 
-      <InfoField
-        label="Phone Number"
-        value={user.phone}
-        isEditing={isEditing}
-        icon={<Phone size={11} />}
-      >
-        <Input
+        <InfoField
+          label="Phone Number"
           value={user.phone}
-          onChange={(e) => onChange({ phone: e.target.value })}
-          className="h-9 border-[#e5e7eb]"
-          placeholder="09xxxxxxxx"
-        />
-      </InfoField>
+          isEditing={isEditing}
+          icon={<Phone size={11} />}
+        >
+          <Input
+            value={user.phone}
+            onChange={(e) => onChange({ phone: e.target.value })}
+            className="h-9 border-[#e5e7eb]"
+            placeholder="09xxxxxxxx"
+          />
+        </InfoField>
 
-      <InfoField
-        label="Account Status"
-        value={user.status}
-        isEditing={isEditing}
-        icon={<Shield size={11} />}
-      >
-        <Select
+        <InfoField
+          label="Account Status"
           value={user.status}
-          onValueChange={(v) => onChange({ status: v as UserStatus })}
+          isEditing={isEditing}
+          icon={<Shield size={11} />}
         >
-          <SelectTrigger className="h-9 border-[#e5e7eb]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(["Active", "Inactive", "Pending", "Suspended"] as UserStatus[]).map(
-              (s) => (
-                <SelectItem key={s} value={s}>
-                  {s}
+          <Select
+            value={user.status}
+            onValueChange={(v) => onChange({ status: v as UserStatus })}
+          >
+            <SelectTrigger className="h-9 border-[#e5e7eb]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(["Active", "Inactive", "Pending", "Suspended"] as UserStatus[]).map(
+                (s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                )
+              )}
+            </SelectContent>
+          </Select>
+        </InfoField>
+
+        <InfoField
+          label="CRM Role"
+          value={user.role}
+          isEditing={isEditing}
+          icon={<Key size={11} />}
+        >
+          <Select value={user.role} onValueChange={(v) => onRoleChange(v as UserRole)}>
+            <SelectTrigger className="h-9 border-[#e5e7eb]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
                 </SelectItem>
-              )
-            )}
-          </SelectContent>
-        </Select>
-      </InfoField>
+              ))}
+            </SelectContent>
+          </Select>
+        </InfoField>
 
-      <InfoField
-        label="CRM Role"
-        value={user.role}
-        isEditing={isEditing}
-        icon={<Key size={11} />}
-      >
-        <Select value={user.role} onValueChange={(v) => onRoleChange(v as UserRole)}>
-          <SelectTrigger className="h-9 border-[#e5e7eb]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </InfoField>
-
-      <InfoField
-        label="Department"
-        value={user.department}
-        isEditing={isEditing}
-        icon={<Building2 size={11} />}
-      >
-        <Select
-          value={user.department}
-          onValueChange={(v) => onChange({ department: v })}
+        <InfoField
+          label="Team"
+          value={user.team}
+          isEditing={isEditing}
+          icon={<Users size={11} />}
         >
-          <SelectTrigger className="h-9 border-[#e5e7eb]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {DEPARTMENTS.map((d) => (
-              <SelectItem key={d} value={d}>
-                {d}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </InfoField>
+          <Select
+            value={user.team}
+            onValueChange={(v) => onChange({ team: v })}
+          >
+            <SelectTrigger className="h-9 border-[#e5e7eb]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="—">No Team</SelectItem>
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.name}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </InfoField>
 
-      <InfoField
-        label="Branch"
-        value={user.branch}
-        isEditing={isEditing}
-        icon={<MapPin size={11} />}
-      >
-        <Select
+        <InfoField
+          label="Branch"
           value={user.branch}
-          onValueChange={(v) => onChange({ branch: v })}
+          isEditing={isEditing}
+          icon={<MapPin size={11} />}
         >
-          <SelectTrigger className="h-9 border-[#e5e7eb]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {BRANCHES.map((b) => (
-              <SelectItem key={b} value={b}>
-                {b}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </InfoField>
+          <Select
+            value={user.branch}
+            onValueChange={(v) => onChange({ branch: v })}
+          >
+            <SelectTrigger className="h-9 border-[#e5e7eb]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {BRANCHES.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </InfoField>
 
-      <InfoField
-        label="Reports To (Manager)"
-        value={user.manager}
-        isEditing={isEditing}
-        icon={<User size={11} />}
-      >
-        <Select
+        <InfoField
+          label="Reports To (Manager)"
           value={user.manager}
-          onValueChange={(v) => onChange({ manager: v })}
+          isEditing={isEditing}
+          icon={<User size={11} />}
         >
-          <SelectTrigger className="h-9 border-[#e5e7eb]">
-            <SelectValue placeholder="Select manager" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="—">None</SelectItem>
-            {otherUsers.map((u) => (
-              <SelectItem key={u.id} value={u.name}>
-                {u.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </InfoField>
+          <Select
+            value={user.manager}
+            onValueChange={(v) => onChange({ manager: v })}
+          >
+            <SelectTrigger className="h-9 border-[#e5e7eb]">
+              <SelectValue placeholder="Select manager" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="—">None</SelectItem>
+              {otherUsers.map((u) => (
+                <SelectItem key={u.id} value={u.name}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </InfoField>
 
-      <InfoField
-        label="Joined Date"
-        value={user.joinedAt}
-        isEditing={false}
-        icon={<Calendar size={11} />}
-      />
+        <InfoField
+          label="Joined Date"
+          value={user.joinedAt}
+          isEditing={false}
+          icon={<Calendar size={11} />}
+        />
 
-      <InfoField
-        label="Last Active"
-        value={user.lastActive}
-        isEditing={false}
-        icon={<Clock size={11} />}
-      />
+        <InfoField
+          label="Last Active"
+          value={user.lastActive}
+          isEditing={false}
+          icon={<Clock size={11} />}
+        />
+      </div>
     </div>
   );
 }
@@ -384,7 +378,7 @@ function PermissionsTab({
   };
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       <div className="flex items-start justify-between mb-4 gap-4">
         <div>
           <h3 className="font-medium text-[#1c1e21]">Module Permissions</h3>
@@ -412,78 +406,90 @@ function PermissionsTab({
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#e5e7eb] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">
-                Module
-              </th>
-              {MODULE_ACTIONS.map((action) => (
-                <th
-                  key={action}
-                  className="px-4 py-3 text-center text-xs font-semibold text-[#6b7280] uppercase tracking-wide"
-                >
-                  {action}
-                </th>
-              ))}
-              {isEditing && (
-                <th className="px-4 py-3 text-center text-xs font-semibold text-[#6b7280] uppercase tracking-wide">
-                  All
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {CRM_MODULES.map((module, i) => (
-              <tr
-                key={module}
-                className={cn(
-                  "border-b border-[#f0f2f7] last:border-0",
-                  i % 2 === 0 ? "bg-white" : "bg-[#fafbff]"
+      <div className="rounded-xl border border-[#e5e7eb] bg-white overflow-hidden">
+        <div className="grid grid-cols-[minmax(180px,1fr)_repeat(5,minmax(86px,auto))_120px] items-center gap-2 border-b border-[#eef1f5] bg-[#f9fafb] px-4 py-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
+            Module
+          </span>
+          {MODULE_ACTIONS.map((action) => (
+            <span
+              key={action}
+              className="text-center text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]"
+            >
+              {action}
+            </span>
+          ))}
+          <span className="text-center text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
+            Scope
+          </span>
+        </div>
+
+        <div className="divide-y divide-[#f0f2f7]">
+          {CRM_MODULES.map((module) => (
+            <div
+              key={module}
+              className="grid grid-cols-[minmax(180px,1fr)_repeat(5,minmax(86px,auto))_120px] items-center gap-2 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-[#1f2937]">{module}</p>
+              </div>
+
+              {MODULE_ACTIONS.map((action) => {
+                const enabled = permissions[module]?.[action] ?? false;
+                return (
+                  <div key={action} className="flex justify-center">
+                    {isEditing ? (
+                      <Checkbox
+                        checked={enabled}
+                        onCheckedChange={() => onToggle(module, action)}
+                        className="data-[state=checked]:bg-[#4080f0] data-[state=checked]:border-[#4080f0]"
+                      />
+                    ) : (
+                      <span
+                        className={cn(
+                          "inline-flex items-center justify-center h-6 min-w-6 rounded-full px-1 text-[11px] font-bold",
+                          enabled
+                            ? "text-[#1a8a4a] bg-[#e8f7ef]"
+                            : "text-[#9ca3af] bg-[#f3f4f6]"
+                        )}
+                      >
+                        {enabled ? "✓" : "—"}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div className="flex justify-center">
+                {isEditing ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleAll(module)}
+                    className={cn(
+                      "rounded-md border px-2 py-1 text-[11px] font-medium transition-colors",
+                      allEnabled(module)
+                        ? "border-[#bfd0fb] bg-[#eef3ff] text-[#245fcb]"
+                        : "border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#cfd7e6]"
+                    )}
+                  >
+                    {allEnabled(module) ? "Custom" : "Limited"}
+                  </button>
+                ) : (
+                  <span
+                    className={cn(
+                      "rounded-md px-2 py-1 text-[11px] font-medium",
+                      allEnabled(module)
+                        ? "bg-[#eef3ff] text-[#245fcb]"
+                        : "bg-[#f3f4f6] text-[#6b7280]"
+                    )}
+                  >
+                    {allEnabled(module) ? "Full" : "Custom"}
+                  </span>
                 )}
-              >
-                <td className="px-4 py-3 font-medium text-[#1c1e21] text-sm">
-                  {module}
-                </td>
-                {MODULE_ACTIONS.map((action) => {
-                  const enabled = permissions[module]?.[action] ?? false;
-                  return (
-                    <td key={action} className="px-4 py-3 text-center">
-                      {isEditing ? (
-                        <Checkbox
-                          checked={enabled}
-                          onCheckedChange={() => onToggle(module, action)}
-                          className="mx-auto data-[state=checked]:bg-[#4080f0] data-[state=checked]:border-[#4080f0]"
-                        />
-                      ) : (
-                        <span
-                          className={cn(
-                            "inline-flex items-center justify-center w-5 h-5 rounded-full mx-auto text-xs font-bold",
-                            enabled
-                              ? "text-[#1a8a4a] bg-[#e6f7ee]"
-                              : "text-[#d1d5db] bg-[#f5f5f5]"
-                          )}
-                        >
-                          {enabled ? "✓" : "✗"}
-                        </span>
-                      )}
-                    </td>
-                  );
-                })}
-                {isEditing && (
-                  <td className="px-4 py-3 text-center">
-                    <Checkbox
-                      checked={allEnabled(module)}
-                      onCheckedChange={() => toggleAll(module)}
-                      className="mx-auto data-[state=checked]:bg-[#4080f0] data-[state=checked]:border-[#4080f0]"
-                    />
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -501,266 +507,216 @@ function TeamAccessTab({
   isEditing: boolean;
   onChange: (partial: Partial<CRMUser>) => void;
 }) {
-  const currentTeamData = teams.find((t) => t.name === user.team);
-  const managerData = allUsers.find((u) => u.name === user.manager);
   const otherUsers = allUsers.filter((u) => u.id !== user.id);
-  const productAccess = userProductAccess.find((item) => item.userId === user.id);
   const usersByName = new Map(allUsers.map((item) => [item.name, item]));
+  const reportsByManager = new Map<string, CRMUser[]>();
 
-  const managerChain: CRMUser[] = [];
-  let cursor = managerData;
-  while (cursor) {
-    managerChain.unshift(cursor);
-    if (!cursor.manager || cursor.manager === "—") break;
-    const nextManager = usersByName.get(cursor.manager);
-    if (!nextManager || managerChain.some((item) => item.id === nextManager.id)) {
-      break;
+  allUsers.forEach((person) => {
+    if (!person.manager || person.manager === "—") return;
+    const list = reportsByManager.get(person.manager) ?? [];
+    list.push(person);
+    reportsByManager.set(person.manager, list);
+  });
+
+  const getDirectReports = (name: string) => reportsByManager.get(name) ?? [];
+
+  const findTopLeader = (person: CRMUser) => {
+    const seen = new Set<string>();
+    let cursor: CRMUser | undefined = person;
+
+    while (cursor?.manager && cursor.manager !== "—") {
+      if (seen.has(cursor.id)) break;
+      seen.add(cursor.id);
+
+      const nextManager = usersByName.get(cursor.manager);
+      if (!nextManager) break;
+      cursor = nextManager;
     }
-    cursor = nextManager;
-  }
 
-  const collectReports = (parentName: string, depth: number): CRMUser[] => {
-    if (depth > 3) return [];
-    const direct = allUsers.filter((item) => item.manager === parentName);
-    return direct.flatMap((report) => [
-      report,
-      ...collectReports(report.name, depth + 1),
-    ]);
+    return cursor ?? person;
   };
 
-  const directReports = allUsers.filter((item) => item.manager === user.name);
-  const reportTree = collectReports(user.name, 1);
-  const rolePath = [...managerChain.map((item) => item.role), user.role].join(" -> ");
-  const upwardChain = [...managerChain].reverse();
+  const topLeader = findTopLeader(user);
+  const isExecutiveView = topLeader.id === user.id;
+  const managerData = usersByName.get(user.manager);
+  const rootNode = isExecutiveView ? topLeader : user;
+  const firstLevelManagers = getDirectReports(rootNode.name);
+  const upstreamNodes: CRMUser[] = [];
+
+  if (!isExecutiveView && managerData && managerData.id !== topLeader.id) {
+    upstreamNodes.push(topLeader);
+  }
+  if (!isExecutiveView && managerData) {
+    upstreamNodes.push(managerData);
+  }
+
+  const chainNodes = [...upstreamNodes, rootNode];
+
+  const BranchTree = ({
+    parent,
+    depth = 0,
+  }: {
+    parent: CRMUser;
+    depth?: number;
+  }) => {
+    if (depth > 2) return null;
+    const reports = getDirectReports(parent.name);
+    if (!reports.length) return null;
+
+    return (
+      <div className="mt-3 space-y-2.5">
+        {reports.map((report) => (
+          <div key={report.id} className="relative pl-5">
+            <span className="absolute left-2 top-0 h-full w-px bg-[#d8deeb]" />
+            <span className="absolute left-2 top-5 h-px w-3 bg-[#d8deeb]" />
+            <CondensedPersonCard
+              user={report}
+              isFocus={report.id === user.id}
+              reportCount={getDirectReports(report.name).length}
+            />
+            <BranchTree parent={report} depth={depth + 1} />
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div className="w-full">
-      <h3 className="font-medium text-[#1c1e21] mb-1">Reporting Structure & Assignment</h3>
-      <p className="text-xs text-[#9ca3af] mb-3">
-        One unified view of hierarchy, team assignment, manager assignment, and product access.
-      </p>
-      <div className="rounded-xl border border-[#dbeafe] bg-white p-6 space-y-5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
-        <div className="rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-4 py-3">
-          <p className="text-[11px] uppercase tracking-wide text-[#6b7280]">Reporting path</p>
-          <p className="text-sm font-medium text-[#1c1e21]">{rolePath}</p>
-          <p className="text-xs text-[#6b7280] mt-0.5">
-            {managerData
-              ? `${user.name} reports to ${managerData.name} (${managerData.role})`
-              : `${user.name} has no assigned manager`}
-          </p>
-        </div>
-
-        {isEditing ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">Team</Label>
-              <Select value={user.team} onValueChange={(v) => onChange({ team: v })}>
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue placeholder="Select team" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="—">No Team</SelectItem>
-                  {teams.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>
-                      {t.name} — {t.department}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">Reports To</Label>
-              <Select value={user.manager} onValueChange={(v) => onChange({ manager: v })}>
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue placeholder="Select manager" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="—">None</SelectItem>
-                  {otherUsers.map((u) => (
-                    <SelectItem key={u.id} value={u.name}>
-                      {u.name} <span className="text-[#9ca3af]">· {u.role}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+    <div className="w-full space-y-4">
+      {isEditing ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[#6b7280]">Team</Label>
+            <Select value={user.team} onValueChange={(v) => onChange({ team: v })}>
+              <SelectTrigger className="h-9 border-[#e5e7eb]">
+                <SelectValue placeholder="Select team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="—">No Team</SelectItem>
+                {teams.map((t) => (
+                  <SelectItem key={t.id} value={t.name}>
+                    {t.name} — {t.department}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ) : null}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-[#6b7280]">Reports To</Label>
+            <Select value={user.manager} onValueChange={(v) => onChange({ manager: v })}>
+              <SelectTrigger className="h-9 border-[#e5e7eb]">
+                <SelectValue placeholder="Select manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="—">None</SelectItem>
+                {otherUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.name}>
+                    {u.name} <span className="text-[#9ca3af]">· {u.role}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      ) : null}
 
-        <div className="w-full pb-2">
-          <div className="w-full rounded-lg border border-[#dbeafe] bg-[#f8fbff] px-4 py-5">
-            <div className="flex items-center w-full flex-wrap gap-y-3">
-              <MiniPersonCard
-                user={user}
-                accent="bg-[#eef2fd]"
-                active
-                relation="Reporting user"
-              />
+      <div className="rounded-xl border border-[#dfe4ee] bg-white p-4 sm:p-5">
+        <div className="overflow-x-auto">
+          <div className="min-w-[900px]">
+            {chainNodes.map((node, idx) => {
+              const isLastInChain = idx === chainNodes.length - 1;
+              const shouldDrawConnector = !isLastInChain || firstLevelManagers.length > 0;
 
-              {upwardChain.length > 0 && <RelationConnector label="reports to" />}
-
-              {upwardChain.map((manager, index) => (
-                <div key={manager.id} className="flex items-center">
-                  <MiniPersonCard
-                    user={manager}
-                    accent="bg-[#dbeafe]"
-                    relation={
-                      index === 0 ? "Direct manager" : "Upward chain"
-                    }
+              return (
+                <div
+                  key={`${node.id}-${idx}`}
+                  className="flex flex-col items-center pb-2"
+                >
+                  <CondensedPersonCard
+                    user={node}
+                    isFocus={node.id === rootNode.id}
+                    reportCount={getDirectReports(node.name).length}
+                    elevated={node.id === rootNode.id}
                   />
-                  {index < upwardChain.length - 1 ? (
-                    <RelationConnector label="reports to" />
+                  {shouldDrawConnector ? (
+                    <span className="mt-1 h-7 w-px bg-[#d8deeb]" />
                   ) : null}
                 </div>
-              ))}
+              );
+            })}
 
-              {directReports.length > 0 ? (
-                <>
-                  <RelationConnector label="manages" />
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {directReports.map((report, index) => (
-                      <div key={report.id} className="flex items-center">
-                        <MiniPersonCard
-                          user={report}
-                          accent="bg-[#f3f4f6]"
-                          relation={`Reports to ${user.name}`}
-                        />
-                        {index < directReports.length - 1 ? (
-                          <RelationConnector label="and" subtle />
-                        ) : null}
+            {firstLevelManagers.length > 0 ? (
+              <div className="relative pt-8">
+                <div className="relative mx-auto w-max">
+                  <span className="absolute left-[110px] right-[110px] top-0 h-px bg-[#d8deeb]" />
+                  <div className="flex w-max items-start gap-5">
+                    {firstLevelManagers.map((manager) => (
+                      <div key={manager.id} className="relative w-[220px] pt-6">
+                        <span className="absolute left-1/2 top-0 h-6 w-px -translate-x-1/2 bg-[#d8deeb]" />
+                        <div className="mb-3 flex justify-center">
+                          <CondensedPersonCard
+                            user={manager}
+                            isFocus={manager.id === user.id}
+                            reportCount={getDirectReports(manager.name).length}
+                          />
+                        </div>
+                        <BranchTree parent={manager} />
                       </div>
                     ))}
                   </div>
-                </>
-              ) : (
-                <div className="ml-4 rounded-md border border-dashed border-[#bfdbfe] bg-white px-4 py-3 text-sm text-[#6b7280]">
-                  No direct reports
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed border-[#d7deeb] bg-[#fafbff] p-4 text-sm text-[#6b7280]">
+                No reporting hierarchy available for this user yet.
+              </div>
+            )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
-          <div className="rounded-lg border border-[#e0e7ff] bg-[#f8faff] p-4 text-[#6b7280]">
-            <p className="text-[11px] uppercase tracking-wide mb-1">Assignment</p>
-            <p>
-              Team:{" "}
-              <span className="font-medium text-[#1c1e21]">
-                {currentTeamData ? currentTeamData.name : "Not assigned"}
-              </span>
-            </p>
-            <p className="mt-1">
-              Reports to:{" "}
-              <span className="font-medium text-[#1c1e21]">
-                {managerData ? managerData.name : "None"}
-              </span>
-            </p>
-          </div>
-          <div className="rounded-lg border border-[#e0e7ff] bg-[#f8faff] p-4 text-[#6b7280]">
-            <p className="text-[11px] uppercase tracking-wide mb-1">Access</p>
-            <p>
-              Products:{" "}
-              <span className="font-medium text-[#1c1e21]">
-                {(productAccess?.products ?? ["CRM"]).join(", ")}
-              </span>
-            </p>
-            <p className="mt-1">
-              Role map:{" "}
-              <span className="font-medium text-[#1c1e21]">
-                {(productAccess?.productRoles ?? [{ product: "CRM", role: user.role }])
-                  .map((item) => `${item.product}:${item.role}`)
-                  .join(" | ")}
-              </span>
-            </p>
-          </div>
-        </div>
-
-        <div className="border-t border-[#dbeafe] pt-4 grid grid-cols-1 gap-2 text-xs text-[#6b7280] sm:grid-cols-3">
-          <p>
-            <span className="font-medium text-[#1c1e21]">Manager chain:</span> {managerChain.length}
-          </p>
-          <p>
-            <span className="font-medium text-[#1c1e21]">Direct reports:</span> {directReports.length}
-          </p>
-          <p>
-            <span className="font-medium text-[#1c1e21]">Total below:</span> {reportTree.length}
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function MiniPersonCard({
+function CondensedPersonCard({
   user,
-  accent,
-  active = false,
-  relation,
+  isFocus = false,
+  elevated = false,
+  reportCount = 0,
 }: {
   user: CRMUser;
-  accent: string;
-  active?: boolean;
-  relation?: string;
+  isFocus?: boolean;
+  elevated?: boolean;
+  reportCount?: number;
 }) {
   return (
     <div
       className={cn(
-        "min-w-[260px] rounded-xl border px-4 py-3 transition-colors shadow-sm",
-        active
-          ? "border-[#60a5fa] bg-[#f0f7ff] shadow-[0_0_0_2px_rgba(96,165,250,0.15)]"
-          : "border-[#dbeafe] bg-white"
+        "w-full max-w-[220px] rounded-lg border bg-white px-3 py-2 shadow-sm",
+        isFocus ? "border-[#6b93ef] ring-2 ring-[#dfe9ff]" : "border-[#e5e7eb]",
+        elevated && "border-[#cad8fb]"
       )}
     >
       <div className="flex items-center gap-2">
-        <Avatar className="h-9 w-9">
+        <Avatar className="h-7 w-7">
           <AvatarFallback
-            className={`${getAvatarColor(user.name)} text-white text-xs font-semibold`}
+            className={`${getAvatarColor(user.name)} text-white text-[10px] font-semibold`}
           >
             {getInitials(user.name)}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#1c1e21]">{user.name}</p>
-          <p className="truncate text-xs text-[#6b7280]">{user.role}</p>
+          <p className="truncate text-xs font-semibold text-[#1f2937]">{user.name}</p>
+          <p className="truncate text-[11px] text-[#6b7280]">{user.role}</p>
         </div>
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs">
-        <span className={`rounded-md px-2 py-1 font-medium ${accent} text-[#334155]`}>
-          {user.team}
+      <div className="mt-2 flex items-center justify-between text-[11px] text-[#64748b]">
+        <span className="truncate">{user.team}</span>
+        <span className="inline-flex items-center gap-1 rounded-md border border-[#e5e7eb] px-1.5 py-0.5">
+          <Users size={10} />
+          {reportCount}
         </span>
-        <span className="text-[#64748b]">{user.branch}</span>
       </div>
-      {relation ? (
-        <p className="mt-2 text-xs font-medium text-[#2563eb]">{relation}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function RelationConnector({
-  label,
-  subtle = false,
-}: {
-  label: string;
-  subtle?: boolean;
-}) {
-  return (
-    <div className="mx-2 flex flex-col items-center w-[72px] flex-shrink-0">
-      <div
-        className={cn(
-          "h-[3px] w-full rounded-full",
-          subtle ? "bg-[#bfdbfe]" : "bg-[#60a5fa]"
-        )}
-      />
-      <span
-        className={cn(
-          "mt-1 text-[11px] font-semibold",
-          subtle ? "text-[#64748b]" : "text-[#2563eb]"
-        )}
-      >
-        {label}
-      </span>
     </div>
   );
 }
@@ -825,10 +781,30 @@ export function UserDetailView({
     setPermissions(getRolePermissions(editData.role));
   };
 
-  const tabConfig: { id: DetailTab; label: string; icon: React.ReactNode }[] = [
-    { id: "profile", label: "Profile", icon: <User size={13} /> },
-    { id: "permissions", label: "Permissions", icon: <Key size={13} /> },
-    { id: "team", label: "Team & Access", icon: <Users size={13} /> },
+  const tabConfig: {
+    id: DetailTab;
+    label: string;
+    icon: React.ReactNode;
+    hint: string;
+  }[] = [
+    {
+      id: "profile",
+      label: "Profile",
+      icon: <User size={13} />,
+      hint: "Identity and org details",
+    },
+    {
+      id: "permissions",
+      label: "Permissions",
+      icon: <Key size={13} />,
+      hint: "Module access matrix",
+    },
+    {
+      id: "team",
+      label: "Team & Access",
+      icon: <Users size={13} />,
+      hint: "Reporting and assignment",
+    },
   ];
 
   return (
@@ -892,28 +868,7 @@ export function UserDetailView({
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <h2 className="font-semibold text-[#1c1e21]">{user.name}</h2>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                  roleColors[user.role] || ""
-                }`}
-              >
-                {user.role}
-              </span>
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                  statusConfig[user.status].className
-                }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${
-                    statusConfig[user.status].dot
-                  }`}
-                />
-                {user.status}
-              </span>
-            </div>
+            <h2 className="font-semibold text-[#1c1e21] mb-1.5">{user.name}</h2>
             <div className="flex items-center gap-4 text-xs text-[#9ca3af] flex-wrap">
               <span className="flex items-center gap-1">
                 <Mail size={11} />
@@ -924,8 +879,8 @@ export function UserDetailView({
                 {user.phone}
               </span>
               <span className="flex items-center gap-1">
-                <Building2 size={11} />
-                {user.department}
+                <Users size={11} />
+                {user.team}
               </span>
               <span className="flex items-center gap-1">
                 <MapPin size={11} />
@@ -935,60 +890,77 @@ export function UserDetailView({
           </div>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex items-center gap-1 mt-1">
-          {tabConfig.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                activeTab === tab.id
-                  ? "border-[#4080f0] text-[#4080f0]"
-                  : "border-transparent text-[#6b7280] hover:text-[#1c1e21]"
-              )}
-            >
-              <span
-                className={
-                  activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"
-                }
-              >
-                {tab.icon}
-              </span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* ── Tab Content ─────────────────────────────────────────────────── */}
+      {/* ── Section Switcher + Content ───────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-6 bg-[#f8f9fb]">
-        {activeTab === "profile" && (
-          <ProfileTab
-            user={editData}
-            isEditing={isEditing}
-            allUsers={users}
-            onChange={handleChange}
-            onRoleChange={handleRoleChange}
-          />
-        )}
-        {activeTab === "permissions" && (
-          <PermissionsTab
-            permissions={permissions}
-            role={editData.role}
-            isEditing={isEditing}
-            onToggle={togglePermission}
-            onReset={resetToRoleDefaults}
-          />
-        )}
-        {activeTab === "team" && (
-          <TeamAccessTab
-            user={editData}
-            allUsers={users}
-            isEditing={isEditing}
-            onChange={handleChange}
-          />
-        )}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <aside className="w-full lg:w-[260px] lg:min-w-[260px]">
+            <div className="flex flex-col gap-2">
+              {tabConfig.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "rounded-lg border px-3 py-2 text-left transition-colors",
+                    activeTab === tab.id
+                      ? "border-[#bfd0fb] bg-[#eef3ff]"
+                      : "border-[#e5e7eb] bg-white hover:border-[#cfd7e6]"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={
+                        activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"
+                      }
+                    >
+                      {tab.icon}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm font-medium",
+                        activeTab === tab.id ? "text-[#245fcb]" : "text-[#1f2937]"
+                      )}
+                    >
+                      {tab.label}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-[#9ca3af]">{tab.hint}</p>
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          <div className="min-w-0 flex-1">
+            {activeTab === "profile" && (
+              <ProfileTab
+                user={editData}
+                isEditing={isEditing}
+                allUsers={users}
+                onChange={handleChange}
+                onRoleChange={handleRoleChange}
+              />
+            )}
+            {activeTab === "permissions" && (
+              <PermissionsTab
+                permissions={permissions}
+                role={editData.role}
+                isEditing={isEditing}
+                onToggle={togglePermission}
+                onReset={resetToRoleDefaults}
+              />
+            )}
+            {activeTab === "team" && (
+              <TeamAccessTab
+                user={editData}
+                allUsers={users}
+                isEditing={isEditing}
+                onChange={handleChange}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

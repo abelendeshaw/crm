@@ -5,64 +5,42 @@ import {
   Users,
   Shield,
   UsersRound,
-  Layers,
-  ChevronRight,
 } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
 import { TeamsTab } from "@/components/user-management/TeamsTab";
-import { DepartmentsTab } from "@/components/user-management/DepartmentsTab";
 import { cn } from "@/lib/utils";
 
-type Tab = "users" | "roles" | "teams" | "departments";
+type Tab = "users" | "roles" | "teams";
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode; description: string }[] = [
+const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
     id: "users",
     label: "Users",
     icon: <Users size={15} />,
-    description: "Manage CRM user accounts and access",
   },
   {
     id: "roles",
     label: "Roles & Permissions",
     icon: <Shield size={15} />,
-    description: "Define roles and control module access",
   },
   {
     id: "teams",
     label: "Teams",
     icon: <UsersRound size={15} />,
-    description: "Organize users into collaborative teams",
-  },
-  {
-    id: "departments",
-    label: "Departments",
-    icon: <Layers size={15} />,
-    description: "Structure your organization by department",
   },
 ];
 
 export function UserManagementPage() {
   const [activeTab, setActiveTab] = useState<Tab>("users");
 
-  const active = tabs.find((t) => t.id === activeTab)!;
-
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Page Header */}
       <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
-        <div className="flex items-center gap-1.5 text-xs text-[#9ca3af] mb-1">
-          <span>Settings</span>
-          <ChevronRight size={12} />
-          <span className="text-[#4080f0] font-medium">User Management</span>
-        </div>
         <div className="flex items-start justify-between">
           <div>
             <h1 className="font-semibold text-[#1c1e21]">User Management</h1>
-            <p className="text-sm text-[#9ca3af] mt-0.5">
-              {active.description}
-            </p>
           </div>
         </div>
 
@@ -93,7 +71,6 @@ export function UserManagementPage() {
         {activeTab === "users" && <UsersTab />}
         {activeTab === "roles" && <RolesTab />}
         {activeTab === "teams" && <TeamsTab />}
-        {activeTab === "departments" && <DepartmentsTab />}
       </div>
     </div>
   );

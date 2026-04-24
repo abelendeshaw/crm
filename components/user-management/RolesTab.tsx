@@ -156,9 +156,16 @@ function RoleTabButton({
   onDelete: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className={`group min-w-[210px] rounded-lg border px-3 py-2 text-left transition-all ${
         isSelected
           ? "border-[#4080f0] bg-[#f8fbff] shadow-sm"
@@ -221,7 +228,7 @@ function RoleTabButton({
           className={isSelected ? "text-[#4080f0]" : "text-[#d1d5db] group-hover:text-[#9ca3af]"}
         />
       </div>
-    </button>
+    </div>
   );
 }
 

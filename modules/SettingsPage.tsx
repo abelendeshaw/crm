@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Settings,
-  Users,
   Plug,
   Bell,
   Lock,
@@ -12,12 +11,11 @@ import {
   Database,
   ChevronRight,
 } from "lucide-react";
-import { UserManagementPage } from "@/modules/UserManagementPage";
+import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 type SettingSection =
   | "general"
-  | "user-management"
   | "integrations"
   | "notifications"
   | "security"
@@ -36,12 +34,6 @@ const settingsNav: {
     label: "General",
     icon: <Settings size={15} />,
     description: "Basic CRM configuration",
-  },
-  {
-    id: "user-management",
-    label: "User Management",
-    icon: <Users size={15} />,
-    description: "Users, roles, teams & branches",
   },
   {
     id: "integrations",
@@ -81,6 +73,16 @@ const settingsNav: {
   },
 ];
 
+const settingSectionIds: SettingSection[] = [
+  "general",
+  "integrations",
+  "notifications",
+  "security",
+  "appearance",
+  "localization",
+  "data",
+];
+
 function PlaceholderSection({ section }: { section: SettingSection }) {
   const item = settingsNav.find((s) => s.id === section);
   return (
@@ -110,9 +112,19 @@ function PlaceholderSection({ section }: { section: SettingSection }) {
 }
 
 export function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingSection>(
-    "user-management"
-  );
+  const searchParams = useSearchParams();
+  const sectionParam = searchParams.get("section");
+  const selectedSection: SettingSection = settingSectionIds.includes(
+    sectionParam as SettingSection
+  )
+    ? (sectionParam as SettingSection)
+    : "general";
+  const [activeSection, setActiveSection] =
+    useState<SettingSection>(selectedSection);
+
+  useEffect(() => {
+    setActiveSection(selectedSection);
+  }, [selectedSection]);
 
   return (
     <div className="flex h-full overflow-hidden flex-col lg:flex-row">
@@ -155,11 +167,7 @@ export function SettingsPage() {
 
       {/* Settings Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {activeSection === "user-management" ? (
-          <UserManagementPage />
-        ) : (
-          <PlaceholderSection section={activeSection} />
-        )}
+        <PlaceholderSection section={activeSection} />
       </div>
     </div>
   );

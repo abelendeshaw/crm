@@ -10,6 +10,7 @@ import {
   Activity,
   BarChart2,
   Settings,
+  UserCog,
   ChevronDown,
   ChevronRight,
   Grid3x3,
@@ -40,8 +41,27 @@ const navItems: NavItem[] = [
   { label: "Deals", icon: <Handshake size={18} />, path: "/deals" },
   { label: "Activity", icon: <Activity size={18} />, path: "/activity" },
   { label: "Report", icon: <BarChart2 size={18} />, path: "/report" },
-  { label: "Settings", icon: <Settings size={18} />, path: "/settings" },
+  {
+    label: "Settings",
+    icon: <Settings size={18} />,
+    path: "/settings",
+    children: [
+      { label: "General", path: "/settings?section=general" },
+      { label: "Integrations", path: "/settings?section=integrations" },
+      { label: "Notifications", path: "/settings?section=notifications" },
+      { label: "Security", path: "/settings?section=security" },
+      { label: "Appearance", path: "/settings?section=appearance" },
+      { label: "Localization", path: "/settings?section=localization" },
+      { label: "Data & Backup", path: "/settings?section=data" },
+    ],
+  },
 ];
+
+const userManagementNav: NavItem = {
+  label: "User Management",
+  icon: <UserCog size={18} />,
+  path: "/user-management",
+};
 
 interface CRMLayoutProps {
   children: React.ReactNode;
@@ -49,7 +69,7 @@ interface CRMLayoutProps {
 
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState<string[]>(["Leads"]);
+  const [expanded, setExpanded] = useState<string[]>(["Leads", "Settings"]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const toggleExpand = (label: string) => {
@@ -65,7 +85,10 @@ export function CRMLayout({ children }: CRMLayoutProps) {
   };
 
   const isChildActive = (children?: { label: string; path: string }[]) => {
-    return children?.some((c) => pathname.startsWith(c.path));
+    return children?.some((c) => {
+      const [childPath] = c.path.split("?");
+      return pathname.startsWith(childPath);
+    });
   };
 
   return (
@@ -150,7 +173,8 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                 {item.children && isExpanded && (
                   <div className="ml-[34px] border-l border-[#e5e7eb] pl-3 py-1">
                     {item.children.map((child) => {
-                      const childActive = pathname === child.path;
+                      const [childPath] = child.path.split("?");
+                      const childActive = pathname === childPath;
                       return (
                         <Link
                           key={child.path}
@@ -173,6 +197,36 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             );
           })}
         </nav>
+
+        <div className="border-t border-[#e5e7eb] p-3">
+          <Link
+            href={userManagementNav.path ?? "/user-management"}
+            onClick={() => setMobileNavOpen(false)}
+            className={cn(
+              "flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors",
+              isActive(userManagementNav.path)
+                ? "border-[#bfd0fb] bg-[#eef2fd] text-[#245fcb]"
+                : "border-[#e5e7eb] bg-[#fafbff] text-[#4b5563] hover:bg-[#f3f6ff]"
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-md",
+                isActive(userManagementNav.path)
+                  ? "bg-[#dfe9ff] text-[#3b78e7]"
+                  : "bg-white text-[#6b7280]"
+              )}
+            >
+              {userManagementNav.icon}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium leading-tight">
+                {userManagementNav.label}
+              </p>
+              <p className="text-xs text-[#9ca3af]">Users, roles, teams</p>
+            </div>
+          </Link>
+        </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f5f6fa]">

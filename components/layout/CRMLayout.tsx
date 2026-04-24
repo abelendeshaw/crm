@@ -69,7 +69,7 @@ interface CRMLayoutProps {
 
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
-  const [expanded, setExpanded] = useState<string[]>(["Leads", "Settings"]);
+  const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const toggleExpand = (label: string) => {

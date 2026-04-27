@@ -4,7 +4,10 @@ import { useState } from "react";
 import {
   Search,
   MoreHorizontal,
-  Shield,
+  Users,
+  UserCheck,
+  Clock3,
+  Plane,
   ChevronLeft,
   ChevronRight,
   UserPlus,
@@ -51,25 +54,24 @@ import {
 import { UserDetailView } from "./UserDetailView";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const statusConfig: Record<UserStatus, { label: string; className: string }> =
-  {
-    Active: {
-      label: "Active",
-      className: "bg-[#e6f7ee] text-[#1a8a4a] border border-[#a3d9b8]",
-    },
-    Inactive: {
-      label: "Inactive",
-      className: "bg-[#f5f5f5] text-[#6b7280] border border-[#d1d5db]",
-    },
-    Pending: {
-      label: "Pending",
-      className: "bg-[#fff8e6] text-[#b07d00] border border-[#fcd34d]",
-    },
-    Suspended: {
-      label: "Suspended",
-      className: "bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]",
-    },
-  };
+const statusConfig: Record<UserStatus, { label: string; className: string }> = {
+  Active: {
+    label: "Active",
+    className: "bg-[#e6f7ee] text-[#1a8a4a] border border-[#a3d9b8]",
+  },
+  Inactive: {
+    label: "Inactive",
+    className: "bg-[#f5f5f5] text-[#6b7280] border border-[#d1d5db]",
+  },
+  Pending: {
+    label: "Pending",
+    className: "bg-[#fff8e6] text-[#b07d00] border border-[#fcd34d]",
+  },
+  Suspended: {
+    label: "Suspended",
+    className: "bg-[#fef2f2] text-[#dc2626] border border-[#fca5a5]",
+  },
+};
 
 const roleColors: Record<string, string> = {
   "Super Admin": "bg-[#eef2fd] text-[#4080f0] border border-[#bfcffa]",
@@ -193,7 +195,7 @@ export function UsersTab() {
 
   const toggleSelect = (id: string) => {
     setSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
@@ -204,7 +206,7 @@ export function UsersTab() {
 
   const handleInvite = () => {
     const candidate = KNOWN_INVITE_CANDIDATES.find(
-      (item) => item.id === inviteForm.candidateId
+      (item) => item.id === inviteForm.candidateId,
     );
     if (!candidate) return;
 
@@ -232,19 +234,19 @@ export function UsersTab() {
   };
 
   const getAssignedProducts = (userId: string) =>
-    userProductAccess.find((item) => item.userId === userId)?.products ?? ["CRM"];
+    userProductAccess.find((item) => item.userId === userId)?.products ?? [
+      "CRM",
+    ];
   const existingEmails = new Set(users.map((user) => user.email.toLowerCase()));
   const inviteCandidates = KNOWN_INVITE_CANDIDATES.filter(
-    (candidate) => !existingEmails.has(candidate.email.toLowerCase())
+    (candidate) => !existingEmails.has(candidate.email.toLowerCase()),
   );
   const selectedCandidate = inviteCandidates.find(
-    (candidate) => candidate.id === inviteForm.candidateId
+    (candidate) => candidate.id === inviteForm.candidateId,
   );
 
   const handleStatusChange = (id: string, status: UserStatus) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, status } : u))
-    );
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status } : u)));
   };
 
   const handleDelete = (id: string) => {
@@ -253,9 +255,7 @@ export function UsersTab() {
   };
 
   const handleUserUpdate = (updated: CRMUser) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === updated.id ? updated : u))
-    );
+    setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     setDetailUser(updated);
   };
 
@@ -398,41 +398,45 @@ export function UsersTab() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-4 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           {
             label: "Total Users",
             value: users.length,
             color: "text-[#4080f0]",
             bg: "bg-[#eef2fd]",
+            icon: Users,
           },
           {
             label: "Active",
             value: users.filter((u) => u.status === "Active").length,
             color: "text-[#1a8a4a]",
             bg: "bg-[#e6f7ee]",
+            icon: UserCheck,
           },
           {
             label: "Pending",
             value: users.filter((u) => u.status === "Pending").length,
             color: "text-[#b07d00]",
             bg: "bg-[#fff8e6]",
+            icon: Clock3,
           },
           {
             label: "Inactive / Suspended",
             value: users.filter(
-              (u) => u.status === "Inactive" || u.status === "Suspended"
+              (u) => u.status === "Inactive" || u.status === "Suspended",
             ).length,
             color: "text-[#dc2626]",
             bg: "bg-[#fef2f2]",
+            icon: Plane,
           },
         ].map((stat) => (
           <div
             key={stat.label}
-            className="bg-white rounded-lg border border-[#e5e7eb] px-4 py-3 flex items-center gap-3"
+            className="bg-white rounded-lg border border-[#e5e7eb] px-4 py-4 flex items-center gap-4"
           >
             <div className={`${stat.bg} rounded-md p-2`}>
-              <Shield size={16} className={stat.color} />
+              <stat.icon size={16} className={stat.color} />
             </div>
             <div>
               <p className="text-xs text-[#6b7280]">{stat.label}</p>
@@ -644,9 +648,7 @@ export function UsersTab() {
                 variant={p === page ? "default" : "ghost"}
                 size="icon"
                 className={`h-7 w-7 text-xs ${
-                  p === page
-                    ? "bg-[#4080f0] hover:bg-[#3070e0] text-white"
-                    : ""
+                  p === page ? "bg-[#4080f0] hover:bg-[#3070e0] text-white" : ""
                 }`}
                 onClick={() => setPage(p)}
               >
@@ -730,7 +732,9 @@ export function UsersTab() {
                   <p>Phone: {selectedCandidate.phone}</p>
                   <p>Department: {selectedCandidate.department}</p>
                   <p>Branch: {selectedCandidate.branch}</p>
-                  <p className="sm:col-span-2">Manager: {selectedCandidate.manager}</p>
+                  <p className="sm:col-span-2">
+                    Manager: {selectedCandidate.manager}
+                  </p>
                 </div>
               ) : (
                 <p className="text-sm text-[#9ca3af]">
@@ -739,7 +743,9 @@ export function UsersTab() {
               )}
             </div>
             <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">Approval Responsibility</Label>
+              <Label className="text-xs text-[#6b7280]">
+                Approval Responsibility
+              </Label>
               <Select
                 value={inviteForm.approvalResponsibility}
                 onValueChange={(v) =>
@@ -758,7 +764,8 @@ export function UsersTab() {
             </div>
           </div>
           <p className="text-xs text-[#9ca3af] mt-1">
-            Invitation uses selected known profile details to avoid unknown/incorrect user information.
+            Invitation uses selected known profile details to avoid
+            unknown/incorrect user information.
           </p>
           <DialogFooter className="mt-2">
             <Button
@@ -783,5 +790,3 @@ export function UsersTab() {
     </div>
   );
 }
-
-

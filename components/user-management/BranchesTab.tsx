@@ -193,7 +193,7 @@ export function BranchesTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap- mb-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
           { label: "Total Branches", value: branches.length, color: "text-[#4080f0]", bg: "bg-[#eef2fd]" },
           { label: "Active", value: branches.filter((b) => b.status === "Active").length, color: "text-[#1a8a4a]", bg: "bg-[#e6f7ee]" },

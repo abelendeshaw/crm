@@ -1086,41 +1086,6 @@ export function TeamsTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-3 mb-4 sm:grid-cols-2 xl:grid-cols-3">
-        {[
-          {
-            label: "Total Teams",
-            value: teams.length,
-            color: "text-[#4080f0]",
-            bg: "bg-[#eef2fd]",
-          },
-          {
-            label: "Total Members",
-            value: teams.reduce((a, t) => a + t.membersCount, 0),
-            color: "text-[#1a8a4a]",
-            bg: "bg-[#e6f7ee]",
-          },
-          {
-            label: "Departments",
-            value: [...new Set(teams.map((t) => t.department))].length,
-            color: "text-[#b07d00]",
-            bg: "bg-[#fff8e6]",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white rounded-lg border border-[#e5e7eb] px-4 py-3 flex items-center gap-3"
-          >
-            <div className={`${s.bg} rounded-md p-2`}>
-              <Users size={16} className={s.color} />
-            </div>
-            <div>
-              <p className="text-xs text-[#6b7280]">{s.label}</p>
-              <p className={`font-semibold text-lg ${s.color}`}>{s.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">

@@ -122,10 +122,10 @@ function TeamCard({
 }) {
   return (
     <div
-      className="bg-white rounded-lg border border-[#e5e7eb] p-4 hover:border-[#bfcffa] hover:shadow-sm transition-all cursor-pointer"
+      className="self-start bg-white rounded-lg border border-[#e5e7eb] p-3.5 hover:border-[#bfcffa] hover:shadow-sm transition-all cursor-pointer"
       onClick={onView}
     >
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-2.5">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h4 className="font-semibold text-[#1c1e21] text-sm">
@@ -187,12 +187,12 @@ function TeamCard({
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-1.5 mb-3 text-xs text-[#6b7280]">
+      <div className="flex items-center gap-1.5 mb-2.5 text-xs text-[#6b7280]">
         <MapPin size={11} />
         <span>{team.branch}</span>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-2.5 mb-3">
         <div className="text-center">
           <p className="font-semibold text-[#1c1e21]">{team.membersCount}</p>
           <p className="text-xs text-[#9ca3af]">Members</p>
@@ -204,7 +204,7 @@ function TeamCard({
         </div>
       </div>
 
-      <div className="flex -space-x-2">
+      <div className="flex items-center -space-x-2">
         {team.members.slice(0, 5).map((member, idx) => (
           <Avatar key={idx} className="h-7 w-7 border-2 border-white">
             <AvatarFallback
@@ -1181,7 +1181,7 @@ export function TeamsTab() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 gap-4 overflow-y-auto flex-1 pb-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 overflow-y-auto flex-1 pb-2 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((team) => (
           <TeamCard
             key={team.id}

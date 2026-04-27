@@ -235,10 +235,12 @@ function RoleTabButton({
 function PermissionsMatrix({
   permissions,
   onChange,
+  onToggleModule,
   readOnly = false,
 }: {
   permissions: Record<string, Record<string, boolean>>;
   onChange?: (mod: string, action: string, val: boolean) => void;
+  onToggleModule?: (mod: string, val: boolean) => void;
   readOnly?: boolean;
 }) {
   return (
@@ -266,7 +268,19 @@ function PermissionsMatrix({
               className="border-b border-[#f0f2f7] hover:bg-[#fafbff]"
             >
               <td className="px-4 py-2.5 font-medium text-[#1c1e21] text-sm">
-                {mod}
+                {!readOnly && onToggleModule ? (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={MODULE_ACTIONS.every(
+                        (action) => permissions[mod]?.[action] ?? false
+                      )}
+                      onCheckedChange={(v) => onToggleModule(mod, !!v)}
+                    />
+                    <span>{mod}</span>
+                  </div>
+                ) : (
+                  mod
+                )}
               </td>
               {MODULE_ACTIONS.map((action) => {
                 const checked = permissions[mod]?.[action] ?? false;
@@ -319,6 +333,26 @@ export function RolesTab() {
     description: "",
     permissions: emptyPermissions,
   });
+
+  const applyModulePermissions = (
+    permissions: Record<string, Record<string, boolean>>,
+    mod: string,
+    val: boolean
+  ) => ({
+    ...permissions,
+    [mod]: Object.fromEntries(MODULE_ACTIONS.map((action) => [action, val])),
+  });
+
+  const applyAllPermissions = (
+    permissions: Record<string, Record<string, boolean>>,
+    val: boolean
+  ) =>
+    Object.fromEntries(
+      CRM_MODULES.map((mod) => [
+        mod,
+        Object.fromEntries(MODULE_ACTIONS.map((action) => [action, val])),
+      ])
+    );
 
   const handleCreate = () => {
     const role: Role = {
@@ -432,7 +466,7 @@ export function RolesTab() {
 
       {/* Create Role Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-[700px]">
+        <DialogContent className="flex w-[800px] max-w-[95vw] flex-col sm:!max-w-[800px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
               <Shield size={18} className="text-[#4080f0]" />
@@ -465,12 +499,47 @@ export function RolesTab() {
               </div>
             </div>
             <div>
-              <Label className="text-xs text-[#6b7280] mb-2 block">
-                Permissions Matrix
-              </Label>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <Label className="text-xs text-[#6b7280]">
+                  Permissions Matrix
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-[11px] normal-case text-[#4080f0] hover:text-[#3070e0]"
+                  onClick={() =>
+                    setNewRole((f) => ({
+                      ...f,
+                      permissions: applyAllPermissions(
+                        f.permissions,
+                        !CRM_MODULES.every((mod) =>
+                          MODULE_ACTIONS.every(
+                            (action) => f.permissions[mod]?.[action] ?? false
+                          )
+                        )
+                      ),
+                    }))
+                  }
+                >
+                  {CRM_MODULES.every((mod) =>
+                    MODULE_ACTIONS.every(
+                      (action) => newRole.permissions[mod]?.[action] ?? false
+                    )
+                  )
+                    ? "Clear all"
+                    : "Select all"}
+                </Button>
+              </div>
               <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
                 <PermissionsMatrix
                   permissions={newRole.permissions}
+                  onToggleModule={(mod, val) =>
+                    setNewRole((f) => ({
+                      ...f,
+                      permissions: applyModulePermissions(f.permissions, mod, val),
+                    }))
+                  }
                   onChange={(mod, action, val) =>
                     setNewRole((f) => ({
                       ...f,
@@ -508,7 +577,7 @@ export function RolesTab() {
       {/* Edit Role Dialog */}
       {editRole && (
         <Dialog open={!!editRole} onOpenChange={() => setEditRole(null)}>
-          <DialogContent className="max-w-[700px]">
+          <DialogContent className="flex w-[800px] max-w-[95vw] flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
                 <Edit size={18} className="text-[#4080f0]" />

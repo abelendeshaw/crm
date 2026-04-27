@@ -243,7 +243,11 @@ function TeamDetailView({
   onBack: () => void;
   onUpdateTeam: (updated: Team) => void;
   onDeleteTeam: (id: string) => void;
-  onTransferMember: (memberName: string, fromTeamId: string, toTeamId: string) => void;
+  onTransferMember: (
+    memberName: string,
+    fromTeamId: string,
+    toTeamId: string,
+  ) => void;
 }) {
   const [showEditTeam, setShowEditTeam] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -277,13 +281,11 @@ function TeamDetailView({
         manager: "",
         joinedAt: "",
         lastActive: "",
-      }
+      },
   );
 
   // Users NOT in this team (available to add)
-  const availableUsers = allUsers.filter(
-    (u) => !team.members.includes(u.name)
-  );
+  const availableUsers = allUsers.filter((u) => !team.members.includes(u.name));
 
   // Other teams (for transfer)
   const otherTeams = allTeams.filter((t) => t.id !== team.id);
@@ -450,7 +452,7 @@ function TeamDetailView({
                 <span
                   className={cn(
                     "ml-auto inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                    statusColors[managerUser.status] || ""
+                    statusColors[managerUser.status] || "",
                   )}
                 >
                   {managerUser.status}
@@ -463,7 +465,9 @@ function TeamDetailView({
                 </div>
                 <div>
                   <p className="font-medium text-[#1c1e21]">
-                    {team.manager === "—" ? "No manager assigned" : team.manager}
+                    {team.manager === "—"
+                      ? "No manager assigned"
+                      : team.manager}
                   </p>
                   <p className="text-xs text-[#9ca3af]">
                     Click &quot;Change Manager&quot; to assign one
@@ -479,9 +483,7 @@ function TeamDetailView({
           <div className="flex items-center justify-between px-4 py-3 border-b border-[#f0f2f7]">
             <div className="flex items-center gap-2">
               <Users size={14} className="text-[#4080f0]" />
-              <h3 className="font-medium text-[#1c1e21] text-sm">
-                Members
-              </h3>
+              <h3 className="font-medium text-[#1c1e21] text-sm">Members</h3>
               <span className="text-xs bg-[#eef2fd] text-[#4080f0] px-1.5 py-0.5 rounded-full font-medium">
                 {team.membersCount}
               </span>
@@ -558,7 +560,7 @@ function TeamDetailView({
                       <span
                         className={cn(
                           "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                          statusColors[member.status] || ""
+                          statusColors[member.status] || "",
                         )}
                       >
                         {member.status}
@@ -722,10 +724,7 @@ function TeamDetailView({
             </p>
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6b7280]">Select Manager</Label>
-              <Select
-                value={newManagerName}
-                onValueChange={setNewManagerName}
-              >
+              <Select value={newManagerName} onValueChange={setNewManagerName}>
                 <SelectTrigger className="h-9 border-[#e5e7eb]">
                   <SelectValue placeholder="Choose a user" />
                 </SelectTrigger>
@@ -779,10 +778,7 @@ function TeamDetailView({
             </p>
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6b7280]">Select User</Label>
-              <Select
-                value={addMemberName}
-                onValueChange={setAddMemberName}
-              >
+              <Select value={addMemberName} onValueChange={setAddMemberName}>
                 <SelectTrigger className="h-9 border-[#e5e7eb]">
                   <SelectValue placeholder="Choose a user to add" />
                 </SelectTrigger>
@@ -927,8 +923,8 @@ function TeamDetailView({
                 <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
                 <span>
                   This team has {team.membersCount} member
-                  {team.membersCount > 1 ? "s" : ""}. They will no longer have
-                  a team assignment.
+                  {team.membersCount > 1 ? "s" : ""}. They will no longer have a
+                  team assignment.
                 </span>
               </div>
             )}
@@ -1001,7 +997,7 @@ export function TeamsTab() {
   const handleTransferMember = (
     memberName: string,
     fromTeamId: string,
-    toTeamId: string
+    toTeamId: string,
   ) => {
     setTeams((prev) =>
       prev.map((t) => {
@@ -1023,7 +1019,7 @@ export function TeamsTab() {
           };
         }
         return t;
-      })
+      }),
     );
   };
 
@@ -1060,9 +1056,7 @@ export function TeamsTab() {
 
   const handleSaveEdit = () => {
     if (!editTeam) return;
-    setTeams((prev) =>
-      prev.map((t) => (t.id === editTeam.id ? editTeam : t))
-    );
+    setTeams((prev) => prev.map((t) => (t.id === editTeam.id ? editTeam : t)));
     setEditTeam(null);
   };
 
@@ -1181,7 +1175,7 @@ export function TeamsTab() {
       </div>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 items-start gap-4 overflow-y-auto flex-1 pb-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 items-start gap-4 overflow-y-auto pb-2 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((team) => (
           <TeamCard
             key={team.id}
@@ -1258,9 +1252,7 @@ export function TeamsTab() {
                 <Label className="text-xs text-[#6b7280]">Branch</Label>
                 <Select
                   value={form.branch}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, branch: v }))
-                  }
+                  onValueChange={(v) => setForm((f) => ({ ...f, branch: v }))}
                 >
                   <SelectTrigger className="h-9 border-[#e5e7eb]">
                     <SelectValue />
@@ -1335,9 +1327,7 @@ export function TeamsTab() {
                 <Input
                   value={editTeam.name}
                   onChange={(e) =>
-                    setEditTeam((t) =>
-                      t ? { ...t, name: e.target.value } : t
-                    )
+                    setEditTeam((t) => (t ? { ...t, name: e.target.value } : t))
                   }
                   className="h-9 border-[#e5e7eb]"
                 />
@@ -1348,7 +1338,7 @@ export function TeamsTab() {
                   value={editTeam.description}
                   onChange={(e) =>
                     setEditTeam((t) =>
-                      t ? { ...t, description: e.target.value } : t
+                      t ? { ...t, description: e.target.value } : t,
                     )
                   }
                   className="h-9 border-[#e5e7eb]"
@@ -1360,9 +1350,7 @@ export function TeamsTab() {
                   <Select
                     value={editTeam.department}
                     onValueChange={(v) =>
-                      setEditTeam((t) =>
-                        t ? { ...t, department: v } : t
-                      )
+                      setEditTeam((t) => (t ? { ...t, department: v } : t))
                     }
                   >
                     <SelectTrigger className="h-9 border-[#e5e7eb]">
@@ -1444,4 +1432,3 @@ export function TeamsTab() {
     </div>
   );
 }
-

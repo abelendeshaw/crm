@@ -46,7 +46,6 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   users as initialUsers,
-  userProductAccess,
   type CRMUser,
   type UserStatus,
   type UserRole,
@@ -172,8 +171,9 @@ export function UsersTab() {
   const [inviteForm, setInviteForm] = useState({
     candidateId: "",
     role: "Sales Rep" as UserRole,
-    approvalResponsibility: "Role",
   });
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteFilterDept, setInviteFilterDept] = useState<string>("all");
 
   const PER_PAGE = 8;
 
@@ -229,18 +229,27 @@ export function UsersTab() {
     setInviteForm({
       candidateId: "",
       role: "Sales Rep",
-      approvalResponsibility: "Role",
     });
+    setInviteSearch("");
+    setInviteFilterDept("all");
   };
 
-  const getAssignedProducts = (userId: string) =>
-    userProductAccess.find((item) => item.userId === userId)?.products ?? [
-      "CRM",
-    ];
   const existingEmails = new Set(users.map((user) => user.email.toLowerCase()));
   const inviteCandidates = KNOWN_INVITE_CANDIDATES.filter(
     (candidate) => !existingEmails.has(candidate.email.toLowerCase()),
   );
+  const normalizedInviteSearch = inviteSearch.trim().toLowerCase();
+  const filteredInviteCandidates = inviteCandidates.filter((candidate) => {
+    const matchesSearch =
+      !normalizedInviteSearch ||
+      candidate.name.toLowerCase().includes(normalizedInviteSearch) ||
+      candidate.email.toLowerCase().includes(normalizedInviteSearch) ||
+      candidate.phone.includes(normalizedInviteSearch);
+    const matchesDept =
+      inviteFilterDept === "all" || candidate.department === inviteFilterDept;
+    return matchesSearch && matchesDept;
+  });
+  const hasInviteFilters = Boolean(normalizedInviteSearch) || inviteFilterDept !== "all";
   const selectedCandidate = inviteCandidates.find(
     (candidate) => candidate.id === inviteForm.candidateId,
   );
@@ -330,10 +339,10 @@ export function UsersTab() {
             }}
           >
             <SelectTrigger className="h-9 w-full sm:w-[160px] bg-white border-[#e5e7eb] text-sm">
-              <SelectValue placeholder="All Departments" />
+              <SelectValue placeholder="All Teams" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
+              <SelectItem value="all">All Teams</SelectItem>
               {DEPARTMENTS.map((d) => (
                 <SelectItem key={d} value={d}>
                   {d}
@@ -469,10 +478,7 @@ export function UsersTab() {
                   Role
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">
-                  Products
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">
-                  Department
+                  Team
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">
                   Branch
@@ -529,9 +535,6 @@ export function UsersTab() {
                     >
                       {user.role}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-[#4b5563] text-xs">
-                    {getAssignedProducts(user.id).join(", ")}
                   </td>
                   <td className="px-4 py-3 text-[#4b5563]">
                     {user.department}
@@ -614,7 +617,7 @@ export function UsersTab() {
               {paged.length === 0 && (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={9}
                     className="px-4 py-12 text-center text-[#9ca3af]"
                   >
                     No users found matching your filters.
@@ -670,7 +673,7 @@ export function UsersTab() {
 
       {/* ── Invite User Dialog ───────────────────────────────────────────── */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="max-w-[520px]">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[860px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
               <UserPlus size={18} className="text-[#4080f0]" />
@@ -680,32 +683,100 @@ export function UsersTab() {
           <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6b7280]">Known Person *</Label>
+              <Input
+                placeholder="Search by name, email, or phone"
+                className="h-9 border-[#e5e7eb]"
+                value={inviteSearch}
+                onChange={(e) => setInviteSearch(e.target.value)}
+              />
+              <p className="text-[11px] text-[#9ca3af]">
+                Search and filter to quickly find the right person.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#6b7280]">Filter by Team</Label>
               <Select
-                value={inviteForm.candidateId}
-                onValueChange={(value) =>
-                  setInviteForm((f) => ({ ...f, candidateId: value }))
-                }
+                value={inviteFilterDept}
+                onValueChange={setInviteFilterDept}
               >
                 <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue placeholder="Select person to invite" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {inviteCandidates.length === 0 ? (
-                    <div className="px-3 py-2 text-sm text-[#9ca3af]">
-                      No known candidates available
-                    </div>
-                  ) : (
-                    inviteCandidates.map((candidate) => (
-                      <SelectItem key={candidate.id} value={candidate.id}>
-                        {candidate.name}
-                      </SelectItem>
-                    ))
-                  )}
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {DEPARTMENTS.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">Role *</Label>
+            <div className="col-span-2 rounded-md border border-[#e5e7eb]">
+              <div className="flex items-center justify-between border-b border-[#eef0f4] px-3 py-2">
+                <p className="text-xs text-[#6b7280]">
+                  Known people ({filteredInviteCandidates.length})
+                </p>
+                {hasInviteFilters && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+                    onClick={() => {
+                      setInviteSearch("");
+                      setInviteFilterDept("all");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                {filteredInviteCandidates.length === 0 ? (
+                  <p className="px-2 py-6 text-center text-sm text-[#9ca3af]">
+                    No known users match your search/filter.
+                  </p>
+                ) : (
+                  filteredInviteCandidates.map((candidate) => {
+                    const isSelected = inviteForm.candidateId === candidate.id;
+                    return (
+                      <button
+                        key={candidate.id}
+                        type="button"
+                        className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
+                          isSelected
+                            ? "border-[#bfd3fb] bg-[#eef2fd]"
+                            : "border-transparent hover:border-[#e5e7eb] hover:bg-[#f9fafb]"
+                        }`}
+                        onClick={() =>
+                          setInviteForm((f) => ({ ...f, candidateId: candidate.id }))
+                        }
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-[#1c1e21]">
+                              {candidate.name}
+                            </p>
+                            <p className="truncate text-xs text-[#6b7280]">
+                              {candidate.email}
+                            </p>
+                            <p className="text-xs text-[#9ca3af]">
+                              Team: {candidate.department} · {candidate.branch}
+                            </p>
+                          </div>
+                          {isSelected && (
+                            <CheckCircle2 size={14} className="text-[#4080f0] mt-0.5" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs text-[#6b7280]">Assign Role *</Label>
               <Select
                 value={inviteForm.role}
                 onValueChange={(v) =>
@@ -730,7 +801,7 @@ export function UsersTab() {
                 <div className="grid grid-cols-1 gap-1 text-sm text-[#4b5563] sm:grid-cols-2">
                   <p>Email: {selectedCandidate.email}</p>
                   <p>Phone: {selectedCandidate.phone}</p>
-                  <p>Department: {selectedCandidate.department}</p>
+                  <p>Team: {selectedCandidate.department}</p>
                   <p>Branch: {selectedCandidate.branch}</p>
                   <p className="sm:col-span-2">
                     Manager: {selectedCandidate.manager}
@@ -741,26 +812,6 @@ export function UsersTab() {
                   Select a known person to prefill verified details.
                 </p>
               )}
-            </div>
-            <div className="col-span-2 space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">
-                Approval Responsibility
-              </Label>
-              <Select
-                value={inviteForm.approvalResponsibility}
-                onValueChange={(v) =>
-                  setInviteForm((f) => ({ ...f, approvalResponsibility: v }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Role">Role-based</SelectItem>
-                  <SelectItem value="Hierarchy">Hierarchy-based</SelectItem>
-                  <SelectItem value="User">Specific user approver</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <p className="text-xs text-[#9ca3af] mt-1">

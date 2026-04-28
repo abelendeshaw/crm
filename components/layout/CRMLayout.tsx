@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -40,7 +40,15 @@ const navItems: NavItem[] = [
     ],
   },
   { label: "Deals", icon: <Handshake size={18} />, path: "/deals" },
-  { label: "Customer Management", icon: <Building2 size={18} />, path: "/customer-management" },
+  {
+    label: "Customer",
+    icon: <Building2 size={18} />,
+    path: "/customer-management",
+    children: [
+      { label: "Customers", path: "/customer-management?tab=accounts" },
+      { label: "Contacts", path: "/customer-management?tab=contacts" },
+    ],
+  },
   { label: "Activity", icon: <Activity size={18} />, path: "/activity" },
   { label: "Report", icon: <BarChart2 size={18} />, path: "/report" },
   {
@@ -71,8 +79,10 @@ interface CRMLayoutProps {
 
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const currentPathWithQuery = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) =>
@@ -87,10 +97,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
   };
 
   const isChildActive = (children?: { label: string; path: string }[]) => {
-    return children?.some((c) => {
-      const [childPath] = c.path.split("?");
-      return pathname.startsWith(childPath);
-    });
+    return children?.some((c) => currentPathWithQuery === c.path);
   };
 
   return (
@@ -175,8 +182,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                 {item.children && isExpanded && (
                   <div className="ml-[34px] border-l border-[#e5e7eb] pl-3 py-1">
                     {item.children.map((child) => {
-                      const [childPath] = child.path.split("?");
-                      const childActive = pathname === childPath;
+                      const childActive = currentPathWithQuery === child.path;
                       return (
                         <Link
                           key={child.path}

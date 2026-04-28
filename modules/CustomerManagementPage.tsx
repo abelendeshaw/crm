@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -8,6 +9,9 @@ import {
   GitBranch,
   Search,
   Plus,
+  Link2,
+  Users,
+  UserRound,
   GitCompareArrows,
   MoreHorizontal,
   Pencil,
@@ -30,7 +34,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -63,11 +66,6 @@ import {
 
 type Tab = "accounts" | "contacts";
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "accounts", label: "Customers Directory", icon: <Building2 size={15} /> },
-  { id: "contacts", label: "Contacts Directory", icon: <Contact size={15} /> },
-];
-
 const statusOptions: CustomerStatus[] = ["Lead", "Active", "Inactive"];
 const customerStatusConfig: Record<CustomerStatus, string> = {
   Active: "bg-[#e6f7ee] text-[#1a8a4a] border border-[#a3d9b8]",
@@ -81,17 +79,14 @@ const emptyAccountForm = {
   size: "",
   email: "",
   phone: "",
-  address: "",
   city: "",
   country: "Ethiopia",
   website: "",
-  owner: customerOwners[0],
+  owner: "",
   status: "Lead" as CustomerStatus,
   lifecycleStage: "Lead" as CustomerLifecycleStage,
   leadSource: "",
   expectedDealValue: "",
-  parentAccountId: "",
-  primaryContactId: "",
 };
 
 const emptyContactForm = {
@@ -105,6 +100,8 @@ const emptyContactForm = {
 };
 
 export function CustomerManagementPage() {
+  const searchParams = useSearchParams();
+  const tabQuery = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<Tab>("accounts");
   const [accounts, setAccounts] = useState<CustomerAccount[]>(initialAccounts);
   const [contacts, setContacts] = useState<CustomerContact[]>(initialContacts);
@@ -113,6 +110,7 @@ export function CustomerManagementPage() {
 
   const [search, setSearch] = useState("");
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [accountDialogStep, setAccountDialogStep] = useState<"basic" | "details">("basic");
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<CustomerAccount | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
@@ -126,6 +124,14 @@ export function CustomerManagementPage() {
     role: associationRoles[0],
     isPrimary: false,
   });
+
+  useEffect(() => {
+    if (tabQuery === "contacts") {
+      setActiveTab("contacts");
+      return;
+    }
+    setActiveTab("accounts");
+  }, [tabQuery]);
 
   const filteredAccounts = useMemo(() => {
     const q = search.toLowerCase();
@@ -199,10 +205,20 @@ export function CustomerManagementPage() {
     () => new Map(contacts.map((contact) => [contact.id, contact])),
     [contacts],
   );
+  const accountStats = useMemo(
+    () => ({
+      total: accounts.length,
+      active: accounts.filter((account) => account.status === "Active").length,
+      leads: accounts.filter((account) => account.status === "Lead").length,
+      linkedContacts: associations.length,
+    }),
+    [accounts, associations],
+  );
 
   const resetAccountForm = () => {
     setAccountForm(emptyAccountForm);
     setEditingAccountId(null);
+    setAccountDialogStep("basic");
   };
 
   const resetContactForm = () => {
@@ -224,8 +240,6 @@ export function CustomerManagementPage() {
                 expectedDealValue: accountForm.expectedDealValue
                   ? Number(accountForm.expectedDealValue)
                   : undefined,
-                parentAccountId: accountForm.parentAccountId || undefined,
-                primaryContactId: accountForm.primaryContactId || undefined,
               }
             : account,
         ),
@@ -237,8 +251,6 @@ export function CustomerManagementPage() {
         expectedDealValue: accountForm.expectedDealValue
           ? Number(accountForm.expectedDealValue)
           : undefined,
-        parentAccountId: accountForm.parentAccountId || undefined,
-        primaryContactId: accountForm.primaryContactId || undefined,
         createdAt: new Date().toISOString().split("T")[0],
       };
       setAccounts((prev) => [newAccount, ...prev]);
@@ -247,6 +259,12 @@ export function CustomerManagementPage() {
     setAccountDialogOpen(false);
     resetAccountForm();
   };
+
+  useEffect(() => {
+    if (accountDialogOpen) {
+      setAccountDialogStep("basic");
+    }
+  }, [accountDialogOpen]);
 
   const handleSaveContact = () => {
     const required = [contactForm.firstName, contactForm.lastName, contactForm.email];
@@ -451,6 +469,65 @@ export function CustomerManagementPage() {
     }
   };
 
+  const addExistingContactForSelectedCustomer = ({
+    contactId,
+    role,
+    isPrimary,
+  }: {
+    contactId: string;
+    role: (typeof associationRoles)[number];
+    isPrimary: boolean;
+  }) => {
+    if (!selectedAccount) return;
+
+    setAssociations((prev) => {
+      const adjusted = isPrimary
+        ? prev.map((association) =>
+            association.accountId === selectedAccount.id
+              ? { ...association, isPrimary: false }
+              : association,
+          )
+        : prev;
+
+      const existingAssociation = adjusted.find(
+        (association) =>
+          association.accountId === selectedAccount.id && association.contactId === contactId,
+      );
+
+      if (existingAssociation) {
+        return adjusted.map((association) =>
+          association.id === existingAssociation.id
+            ? { ...association, role, isPrimary }
+            : association,
+        );
+      }
+
+      return [
+        ...adjusted,
+        {
+          id: `assoc-${Date.now()}`,
+          accountId: selectedAccount.id,
+          contactId,
+          role,
+          isPrimary,
+        },
+      ];
+    });
+
+    if (isPrimary) {
+      setAccounts((prev) =>
+        prev.map((account) =>
+          account.id === selectedAccount.id
+            ? { ...account, primaryContactId: contactId }
+            : account,
+        ),
+      );
+      setSelectedAccount((prev) =>
+        prev ? { ...prev, primaryContactId: contactId } : prev,
+      );
+    }
+  };
+
   const assignPrimaryContactForSelectedCustomer = (contactId: string) => {
     if (!selectedAccount) return;
 
@@ -535,7 +612,9 @@ export function CustomerManagementPage() {
           );
           setSelectedAccount(updatedAccount);
         }}
+        allContacts={contacts}
         onAddContact={addContactForSelectedCustomer}
+        onAddExistingContact={addExistingContactForSelectedCustomer}
         onAssignPrimaryContact={assignPrimaryContactForSelectedCustomer}
       />
     );
@@ -545,28 +624,16 @@ export function CustomerManagementPage() {
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
         <h1 className="font-semibold text-[#1c1e21]">Customer Management</h1>
-        <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
-                activeTab === tab.id
-                  ? "border-[#4080f0] text-[#4080f0]"
-                  : "border-transparent text-[#6b7280] hover:border-[#e5e7eb] hover:text-[#1c1e21]",
-              )}
-            >
-              <span className={activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"}>
-                {tab.icon}
-              </span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-3 sm:p-5">
+        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard title="Total Customers" value={String(accountStats.total)} icon={Building2} />
+          <StatCard title="Active Customers" value={String(accountStats.active)} icon={Users} />
+          <StatCard title="Lead Customers" value={String(accountStats.leads)} icon={UserRound} />
+          <StatCard title="Account-Contact Links" value={String(accountStats.linkedContacts)} icon={Link2} />
+        </div>
+
         {(activeTab === "accounts" || activeTab === "contacts") && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="relative w-full sm:w-[340px]">
@@ -627,7 +694,6 @@ export function CustomerManagementPage() {
                 size: account.size,
                 email: account.email,
                 phone: account.phone,
-                address: account.address,
                 city: account.city,
                 country: account.country,
                 website: account.website,
@@ -638,8 +704,6 @@ export function CustomerManagementPage() {
                 expectedDealValue: account.expectedDealValue
                   ? String(account.expectedDealValue)
                   : "",
-                parentAccountId: account.parentAccountId ?? "",
-                primaryContactId: account.primaryContactId ?? "",
               });
               setAccountDialogOpen(true);
             }}
@@ -678,213 +742,201 @@ export function CustomerManagementPage() {
           <DialogHeader>
             <DialogTitle>{editingAccountId ? "Edit Customer Account" : "New Customer"}</DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
-            <FormField label="Account Name *">
-              <Input
-                value={accountForm.name}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, name: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Industry *">
-              <Select
-                value={accountForm.industry}
-                onValueChange={(value) => setAccountForm((prev) => ({ ...prev, industry: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  {industries.map((industry) => (
-                    <SelectItem key={industry} value={industry}>
-                      {industry}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Organization Size *">
-              <Select
-                value={accountForm.size}
-                onValueChange={(value) => setAccountForm((prev) => ({ ...prev, size: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue placeholder="Select size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {accountSizes.map((size) => (
-                    <SelectItem key={size} value={size}>
-                      {size}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Owner *">
-              <Select
-                value={accountForm.owner}
-                onValueChange={(value) => setAccountForm((prev) => ({ ...prev, owner: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerOwners.map((owner) => (
-                    <SelectItem key={owner} value={owner}>
-                      {owner}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Email">
-              <Input
-                value={accountForm.email}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, email: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Phone">
-              <Input
-                value={accountForm.phone}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, phone: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Address" className="sm:col-span-2">
-              <Textarea
-                value={accountForm.address}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, address: event.target.value }))}
-                className="min-h-[80px] border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="City">
-              <Input
-                value={accountForm.city}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, city: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Country">
-              <Input
-                value={accountForm.country}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, country: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Website">
-              <Input
-                value={accountForm.website}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, website: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Customer Status">
-              <Select
-                value={accountForm.status}
-                onValueChange={(value) =>
-                  setAccountForm((prev) => ({ ...prev, status: value as CustomerStatus }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Lifecycle Stage (Lead/Deal)">
-              <Select
-                value={accountForm.lifecycleStage}
-                onValueChange={(value) =>
-                  setAccountForm((prev) => ({ ...prev, lifecycleStage: value as CustomerLifecycleStage }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Lead">Lead</SelectItem>
-                  <SelectItem value="Deal">Deal</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Lead Source">
-              <Input
-                value={accountForm.leadSource}
-                onChange={(event) => setAccountForm((prev) => ({ ...prev, leadSource: event.target.value }))}
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Expected Deal Value">
-              <Input
-                value={accountForm.expectedDealValue}
-                onChange={(event) =>
-                  setAccountForm((prev) => ({ ...prev, expectedDealValue: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-                placeholder="e.g. 125000"
-              />
-            </FormField>
-            <FormField label="Parent Customer (Hierarchy)">
-              <Select
-                value={accountForm.parentAccountId || "none"}
-                onValueChange={(value) =>
-                  setAccountForm((prev) => ({ ...prev, parentAccountId: value === "none" ? "" : value }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Parent</SelectItem>
-                  {accounts
-                    .filter((account) => account.id !== editingAccountId)
-                    .map((account) => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Primary Contact">
-              <Select
-                value={accountForm.primaryContactId || "none"}
-                onValueChange={(value) =>
-                  setAccountForm((prev) => ({ ...prev, primaryContactId: value === "none" ? "" : value }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Assign Later</SelectItem>
-                  {contacts.map((contact) => (
-                    <SelectItem key={contact.id} value={contact.id}>
-                      {contact.firstName} {contact.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          </div>
+          <Tabs value={accountDialogStep} className="w-full">
+            <TabsList className="mb-3 grid w-full grid-cols-2">
+              <TabsTrigger value="basic">Step 1: Basic</TabsTrigger>
+              <TabsTrigger value="details">Step 2: Details</TabsTrigger>
+            </TabsList>
+            <TabsContent value="basic">
+              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+                <FormField label="Account Name *">
+                  <Input
+                    value={accountForm.name}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, name: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Industry *">
+                  <Select
+                    value={accountForm.industry}
+                    onValueChange={(value) => setAccountForm((prev) => ({ ...prev, industry: value }))}
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue placeholder="Select industry" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {industries.map((industry) => (
+                        <SelectItem key={industry} value={industry}>
+                          {industry}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Organization Size *">
+                  <Select
+                    value={accountForm.size}
+                    onValueChange={(value) => setAccountForm((prev) => ({ ...prev, size: value }))}
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue placeholder="Select size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accountSizes.map((size) => (
+                        <SelectItem key={size} value={size}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Owner">
+                  <Select
+                    value={accountForm.owner || "unassigned"}
+                    onValueChange={(value) =>
+                      setAccountForm((prev) => ({
+                        ...prev,
+                        owner: value === "unassigned" ? "" : value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue placeholder="Assign later" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {customerOwners.map((owner) => (
+                        <SelectItem key={owner} value={owner}>
+                          {owner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Email">
+                  <Input
+                    value={accountForm.email}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, email: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Phone">
+                  <Input
+                    value={accountForm.phone}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, phone: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+              </div>
+            </TabsContent>
+            <TabsContent value="details">
+              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+                <FormField label="City">
+                  <Input
+                    value={accountForm.city}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, city: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Country">
+                  <Input
+                    value={accountForm.country}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, country: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Website">
+                  <Input
+                    value={accountForm.website}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, website: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Customer Status">
+                  <Select
+                    value={accountForm.status}
+                    onValueChange={(value) =>
+                      setAccountForm((prev) => ({ ...prev, status: value as CustomerStatus }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Lifecycle Stage (Lead/Deal)">
+                  <Select
+                    value={accountForm.lifecycleStage}
+                    onValueChange={(value) =>
+                      setAccountForm((prev) => ({ ...prev, lifecycleStage: value as CustomerLifecycleStage }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Lead">Lead</SelectItem>
+                      <SelectItem value="Deal">Deal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Lead Source">
+                  <Input
+                    value={accountForm.leadSource}
+                    onChange={(event) => setAccountForm((prev) => ({ ...prev, leadSource: event.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Expected Deal Value">
+                  <Input
+                    value={accountForm.expectedDealValue}
+                    onChange={(event) =>
+                      setAccountForm((prev) => ({ ...prev, expectedDealValue: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="e.g. 125000"
+                  />
+                </FormField>
+              </div>
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setAccountDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              size="sm"
-              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-              onClick={handleSaveAccount}
-            >
-              {editingAccountId ? "Save Changes" : "Create Customer"}
-            </Button>
+            {accountDialogStep === "basic" ? (
+              <Button
+                size="sm"
+                className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                onClick={() => setAccountDialogStep("details")}
+              >
+                Next
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAccountDialogStep("basic")}
+                >
+                  Back
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                  onClick={handleSaveAccount}
+                >
+                  {editingAccountId ? "Save Changes" : "Create Customer"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1072,14 +1124,17 @@ export function CustomerManagementPage() {
 function CustomerAccountDetailView({
   account,
   accountContacts,
+  allContacts,
   onBack,
   onMoveStage,
   onUpdateAccount,
   onAddContact,
+  onAddExistingContact,
   onAssignPrimaryContact,
 }: {
   account: CustomerAccount;
   accountContacts: { association: AccountContactAssociation; contact: CustomerContact }[];
+  allContacts: CustomerContact[];
   onBack: () => void;
   onMoveStage: (stage: CustomerLifecycleStage) => void;
   onUpdateAccount: (account: CustomerAccount) => void;
@@ -1095,9 +1150,15 @@ function CustomerAccountDetailView({
     role: (typeof associationRoles)[number];
     isPrimary: boolean;
   }) => void;
+  onAddExistingContact: (payload: {
+    contactId: string;
+    role: (typeof associationRoles)[number];
+    isPrimary: boolean;
+  }) => void;
   onAssignPrimaryContact: (contactId: string) => void;
 }) {
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [addContactTab, setAddContactTab] = useState<"new" | "existing">("new");
   const [detailTab, setDetailTab] = useState<"profile" | "activity">("profile");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState<CustomerAccount>(account);
@@ -1116,6 +1177,7 @@ function CustomerAccountDetailView({
     associationRoles[0],
   );
   const [contactIsPrimary, setContactIsPrimary] = useState(false);
+  const [existingContactId, setExistingContactId] = useState<string>("none");
   const contactToConfirm = accountContacts.find(
     (item) => item.contact.id === confirmPrimaryContactId,
   );
@@ -1142,6 +1204,10 @@ function CustomerAccountDetailView({
   const selectedPrimaryContact = accountContacts.find(
     (item) => item.contact.id === profileDraft.primaryContactId,
   )?.contact;
+  const linkedContactIds = new Set(accountContacts.map((item) => item.contact.id));
+  const availableExistingContacts = allContacts.filter(
+    (contact) => !linkedContactIds.has(contact.id),
+  );
 
   useEffect(() => {
     setProfileDraft(account);
@@ -1149,11 +1215,20 @@ function CustomerAccountDetailView({
   }, [account]);
 
   const handleAddContact = () => {
-    onAddContact({
-      form: contactForm,
-      role: contactRole,
-      isPrimary: contactIsPrimary,
-    });
+    if (addContactTab === "existing") {
+      if (existingContactId === "none") return;
+      onAddExistingContact({
+        contactId: existingContactId,
+        role: contactRole,
+        isPrimary: contactIsPrimary,
+      });
+    } else {
+      onAddContact({
+        form: contactForm,
+        role: contactRole,
+        isPrimary: contactIsPrimary,
+      });
+    }
     setContactForm({
       firstName: "",
       lastName: "",
@@ -1164,6 +1239,8 @@ function CustomerAccountDetailView({
     });
     setContactRole(associationRoles[0]);
     setContactIsPrimary(false);
+    setExistingContactId("none");
+    setAddContactTab("new");
     setAddContactOpen(false);
   };
 
@@ -1187,7 +1264,7 @@ function CustomerAccountDetailView({
             className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
           >
             <ArrowLeft size={13} />
-            Back to Customers Directory
+            Back to Customers
           </button>
           <h2 className="font-semibold text-[#1c1e21]">{account.name}</h2>
         </div>
@@ -1465,20 +1542,6 @@ function CustomerAccountDetailView({
                       </SelectContent>
                     </Select>
                   </ProfileField>
-                  <ProfileField
-                    label="Address"
-                    value={profileDraft.address || "—"}
-                    isEditing={isEditingProfile}
-                    className="md:col-span-2 xl:col-span-3"
-                  >
-                    <Textarea
-                      value={profileDraft.address}
-                      onChange={(event) =>
-                        setProfileDraft((prev) => ({ ...prev, address: event.target.value }))
-                      }
-                      className="min-h-[80px] border-[#e5e7eb]"
-                    />
-                  </ProfileField>
                   <ProfileField label="City" value={profileDraft.city || "—"} isEditing={isEditingProfile}>
                     <Input
                       value={profileDraft.city}
@@ -1609,69 +1672,110 @@ function CustomerAccountDetailView({
           <DialogHeader>
             <DialogTitle>Add Contact for {account.name}</DialogTitle>
           </DialogHeader>
+          <Tabs
+            value={addContactTab}
+            onValueChange={(value) => setAddContactTab(value as "new" | "existing")}
+            className="w-full"
+          >
+            <TabsList className="mb-3">
+              <TabsTrigger value="new">New Contact</TabsTrigger>
+              <TabsTrigger value="existing">Existing Contact</TabsTrigger>
+            </TabsList>
+            <TabsContent value="new">
+              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+                <FormField label="First Name *">
+                  <Input
+                    value={contactForm.firstName}
+                    onChange={(event) =>
+                      setContactForm((prev) => ({ ...prev, firstName: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Last Name *">
+                  <Input
+                    value={contactForm.lastName}
+                    onChange={(event) =>
+                      setContactForm((prev) => ({ ...prev, lastName: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Role / Title">
+                  <Input
+                    value={contactForm.roleTitle}
+                    onChange={(event) =>
+                      setContactForm((prev) => ({ ...prev, roleTitle: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Owner">
+                  <Select
+                    value={contactForm.owner}
+                    onValueChange={(value) => setContactForm((prev) => ({ ...prev, owner: value }))}
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customerOwners.map((owner) => (
+                        <SelectItem key={owner} value={owner}>
+                          {owner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Email *">
+                  <Input
+                    value={contactForm.email}
+                    onChange={(event) =>
+                      setContactForm((prev) => ({ ...prev, email: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+                <FormField label="Phone">
+                  <Input
+                    value={contactForm.phone}
+                    onChange={(event) =>
+                      setContactForm((prev) => ({ ...prev, phone: event.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                  />
+                </FormField>
+              </div>
+            </TabsContent>
+            <TabsContent value="existing">
+              <div className="grid grid-cols-1 gap-4 py-2">
+                <FormField label="Existing Contact">
+                  <Select
+                    value={existingContactId}
+                    onValueChange={setExistingContactId}
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue placeholder="Select existing contact" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Select existing contact</SelectItem>
+                      {availableExistingContacts.map((contact) => (
+                        <SelectItem key={contact.id} value={contact.id}>
+                          {contact.firstName} {contact.lastName} ({contact.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                {availableExistingContacts.length === 0 && (
+                  <p className="text-sm text-[#9ca3af]">
+                    All contacts are already linked to this customer.
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
           <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
-            <FormField label="First Name *">
-              <Input
-                value={contactForm.firstName}
-                onChange={(event) =>
-                  setContactForm((prev) => ({ ...prev, firstName: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Last Name *">
-              <Input
-                value={contactForm.lastName}
-                onChange={(event) =>
-                  setContactForm((prev) => ({ ...prev, lastName: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Role / Title">
-              <Input
-                value={contactForm.roleTitle}
-                onChange={(event) =>
-                  setContactForm((prev) => ({ ...prev, roleTitle: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Owner">
-              <Select
-                value={contactForm.owner}
-                onValueChange={(value) => setContactForm((prev) => ({ ...prev, owner: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerOwners.map((owner) => (
-                    <SelectItem key={owner} value={owner}>
-                      {owner}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField label="Email *">
-              <Input
-                value={contactForm.email}
-                onChange={(event) =>
-                  setContactForm((prev) => ({ ...prev, email: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
-            <FormField label="Phone">
-              <Input
-                value={contactForm.phone}
-                onChange={(event) =>
-                  setContactForm((prev) => ({ ...prev, phone: event.target.value }))
-                }
-                className="h-9 border-[#e5e7eb]"
-              />
-            </FormField>
             <FormField label="Relationship Role">
               <Select value={contactRole} onValueChange={(value) => setContactRole(value as (typeof associationRoles)[number])}>
                 <SelectTrigger className="h-9 border-[#e5e7eb]">
@@ -1702,6 +1806,7 @@ function CustomerAccountDetailView({
               size="sm"
               className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
               onClick={handleAddContact}
+              disabled={addContactTab === "existing" && existingContactId === "none"}
             >
               Save Contact
             </Button>
@@ -1800,6 +1905,28 @@ function FormField({
     <div className={cn("space-y-1.5", className)}>
       <Label className="text-xs text-[#6b7280]">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
+      <div className="rounded-md bg-[#eef2fd] p-2">
+        <Icon size={16} className="text-[#4080f0]" />
+      </div>
+      <div>
+        <p className="text-xs text-[#6b7280]">{title}</p>
+        <p className="text-base font-semibold text-[#1c1e21]">{value}</p>
+      </div>
     </div>
   );
 }

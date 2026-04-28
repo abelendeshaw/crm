@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -22,6 +21,10 @@ import {
   Check,
   X,
   Edit2,
+  Phone,
+  MessageSquare,
+  Mail,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -65,6 +68,7 @@ import {
 } from "@/data/customerManagementData";
 
 type Tab = "accounts" | "contacts";
+type CustomerActivityKind = "Call" | "Message" | "Email" | "Note";
 
 const statusOptions: CustomerStatus[] = ["Lead", "Active", "Inactive"];
 const customerStatusConfig: Record<CustomerStatus, string> = {
@@ -100,8 +104,6 @@ const emptyContactForm = {
 };
 
 export function CustomerManagementPage() {
-  const searchParams = useSearchParams();
-  const tabQuery = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<Tab>("accounts");
   const [accounts, setAccounts] = useState<CustomerAccount[]>(initialAccounts);
   const [contacts, setContacts] = useState<CustomerContact[]>(initialContacts);
@@ -118,6 +120,15 @@ export function CustomerManagementPage() {
   const [accountForm, setAccountForm] = useState(emptyAccountForm);
   const [contactForm, setContactForm] = useState(emptyContactForm);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [customerActivities, setCustomerActivities] = useState<
+    {
+      id: string;
+      accountId: string;
+      kind: CustomerActivityKind;
+      note: string;
+      date: string;
+    }[]
+  >([]);
   const [linkForm, setLinkForm] = useState({
     accountId: "",
     contactId: "",
@@ -126,12 +137,13 @@ export function CustomerManagementPage() {
   });
 
   useEffect(() => {
+    const tabQuery = new URLSearchParams(window.location.search).get("tab");
     if (tabQuery === "contacts") {
       setActiveTab("contacts");
       return;
     }
     setActiveTab("accounts");
-  }, [tabQuery]);
+  }, []);
 
   const filteredAccounts = useMemo(() => {
     const q = search.toLowerCase();
@@ -237,6 +249,7 @@ export function CustomerManagementPage() {
             ? {
                 ...account,
                 ...accountForm,
+                address: account.address ?? "",
                 expectedDealValue: accountForm.expectedDealValue
                   ? Number(accountForm.expectedDealValue)
                   : undefined,
@@ -248,6 +261,7 @@ export function CustomerManagementPage() {
       const newAccount: CustomerAccount = {
         id: `acc-${Date.now()}`,
         ...accountForm,
+        address: "",
         expectedDealValue: accountForm.expectedDealValue
           ? Number(accountForm.expectedDealValue)
           : undefined,
@@ -552,6 +566,27 @@ export function CustomerManagementPage() {
     );
   };
 
+  const addActivityForSelectedCustomer = ({
+    kind,
+    note,
+  }: {
+    kind: CustomerActivityKind;
+    note: string;
+  }) => {
+    if (!selectedAccount) return;
+    if (!note.trim()) return;
+    setCustomerActivities((prev) => [
+      {
+        id: `act-${Date.now()}`,
+        accountId: selectedAccount.id,
+        kind,
+        note: note.trim(),
+        date: new Date().toISOString().split("T")[0],
+      },
+      ...prev,
+    ]);
+  };
+
   const mergeDuplicateAccounts = (group: CustomerAccount[]) => {
     const keeper = group[0];
     const toRemoveIds = new Set(group.slice(1).map((item) => item.id));
@@ -604,6 +639,9 @@ export function CustomerManagementPage() {
       <CustomerAccountDetailView
         account={selectedAccount}
         accountContacts={selectedAccountContacts}
+        accountActivities={customerActivities.filter(
+          (activity) => activity.accountId === selectedAccount.id,
+        )}
         onBack={() => setSelectedAccount(null)}
         onMoveStage={(stage) => moveCustomerStage(selectedAccount.id, stage)}
         onUpdateAccount={(updatedAccount) => {
@@ -615,6 +653,7 @@ export function CustomerManagementPage() {
         allContacts={contacts}
         onAddContact={addContactForSelectedCustomer}
         onAddExistingContact={addExistingContactForSelectedCustomer}
+        onAddActivity={addActivityForSelectedCustomer}
         onAssignPrimaryContact={assignPrimaryContactForSelectedCustomer}
       />
     );
@@ -1124,16 +1163,25 @@ export function CustomerManagementPage() {
 function CustomerAccountDetailView({
   account,
   accountContacts,
+  accountActivities,
   allContacts,
   onBack,
   onMoveStage,
   onUpdateAccount,
   onAddContact,
   onAddExistingContact,
+  onAddActivity,
   onAssignPrimaryContact,
 }: {
   account: CustomerAccount;
   accountContacts: { association: AccountContactAssociation; contact: CustomerContact }[];
+  accountActivities: {
+    id: string;
+    accountId: string;
+    kind: CustomerActivityKind;
+    note: string;
+    date: string;
+  }[];
   allContacts: CustomerContact[];
   onBack: () => void;
   onMoveStage: (stage: CustomerLifecycleStage) => void;
@@ -1155,9 +1203,11 @@ function CustomerAccountDetailView({
     role: (typeof associationRoles)[number];
     isPrimary: boolean;
   }) => void;
+  onAddActivity: (payload: { kind: CustomerActivityKind; note: string }) => void;
   onAssignPrimaryContact: (contactId: string) => void;
 }) {
   const [addContactOpen, setAddContactOpen] = useState(false);
+  const [addActivityOpen, setAddActivityOpen] = useState(false);
   const [addContactTab, setAddContactTab] = useState<"new" | "existing">("new");
   const [detailTab, setDetailTab] = useState<"profile" | "activity">("profile");
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -1178,6 +1228,13 @@ function CustomerAccountDetailView({
   );
   const [contactIsPrimary, setContactIsPrimary] = useState(false);
   const [existingContactId, setExistingContactId] = useState<string>("none");
+  const [activityForm, setActivityForm] = useState<{
+    kind: CustomerActivityKind;
+    note: string;
+  }>({
+    kind: "Call",
+    note: "",
+  });
   const contactToConfirm = accountContacts.find(
     (item) => item.contact.id === confirmPrimaryContactId,
   );
@@ -1198,8 +1255,21 @@ function CustomerAccountDetailView({
           }.`,
           type: association.isPrimary ? ("primaryContact" as const) : ("contactLinked" as const),
         })),
+        ...accountActivities.map((activity) => ({
+          id: activity.id,
+          date: activity.date,
+          text: activity.note,
+          type:
+            activity.kind === "Call"
+              ? ("call" as const)
+              : activity.kind === "Message"
+                ? ("message" as const)
+                : activity.kind === "Email"
+                  ? ("email" as const)
+                  : ("note" as const),
+        })),
       ].sort((a, b) => b.date.localeCompare(a.date)),
-    [account, accountContacts],
+    [account, accountContacts, accountActivities],
   );
   const selectedPrimaryContact = accountContacts.find(
     (item) => item.contact.id === profileDraft.primaryContactId,
@@ -1252,6 +1322,15 @@ function CustomerAccountDetailView({
   const handleProfileCancel = () => {
     setProfileDraft(account);
     setIsEditingProfile(false);
+  };
+
+  const handleAddActivity = () => {
+    onAddActivity(activityForm);
+    setActivityForm({
+      kind: "Call",
+      note: "",
+    });
+    setAddActivityOpen(false);
   };
 
   return (
@@ -1350,10 +1429,10 @@ function CustomerAccountDetailView({
                   <Button
                     size="sm"
                     className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                    onClick={() => setAddContactOpen(true)}
+                    onClick={() => setAddActivityOpen(true)}
                   >
-                    <UserPlus size={13} className="mr-1.5" />
-                    Add Contact
+                    <Plus size={13} className="mr-1.5" />
+                    Add Activity
                   </Button>
                 </div>
               </div>
@@ -1650,6 +1729,10 @@ function CustomerAccountDetailView({
                           {item.type === "accountCreated" && <Building2 size={11} />}
                           {item.type === "contactLinked" && <UserPlus size={11} />}
                           {item.type === "primaryContact" && <CheckCircle2 size={11} />}
+                          {item.type === "call" && <Phone size={11} />}
+                          {item.type === "message" && <MessageSquare size={11} />}
+                          {item.type === "email" && <Mail size={11} />}
+                          {item.type === "note" && <ClipboardList size={11} />}
                         </span>
                         <div className="rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
                           <p className="text-sm text-[#1c1e21]">{item.text}</p>
@@ -1809,6 +1892,60 @@ function CustomerAccountDetailView({
               disabled={addContactTab === "existing" && existingContactId === "none"}
             >
               Save Contact
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addActivityOpen} onOpenChange={setAddActivityOpen}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>Add Activity for {account.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-4 py-2">
+            <FormField label="Activity Type">
+              <Select
+                value={activityForm.kind}
+                onValueChange={(value) =>
+                  setActivityForm((prev) => ({
+                    ...prev,
+                    kind: value as CustomerActivityKind,
+                  }))
+                }
+              >
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Call">Call</SelectItem>
+                  <SelectItem value="Message">Message</SelectItem>
+                  <SelectItem value="Email">Email</SelectItem>
+                  <SelectItem value="Note">Note</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Activity Note">
+              <Input
+                value={activityForm.note}
+                onChange={(event) =>
+                  setActivityForm((prev) => ({ ...prev, note: event.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+                placeholder="e.g. Follow-up call completed, requested proposal."
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setAddActivityOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={handleAddActivity}
+              disabled={!activityForm.note.trim()}
+            >
+              Save Activity
             </Button>
           </DialogFooter>
         </DialogContent>

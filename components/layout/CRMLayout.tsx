@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -79,10 +79,10 @@ interface CRMLayoutProps {
 
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const currentPathWithQuery = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const currentPathWithQuery =
+    typeof window !== "undefined" ? `${pathname}${window.location.search}` : pathname;
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) =>

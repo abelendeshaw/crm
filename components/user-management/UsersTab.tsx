@@ -499,18 +499,19 @@ export function UsersTab() {
               {paged.map((user) => (
                 <tr
                   key={user.id}
-                  className="border-b border-[#f0f2f7] hover:bg-[#fafbff] transition-colors"
+                  className="cursor-pointer border-b border-[#f0f2f7] transition-colors hover:bg-[#fafbff]"
+                  onClick={() => openDetail(user)}
                 >
                   <td className="px-4 py-3">
                     <Checkbox
                       checked={selected.includes(user.id)}
+                      onClick={(event) => event.stopPropagation()}
                       onCheckedChange={() => toggleSelect(user.id)}
                     />
                   </td>
                   <td className="px-4 py-3">
                     <div
-                      className="flex items-center gap-3 cursor-pointer"
-                      onClick={() => openDetail(user)}
+                      className="flex items-center gap-3"
                     >
                       <Avatar className="h-8 w-8">
                         <AvatarFallback
@@ -560,6 +561,7 @@ export function UsersTab() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 hover:bg-[#f0f2f7]"
+                          onClick={(event) => event.stopPropagation()}
                         >
                           <MoreHorizontal size={15} />
                         </Button>

@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
+  Building2,
   Handshake,
   Activity,
   BarChart2,
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
     ],
   },
   { label: "Deals", icon: <Handshake size={18} />, path: "/deals" },
+  { label: "Customer Management", icon: <Building2 size={18} />, path: "/customer-management" },
   { label: "Activity", icon: <Activity size={18} />, path: "/activity" },
   { label: "Report", icon: <BarChart2 size={18} />, path: "/report" },
   {

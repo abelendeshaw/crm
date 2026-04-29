@@ -1,10 +1,5 @@
-import { CRMLayout } from "@/components/layout/CRMLayout";
-import { CustomerManagementPage } from "@/modules/CustomerManagementPage";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return (
-    <CRMLayout>
-      <CustomerManagementPage />
-    </CRMLayout>
-  );
+  redirect("/customers");
 }

@@ -169,7 +169,7 @@ export function UsersTab() {
   const [detailEditMode, setDetailEditMode] = useState(false);
 
   const [inviteForm, setInviteForm] = useState({
-    candidateId: "",
+    candidateIds: [] as string[],
     role: "Sales Rep" as UserRole,
   });
   const [inviteSearch, setInviteSearch] = useState("");
@@ -205,13 +205,14 @@ export function UsersTab() {
   };
 
   const handleInvite = () => {
-    const candidate = KNOWN_INVITE_CANDIDATES.find(
-      (item) => item.id === inviteForm.candidateId,
+    const selectedCandidates = inviteCandidates.filter((candidate) =>
+      inviteForm.candidateIds.includes(candidate.id),
     );
-    if (!candidate) return;
+    if (selectedCandidates.length === 0) return;
 
-    const newUser: CRMUser = {
-      id: `u${Date.now()}`,
+    const today = new Date().toISOString().split("T")[0];
+    const newUsers: CRMUser[] = selectedCandidates.map((candidate, index) => ({
+      id: `u-${candidate.id}-${today}-${index}`,
       name: candidate.name,
       email: candidate.email,
       phone: candidate.phone,
@@ -221,13 +222,13 @@ export function UsersTab() {
       role: inviteForm.role,
       team: "—",
       status: "Pending",
-      joinedAt: new Date().toISOString().split("T")[0],
+      joinedAt: today,
       lastActive: "—",
-    };
-    setUsers((prev) => [newUser, ...prev]);
+    }));
+    setUsers((prev) => [...newUsers, ...prev]);
     setInviteOpen(false);
     setInviteForm({
-      candidateId: "",
+      candidateIds: [],
       role: "Sales Rep",
     });
     setInviteSearch("");
@@ -250,10 +251,6 @@ export function UsersTab() {
     return matchesSearch && matchesDept;
   });
   const hasInviteFilters = Boolean(normalizedInviteSearch) || inviteFilterDept !== "all";
-  const selectedCandidate = inviteCandidates.find(
-    (candidate) => candidate.id === inviteForm.candidateId,
-  );
-
   const handleStatusChange = (id: string, status: UserStatus) => {
     setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, status } : u)));
   };
@@ -675,16 +672,16 @@ export function UsersTab() {
 
       {/* ── Invite User Dialog ───────────────────────────────────────────── */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[860px]">
+        <DialogContent className="max-h-[90vh] max-w-[calc(100%-2rem)] overflow-hidden sm:max-w-[860px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
               <UserPlus size={18} className="text-[#4080f0]" />
               Invite New User
             </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 overflow-y-auto py-2 pr-1 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-[#6b7280]">Known Person *</Label>
+              <Label className="text-xs text-[#6b7280]">Known People *</Label>
               <Input
                 placeholder="Search by name, email, or phone"
                 className="h-9 border-[#e5e7eb]"
@@ -719,20 +716,57 @@ export function UsersTab() {
                 <p className="text-xs text-[#6b7280]">
                   Known people ({filteredInviteCandidates.length})
                 </p>
-                {hasInviteFilters && (
+                <div className="flex items-center gap-1">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 text-xs text-[#6b7280] hover:text-[#1c1e21]"
-                    onClick={() => {
-                      setInviteSearch("");
-                      setInviteFilterDept("all");
-                    }}
+                    onClick={() =>
+                      setInviteForm((f) => ({
+                        ...f,
+                        candidateIds: Array.from(
+                          new Set([
+                            ...f.candidateIds,
+                            ...filteredInviteCandidates.map((candidate) => candidate.id),
+                          ]),
+                        ),
+                      }))
+                    }
                   >
-                    Clear filters
+                    Select all
                   </Button>
-                )}
+                  {inviteForm.candidateIds.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+                      onClick={() =>
+                        setInviteForm((f) => ({
+                          ...f,
+                          candidateIds: [],
+                        }))
+                      }
+                    >
+                      Clear all
+                    </Button>
+                  )}
+                  {hasInviteFilters && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+                      onClick={() => {
+                        setInviteSearch("");
+                        setInviteFilterDept("all");
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
               </div>
               <div className="max-h-64 overflow-y-auto p-2 space-y-1">
                 {filteredInviteCandidates.length === 0 ? (
@@ -741,7 +775,7 @@ export function UsersTab() {
                   </p>
                 ) : (
                   filteredInviteCandidates.map((candidate) => {
-                    const isSelected = inviteForm.candidateId === candidate.id;
+                    const isSelected = inviteForm.candidateIds.includes(candidate.id);
                     return (
                       <button
                         key={candidate.id}
@@ -752,7 +786,12 @@ export function UsersTab() {
                             : "border-transparent hover:border-[#e5e7eb] hover:bg-[#f9fafb]"
                         }`}
                         onClick={() =>
-                          setInviteForm((f) => ({ ...f, candidateId: candidate.id }))
+                          setInviteForm((f) => ({
+                            ...f,
+                            candidateIds: isSelected
+                              ? f.candidateIds.filter((id) => id !== candidate.id)
+                              : [...f.candidateIds, candidate.id],
+                          }))
                         }
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -797,29 +836,7 @@ export function UsersTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2 rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-3">
-              <p className="text-xs text-[#6b7280] mb-2">Known profile</p>
-              {selectedCandidate ? (
-                <div className="grid grid-cols-1 gap-1 text-sm text-[#4b5563] sm:grid-cols-2">
-                  <p>Email: {selectedCandidate.email}</p>
-                  <p>Phone: {selectedCandidate.phone}</p>
-                  <p>Team: {selectedCandidate.department}</p>
-                  <p>Branch: {selectedCandidate.branch}</p>
-                  <p className="sm:col-span-2">
-                    Manager: {selectedCandidate.manager}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm text-[#9ca3af]">
-                  Select a known person to prefill verified details.
-                </p>
-              )}
-            </div>
           </div>
-          <p className="text-xs text-[#9ca3af] mt-1">
-            Invitation uses selected known profile details to avoid
-            unknown/incorrect user information.
-          </p>
           <DialogFooter className="mt-2">
             <Button
               variant="outline"
@@ -833,9 +850,9 @@ export function UsersTab() {
               size="sm"
               className="bg-[#4080f0] hover:bg-[#3070e0] text-white"
               onClick={handleInvite}
-              disabled={!inviteForm.candidateId}
+              disabled={inviteForm.candidateIds.length === 0}
             >
-              Send Invite
+              Send Invite{inviteForm.candidateIds.length > 1 ? "s" : ""}
             </Button>
           </DialogFooter>
         </DialogContent>

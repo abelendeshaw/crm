@@ -103,8 +103,21 @@ const emptyContactForm = {
   status: "Active" as "Active" | "Inactive",
 };
 
-export function CustomerManagementPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("accounts");
+interface CustomerManagementPageProps {
+  defaultTab?: Tab;
+  lockedTab?: Tab;
+}
+
+export function CustomerManagementPage({
+  defaultTab = "accounts",
+  lockedTab,
+}: CustomerManagementPageProps = {}) {
+  const [tabState] = useState<Tab>(() => {
+    if (typeof window === "undefined") return defaultTab;
+    const tabQuery = new URLSearchParams(window.location.search).get("tab");
+    return tabQuery === "contacts" ? "contacts" : defaultTab;
+  });
+  const activeTab = lockedTab ?? tabState;
   const [accounts, setAccounts] = useState<CustomerAccount[]>(initialAccounts);
   const [contacts, setContacts] = useState<CustomerContact[]>(initialContacts);
   const [associations, setAssociations] =
@@ -135,15 +148,6 @@ export function CustomerManagementPage() {
     role: associationRoles[0],
     isPrimary: false,
   });
-
-  useEffect(() => {
-    const tabQuery = new URLSearchParams(window.location.search).get("tab");
-    if (tabQuery === "contacts") {
-      setActiveTab("contacts");
-      return;
-    }
-    setActiveTab("accounts");
-  }, []);
 
   const filteredAccounts = useMemo(() => {
     const q = search.toLowerCase();
@@ -1426,14 +1430,26 @@ function CustomerAccountDetailView({
                       )}
                     </>
                   )}
-                  <Button
-                    size="sm"
-                    className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                    onClick={() => setAddActivityOpen(true)}
-                  >
-                    <Plus size={13} className="mr-1.5" />
-                    Add Activity
-                  </Button>
+                  {detailTab === "profile" && (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                      onClick={() => setAddContactOpen(true)}
+                    >
+                      <UserPlus size={13} className="mr-1.5" />
+                      Add Contact
+                    </Button>
+                  )}
+                  {detailTab === "activity" && (
+                    <Button
+                      size="sm"
+                      className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                      onClick={() => setAddActivityOpen(true)}
+                    >
+                      <Plus size={13} className="mr-1.5" />
+                      Add Activity
+                    </Button>
+                  )}
                 </div>
               </div>
               <TabsContent value="profile">

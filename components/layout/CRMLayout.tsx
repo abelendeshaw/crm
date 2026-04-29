@@ -43,10 +43,10 @@ const navItems: NavItem[] = [
   {
     label: "Customer",
     icon: <Building2 size={18} />,
-    path: "/customer-management",
+    path: "/customers",
     children: [
-      { label: "Customers", path: "/customer-management?tab=accounts" },
-      { label: "Contacts", path: "/customer-management?tab=contacts" },
+      { label: "Customers", path: "/customers" },
+      { label: "Contacts", path: "/contacts" },
     ],
   },
   { label: "Activity", icon: <Activity size={18} />, path: "/activity" },

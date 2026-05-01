@@ -29,6 +29,7 @@ import {
   BadgeX,
   Briefcase,
   BriefcaseBusiness,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -349,6 +350,10 @@ export function CustomerManagementPage({
 
     setAccountDialogOpen(false);
     resetAccountForm();
+  };
+
+  const removeContactFromAccount = (associationId: string) => {
+    setAssociations((prev) => prev.filter((a) => a.id !== associationId));
   };
 
   const handleSaveContact = () => {
@@ -727,6 +732,7 @@ export function CustomerManagementPage({
         onAddExistingContact={addExistingContactForSelectedCustomer}
         onAddActivity={addActivityForSelectedCustomer}
         onAssignPrimaryContact={assignPrimaryContactForSelectedCustomer}
+        onRemoveContact={removeContactFromAccount}
       />
     );
   }
@@ -1114,6 +1120,7 @@ function CustomerAccountDetailView({
   onAddExistingContact,
   onAddActivity,
   onAssignPrimaryContact,
+  onRemoveContact,
 }: {
   account: CustomerAccount;
   accountContacts: { association: AccountContactAssociation; contact: CustomerContact }[];
@@ -1148,6 +1155,7 @@ function CustomerAccountDetailView({
   }) => void;
   onAddActivity: (payload: { kind: CustomerActivityKind; note: string }) => void;
   onAssignPrimaryContact: (contactId: string) => void;
+  onRemoveContact: (associationId: string) => void;
 }) {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addActivityOpen, setAddActivityOpen] = useState(false);
@@ -1732,16 +1740,30 @@ function CustomerAccountDetailView({
                   {accountContacts.map(({ association, contact }) => (
                     <Card key={association.id} className="relative overflow-hidden border-[#e5e7eb] hover:shadow-sm transition-shadow">
                       <CardContent className="p-2">
-                        {!association.isPrimary && (
+                        {isEditingProfile ? (
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="absolute right-3 top-3 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider bg-white/80 backdrop-blur-sm"
-                            onClick={() => setConfirmPrimaryContactId(contact.id)}
+                            className="absolute right-3 top-3 z-10 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#dc2626] border-[#fecaca] bg-[#fef2f2] hover:bg-[#fee2e2] transition-colors"
+                            onClick={() => onRemoveContact(association.id)}
+                            title="Remove contact from account"
                           >
-                            Make Primary
+                            <Minus size={10} className="mr-1" strokeWidth={3} />
+                            Remove
                           </Button>
+                        ) : (
+                          !association.isPrimary && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="absolute right-3 top-3 z-10 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider bg-white/80 backdrop-blur-sm"
+                              onClick={() => setConfirmPrimaryContactId(contact.id)}
+                            >
+                              Make Primary
+                            </Button>
+                          )
                         )}
                         <div className="flex items-start gap-2.5">
                           <div className="flex min-w-0 items-start gap-2.5">

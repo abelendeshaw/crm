@@ -1728,13 +1728,24 @@ function CustomerAccountDetailView({
                 Contact
               </h4>
               {accountContacts.length > 0 ? (
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {accountContacts.map(({ association, contact }) => (
-                    <Card key={association.id} className="border-[#e5e7eb]">
-                      <CardContent className="p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-start gap-3">
-                            <Avatar className="size-9">
+                    <Card key={association.id} className="relative overflow-hidden border-[#e5e7eb] hover:shadow-sm transition-shadow">
+                      <CardContent className="p-2">
+                        {!association.isPrimary && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="absolute right-3 top-3 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider bg-white/80 backdrop-blur-sm"
+                            onClick={() => setConfirmPrimaryContactId(contact.id)}
+                          >
+                            Make Primary
+                          </Button>
+                        )}
+                        <div className="flex items-start gap-2.5">
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <Avatar className="size-8">
                               <AvatarFallback className="text-xs">
                                 {`${contact.firstName} ${contact.lastName}`
                                   .split(" ")
@@ -1761,51 +1772,31 @@ function CustomerAccountDetailView({
                               </div>
                               <p className="truncate text-xs text-[#6b7280]">{contact.email}</p>
                               <p className="truncate text-xs text-[#9ca3af]">{contact.phone || "—"}</p>
+                              <div className="mt-1 flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                  onClick={() => window.open(`mailto:${contact.email}`, "_blank")}
+                                >
+                                  <Mail size={11} />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                  onClick={() => window.open(`tel:${contact.phone}`, "_blank")}
+                                  disabled={!contact.phone}
+                                >
+                                  <Phone size={11} />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => window.open(`mailto:${contact.email}`, "_blank")}
-                              aria-label="Email contact"
-                            >
-                              <Mail size={15} />
-                            </Button>
-                            <Button
-                              type="button"
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => window.open(`tel:${contact.phone}`, "_blank")}
-                              aria-label="Call contact"
-                              disabled={!contact.phone}
-                            >
-                              <Phone size={15} />
-                            </Button>
                           </div>
                         </div>
-                        {!association.isPrimary && (
-                          <>
-                            <Separator className="my-3" />
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-[#9ca3af]">
-                                Set as primary contact for faster routing.
-                              </p>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="h-8"
-                                onClick={() => setConfirmPrimaryContactId(contact.id)}
-                              >
-                                Make Primary
-                              </Button>
-                            </div>
-                          </>
-                        )}
+
                       </CardContent>
                     </Card>
                   ))}

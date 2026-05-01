@@ -233,8 +233,7 @@ export function CustomerManagementPage({
     return accounts.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
-        item.industry.toLowerCase().includes(q) ||
-        item.owner.toLowerCase().includes(q),
+        item.industry.toLowerCase().includes(q),
     );
   }, [accounts, search]);
 
@@ -300,15 +299,7 @@ export function CustomerManagementPage({
     () => new Map(contacts.map((contact) => [contact.id, contact])),
     [contacts],
   );
-  const accountStats = useMemo(
-    () => ({
-      total: accounts.length,
-      active: accounts.filter((account) => account.status === "Active").length,
-      leads: accounts.filter((account) => account.status === "Lead").length,
-      linkedContacts: associations.length,
-    }),
-    [accounts, associations],
-  );
+
 
   const resetAccountForm = () => {
     setAccountForm(emptyAccountForm);
@@ -747,12 +738,7 @@ export function CustomerManagementPage({
       </div>
 
       <div className="flex-1 overflow-auto p-3 sm:p-5">
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard title="Total Customers" value={String(accountStats.total)} icon={Building2} />
-          <StatCard title="Active Customers" value={String(accountStats.active)} icon={Users} />
-          <StatCard title="Lead Customers" value={String(accountStats.leads)} icon={UserRound} />
-          <StatCard title="Account-Contact Links" value={String(accountStats.linkedContacts)} icon={Link2} />
-        </div>
+
 
         {(activeTab === "accounts" || activeTab === "contacts") && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -763,7 +749,7 @@ export function CustomerManagementPage({
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={
                   activeTab === "accounts"
-                    ? "Search customers by name, industry, owner"
+                    ? "Search customers by name, industry"
                     : "Search contacts by name, email, title"
                 }
                 className="h-9 border-[#e5e7eb] bg-white pl-9"
@@ -804,6 +790,8 @@ export function CustomerManagementPage({
             accounts={filteredAccounts}
             contacts={contacts}
             associations={associations}
+            pipelineLeads={pipelineLeads}
+            pipelineDeals={pipelineDeals}
             duplicateAccountIds={duplicateAccountIds}
             onSetStatus={setAccountStatus}
             onEdit={(account) => {
@@ -982,23 +970,6 @@ export function CustomerManagementPage({
                 }
                 className="h-9 border-[#e5e7eb]"
               />
-            </FormField>
-            <FormField label="Owner">
-              <Select
-                value={contactForm.owner}
-                onValueChange={(value) => setContactForm((prev) => ({ ...prev, owner: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerOwners.map((owner) => (
-                    <SelectItem key={owner} value={owner}>
-                      {owner}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </FormField>
             <FormField label="Email *">
               <Input
@@ -1464,37 +1435,7 @@ function CustomerAccountDetailView({
                       </SelectContent>
                     </Select>
                   </ProfileField>
-                  <ProfileField
-                    label="Primary Contact"
-                    value={
-                      selectedPrimaryContact
-                        ? `${selectedPrimaryContact.firstName} ${selectedPrimaryContact.lastName}`
-                        : "Unassigned"
-                    }
-                    isEditing={isEditingProfile}
-                  >
-                    <Select
-                      value={profileDraft.primaryContactId || "none"}
-                      onValueChange={(value) =>
-                        setProfileDraft((prev) => ({
-                          ...prev,
-                          primaryContactId: value === "none" ? undefined : value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Assign Later</SelectItem>
-                        {accountContacts.map(({ contact }) => (
-                          <SelectItem key={contact.id} value={contact.id}>
-                            {contact.firstName} {contact.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ProfileField>
+                
                   <ProfileField label="City" value={profileDraft.city || "—"} isEditing={isEditingProfile}>
                     <Input
                       value={profileDraft.city}
@@ -2231,6 +2172,8 @@ function AccountsTable({
   accounts,
   contacts,
   associations,
+  pipelineLeads,
+  pipelineDeals,
   duplicateAccountIds,
   onSetStatus,
   onEdit,
@@ -2240,6 +2183,8 @@ function AccountsTable({
   accounts: CustomerAccount[];
   contacts: CustomerContact[];
   associations: AccountContactAssociation[];
+  pipelineLeads: PipelineLead[];
+  pipelineDeals: PipelineDeal[];
   duplicateAccountIds: Set<string>;
   onSetStatus: (accountId: string, status: CustomerStatus) => void;
   onEdit: (account: CustomerAccount) => void;
@@ -2258,16 +2203,13 @@ function AccountsTable({
                 Customer
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Owner
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Industry
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Primary Contact
+                Deal/Lead
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Status
+                Primary Contact
               </th>
               <th className="w-12 px-4 py-3" />
             </tr>
@@ -2283,6 +2225,9 @@ function AccountsTable({
                 : account.primaryContactId
                   ? contactById.get(account.primaryContactId)
                   : undefined;
+              
+              const accountLeads = pipelineLeads.filter(l => l.accountId === account.id).length;
+              const accountDeals = pipelineDeals.filter(d => d.accountId === account.id).length;
 
               return (
                 <tr
@@ -2304,22 +2249,21 @@ function AccountsTable({
                     </div>
                     <p className="text-xs text-[#9ca3af]">{account.city}</p>
                   </td>
-                  <td className="px-4 py-3 text-[#4b5563]">{account.owner}</td>
                   <td className="px-4 py-3 text-[#4b5563]">{account.industry}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="bg-[#e6f7ee] text-[#1a8a4a] border-[#a3d9b8] h-5 px-1.5 text-[10px]">
+                        {accountDeals} D
+                      </Badge>
+                      <Badge variant="outline" className="bg-[#fff8e6] text-[#b07d00] border-[#fcd34d] h-5 px-1.5 text-[10px]">
+                        {accountLeads} L
+                      </Badge>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-[#4b5563]">
                     {primaryContact
                       ? `${primaryContact.firstName} ${primaryContact.lastName}`
                       : "Unassigned"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        customerStatusConfig[account.status],
-                      )}
-                    >
-                      {account.status}
-                    </span>
                   </td>
                   <td className="px-4 py-3">
                     <DropdownMenu>
@@ -2343,29 +2287,7 @@ function AccountsTable({
                           <Pencil size={13} className="mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        {account.status === "Active" ? (
-                          <DropdownMenuItem
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSetStatus(account.id, "Inactive");
-                            }}
-                            className="text-[#b07d00]"
-                          >
-                            <UserX size={13} className="mr-2" />
-                            Deactivate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSetStatus(account.id, "Active");
-                            }}
-                            className="text-[#1a8a4a]"
-                          >
-                            <CheckCircle2 size={13} className="mr-2" />
-                            Activate
-                          </DropdownMenuItem>
-                        )}
+
                         <DropdownMenuItem
                           onClick={(event) => {
                             event.stopPropagation();
@@ -2410,18 +2332,18 @@ function ContactsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Contact
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Role
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Associated Customers
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Owner
-              </th>
+                {/* <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                  Owner
+                </th> */}
               <th className="w-12 px-4 py-3" />
             </tr>
           </thead>
@@ -2457,7 +2379,7 @@ function ContactsTable({
                   </td>
                   <td className="px-4 py-3 text-[#4b5563]">{contact.roleTitle || "—"}</td>
                   <td className="px-4 py-3 text-[#4b5563]">{linkedAccounts || "Unlinked"}</td>
-                  <td className="px-4 py-3 text-[#4b5563]">{contact.owner}</td>
+                  {/* <td className="px-4 py-3 text-[#4b5563]">{contact.owner}</td> */}
                   <td className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

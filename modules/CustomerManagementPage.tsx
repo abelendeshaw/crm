@@ -991,22 +991,7 @@ export function CustomerManagementPage({
                 className="h-9 border-[#e5e7eb]"
               />
             </FormField>
-            <FormField label="Status">
-              <Select
-                value={contactForm.status}
-                onValueChange={(value) =>
-                  setContactForm((prev) => ({ ...prev, status: value as "Active" | "Inactive" }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
+
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setContactDialogOpen(false)}>

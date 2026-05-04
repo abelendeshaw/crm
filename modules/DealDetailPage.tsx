@@ -1,12 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Briefcase,
   ChevronLeft,
   Headphones,
   Plus,
   Share2,
+  Phone,
+  Users,
+  Globe,
+  Activity as ActivityIcon,
+  Mail,
+  Calendar,
+  Video,
+  MessageSquare,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -109,6 +117,14 @@ export function DealDetailPage({ id }: { id: string }) {
   const deal = deals.find((d) => d.id === id);
 
   const [detailDraft, setDetailDraft] = useState<CrmDeal | null>(deal ? { ...deal } : null);
+  const [activityTypes, setActivityTypes] = useState<string[]>(() => mockDealStore.activityTypes);
+
+  useEffect(() => {
+    return mockDealStore.subscribeActivityTypes((types) => {
+      setActivityTypes([...types]);
+    });
+  }, []);
+
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityForm, setActivityForm] = useState<{
     kind: DealActivityKind;
@@ -525,7 +541,11 @@ export function DealDetailPage({ id }: { id: string }) {
                   <CardTitle className="text-sm font-semibold">Deal Progression</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TimelineView deal={detailDraft} stageName={stageById.get(detailDraft.stageId)?.name} />
+                  <TimelineView 
+                    deal={detailDraft} 
+                    stageName={stageById.get(detailDraft.stageId)?.name} 
+                    activityTypes={activityTypes}
+                  />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -543,16 +563,18 @@ export function DealDetailPage({ id }: { id: string }) {
               <Select
                 value={activityForm.kind}
                 onValueChange={(v) =>
-                  setActivityForm((p) => ({ ...p, kind: v as DealActivityKind }))
+                  setActivityForm((p) => ({ ...p, kind: v }))
                 }
               >
                 <SelectTrigger className="h-9 border-[#e5e7eb]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Call">Call</SelectItem>
-                  <SelectItem value="Meeting">Meeting</SelectItem>
-                  <SelectItem value="External">External coordination</SelectItem>
+                  {activityTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormField>
@@ -660,18 +682,21 @@ function RoleRow({
 function TimelineView({
   deal,
   stageName,
+  activityTypes,
 }: {
   deal: CrmDeal;
   stageName?: string;
+  activityTypes: ActivityType[];
 }) {
   const items = useMemo(() => {
-    const rows: { id: string; date: string; title: string; kind: string }[] = [];
+    const rows: { id: string; date: string; title: string; kind: string; icon?: string }[] = [];
     if (deal.createdFromLead && deal.leadConvertedAt) {
       rows.push({
         id: "tl-lead",
         date: deal.leadConvertedAt,
         title: "Lead converted to deal",
         kind: "Conversion",
+        icon: "Globe",
       });
     }
     rows.push({
@@ -679,31 +704,46 @@ function TimelineView({
       date: deal.stageEnteredAt,
       title: `Entered stage: ${stageName ?? "—"}`,
       kind: "Stage",
+      icon: "Activity",
     });
     for (const a of deal.activities) {
+      const typeCfg = activityTypes.find(t => t.name === a.kind);
       rows.push({
         id: a.id,
         date: a.date,
         title: a.title,
         kind: a.kind,
+        icon: typeCfg?.icon || "Activity",
       });
     }
     return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [deal, stageName]);
+  }, [deal, stageName, activityTypes]);
+
+  const getIcon = (name?: string) => {
+    const icons: Record<string, any> = {
+      Phone, Users, Globe, Activity: ActivityIcon, Mail, Calendar, Video, Message: MessageSquare
+    };
+    const Comp = icons[name || ""] || ActivityIcon;
+    return <Comp size={10} className="text-white" />;
+  };
 
   return (
-    <div className="relative pl-6">
-      <div className="absolute bottom-4 left-[9px] top-2 w-px bg-[#e5e7eb]" />
+    <div className="relative pl-8">
+      <div className="absolute bottom-4 left-[15px] top-2 w-px bg-[#e5e7eb]" />
       <ul className="space-y-6">
         {items.map((item) => (
           <li key={item.id} className="relative">
-            <span className="absolute -left-[21px] top-1.5 size-3 rounded-full border-2 border-white bg-[#4080f0] shadow-sm" />
+            <span className="absolute -left-[25px] top-1.5 flex size-5 items-center justify-center rounded-full border-2 border-white bg-[#4080f0] shadow-sm">
+              {getIcon(item.icon)}
+            </span>
             <div>
                 <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest">{item.date}</p>
                 <p className="mt-1 text-sm font-semibold text-[#1c1e21]">{item.title}</p>
-                <Badge variant="outline" className="mt-2 text-[9px] font-medium bg-[#f8faff] text-[#4080f0] border-[#dbeafe]">
-                {item.kind}
-                </Badge>
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="outline" className="text-[9px] font-medium bg-[#f8faff] text-[#4080f0] border-[#dbeafe]">
+                    {item.kind}
+                  </Badge>
+                </div>
             </div>
           </li>
         ))}

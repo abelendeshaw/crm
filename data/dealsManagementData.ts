@@ -76,8 +76,13 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     borderClass: "border-[#fecaca]",
   },
 ];
+export type ActivityType = {
+  id: string;
+  name: string;
+  icon: string;
+};
 
-export type DealActivityKind = "Call" | "Meeting" | "External";
+export type DealActivityKind = string;
 
 export type DealActivity = {
   id: string;

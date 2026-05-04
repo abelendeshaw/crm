@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -72,13 +72,13 @@ const STAGE_COLOR_PRESETS: {
   columnClass: string;
   borderClass: string;
 }[] = [
-  { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
-  { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
-  { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
-  { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
-  { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
-  { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
-];
+    { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
+    { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
+    { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
+    { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
+    { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
+    { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
+  ];
 
 function initials(name: string) {
   return name
@@ -159,9 +159,26 @@ function StatCard({
 
 export function DealsManagementPage() {
   const [stages, setStages] = useState<PipelineStage[]>(() =>
-    [...DEFAULT_PIPELINE_STAGES].sort((a, b) => a.order - b.order),
+    [...mockDealStore.stages].sort((a, b) => a.order - b.order),
   );
   const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
+
+  useEffect(() => {
+    // Sync deals
+    const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
+      _setDeals([...newDeals]);
+    });
+    // Sync stages
+    const unsubStages = mockDealStore.subscribeStages((newStages) => {
+      setStages([...newStages].sort((a, b) => a.order - b.order));
+    });
+
+    return () => {
+      unsubDeals();
+      unsubStages();
+    };
+  }, []);
+
   const [search, setSearch] = useState("");
   const [filterStageId, setFilterStageId] = useState<string>("all");
   const [filterOwner, setFilterOwner] = useState<string>("all");
@@ -170,11 +187,10 @@ export function DealsManagementPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [quickCapture, setQuickCapture] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
 
-  const [leadsOpen, setLeadsOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [leadSearch, setLeadSearch] = useState("");
+  const [creationMode, setCreationMode] = useState<"manual" | "fromLead">("manual");
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -296,10 +312,10 @@ export function DealsManagementPage() {
       prev.map((d) =>
         d.id === dealId
           ? {
-              ...d,
-              stageId,
-              stageEnteredAt: d.stageId === stageId ? d.stageEnteredAt : today,
-            }
+            ...d,
+            stageId,
+            stageEnteredAt: d.stageId === stageId ? d.stageEnteredAt : today,
+          }
           : d,
       ),
     );
@@ -307,10 +323,10 @@ export function DealsManagementPage() {
       prev.map((d) =>
         d.id === dealId
           ? {
-              ...d,
-              stageId,
-              stageEnteredAt: d.stageId === stageId ? d.stageEnteredAt : today,
-            }
+            ...d,
+            stageId,
+            stageEnteredAt: d.stageId === stageId ? d.stageEnteredAt : today,
+          }
           : d,
       ),
     );
@@ -412,7 +428,7 @@ export function DealsManagementPage() {
     };
 
     setDeals((prev) => [newDeal, ...prev]);
-    setLeadsOpen(false);
+    setCreateOpen(false);
     setSelectedLeadId(null);
     setConvertForm({
       value: "",
@@ -427,33 +443,6 @@ export function DealsManagementPage() {
   };
 
 
-  const adminMoveStage = (stageId: string, dir: -1 | 1) => {
-    setStages((prev) => {
-      const list = [...prev].sort((a, b) => a.order - b.order);
-      const idx = list.findIndex((s) => s.id === stageId);
-      const swap = idx + dir;
-      if (idx < 0 || swap < 0 || swap >= list.length) return prev;
-      const a = list[idx]!;
-      const b = list[swap]!;
-      return prev.map((s) => {
-        if (s.id === a.id) return { ...s, order: b.order };
-        if (s.id === b.id) return { ...s, order: a.order };
-        return s;
-      });
-    });
-  };
-
-  const adminSetPreset = (stageId: string, presetIndex: number) => {
-    const preset = STAGE_COLOR_PRESETS[presetIndex];
-    if (!preset) return;
-    setStages((prev) =>
-      prev.map((s) =>
-        s.id === stageId
-          ? { ...s, columnClass: preset.columnClass, borderClass: preset.borderClass }
-          : s,
-      ),
-    );
-  };
 
   const agingLabel = (deal: CrmDeal) => {
     const st = stageById.get(deal.stageId);
@@ -558,20 +547,11 @@ export function DealsManagementPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 border-[#e5e7eb]"
-                onClick={() => setLeadsOpen(true)}
-              >
-                <Plus size={14} className="mr-1.5" />
-                From Leads
-              </Button>
-              <Button
-                type="button"
                 size="sm"
                 className="h-9 bg-[#4080f0] text-white hover:bg-[#3070e0]"
                 onClick={() => {
                   setQuickCapture(false);
+                  setCreationMode("manual");
                   setCreateOpen(true);
                 }}
               >
@@ -582,7 +562,7 @@ export function DealsManagementPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
           <div className="flex h-full min-w-max gap-3 pb-1">
             {sortedStages.map((stage) => {
               const columnDeals = filteredDeals.filter((d) => d.stageId === stage.id);
@@ -608,7 +588,7 @@ export function DealsManagementPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex-1 space-y-2 overflow-y-auto p-2">
+                  <div className="flex-1 space-y-2 overflow-y-auto p-2 no-scrollbar">
                     {columnDeals.map((deal) => {
                       const customer = accountById.get(deal.customerId);
                       const stuck = agingLabel(deal);
@@ -698,424 +678,112 @@ export function DealsManagementPage() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>Create deal</DialogTitle>
+            <DialogTitle>
+              {creationMode === "fromLead" ? "Add deal from leads" : "Create new deal"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
-            <div>
-              <p className="text-sm font-medium text-[#1c1e21]">Quick capture</p>
-              <p className="text-xs text-[#6b7280]">Minimal fields for direct sales</p>
-            </div>
-            <Switch checked={quickCapture} onCheckedChange={setQuickCapture} />
-          </div>
-          <div className="grid gap-4 py-1">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormField label="Deal name *">
-                <Input
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                  className="h-9 border-[#e5e7eb]"
-                  placeholder="e.g. Enterprise renewal"
-                />
-              </FormField>
-              <FormField label="Customer *">
-                <Select
-                  value={createForm.customerId}
-                  onValueChange={(v) => setCreateForm((p) => ({ ...p, customerId: v }))}
-                >
-                  <SelectTrigger className="h-9 border-[#e5e7eb]">
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dealCustomerAccounts.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Deal value *">
-                  <Input
-                    value={createForm.value}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, value: e.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                    placeholder="0"
-                    inputMode="decimal"
-                  />
-                </FormField>
-                <FormField label="Currency">
-                  <Select
-                    value={createForm.currency}
-                    onValueChange={(v) =>
-                      setCreateForm((p) => ({ ...p, currency: v as DealCurrency }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
-
-              {!quickCapture && (
-                <FormField label="Pipeline stage">
-                  <Select
-                    value={createForm.stageId}
-                    onValueChange={(v) => setCreateForm((p) => ({ ...p, stageId: v }))}
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortedStages.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
+          <div className="flex items-center gap-2 rounded-lg bg-[#f3f4f6] p-1 mb-2">
+            <Button
+              variant={creationMode === "manual" ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "flex-1 h-8 text-xs font-medium",
+                creationMode === "manual" && "bg-white shadow-sm"
               )}
-            </div>
-
-            {!quickCapture && (
-              <>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField label="Close probability (%)">
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={createForm.probability}
-                      onChange={(e) =>
-                        setCreateForm((p) => ({ ...p, probability: e.target.value }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                    />
-                  </FormField>
-                  <FormField label="Expected close date">
-                    <Input
-                      type="date"
-                      value={createForm.expectedClose}
-                      onChange={(e) =>
-                        setCreateForm((p) => ({ ...p, expectedClose: e.target.value }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                    />
-                  </FormField>
-                </div>
-
-                <Separator className="my-2" />
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <FormField label="Primary sales">
-                      <Select
-                        value={createForm.primarySales}
-                        onValueChange={(v) =>
-                          setCreateForm((p) => ({ ...p, primarySales: v }))
-                        }
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                    <FormField label="Pre-sales">
-                      <Select
-                        value={createForm.presales}
-                        onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                    <FormField label="Channel">
-                      <Select
-                        value={createForm.channel}
-                        onValueChange={(v) => setCreateForm((p) => ({ ...p, channel: v }))}
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
-              Cancel
+              onClick={() => setCreationMode("manual")}
+            >
+              Manual entry
             </Button>
             <Button
+              variant={creationMode === "fromLead" ? "secondary" : "ghost"}
               size="sm"
-              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-              onClick={saveNewDeal}
+              className={cn(
+                "flex-1 h-8 text-xs font-medium",
+                creationMode === "fromLead" && "bg-white shadow-sm"
+              )}
+              onClick={() => setCreationMode("fromLead")}
             >
-              Create deal
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={adminOpen} onOpenChange={setAdminOpen}>
-        <DialogContent className="max-h-[min(90vh,640px)] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-[560px]">
-          <DialogHeader>
-            <DialogTitle>Pipeline admin (mock)</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-[#6b7280]">
-            Adjust stage order, labels, and column colours. Deal records keep stable stage
-            IDs.
-          </p>
-          <div className="space-y-3 py-2">
-            {[...stages].sort((a, b) => a.order - b.order).map((stage, idx, arr) => (
-              <div
-                key={stage.id}
-                className="flex flex-col gap-2 rounded-lg border border-[#e5e7eb] bg-white p-3 sm:flex-row sm:items-center"
-              >
-                <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    value={stage.name}
-                    onChange={(e) =>
-                      setStages((prev) =>
-                        prev.map((s) =>
-                          s.id === stage.id ? { ...s, name: e.target.value } : s,
-                        ),
-                      )
-                    }
-                    className="h-9 max-w-[200px] border-[#e5e7eb]"
-                  />
-                  <Select
-                    value={String(
-                      Math.max(
-                        0,
-                        STAGE_COLOR_PRESETS.findIndex(
-                          (p) =>
-                            p.columnClass === stage.columnClass &&
-                            p.borderClass === stage.borderClass,
-                        ),
-                      ),
-                    )}
-                    onValueChange={(v) => adminSetPreset(stage.id, Number(v))}
-                  >
-                    <SelectTrigger className="h-9 w-full border-[#e5e7eb] sm:w-[140px]">
-                      <SelectValue placeholder="Colour" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STAGE_COLOR_PRESETS.map((p, i) => (
-                        <SelectItem key={p.label} value={String(i)}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    className="border-[#e5e7eb]"
-                    disabled={idx === 0}
-                    onClick={() => adminMoveStage(stage.id, -1)}
-                  >
-                    <ChevronUp size={14} />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon-sm"
-                    className="border-[#e5e7eb]"
-                    disabled={idx === arr.length - 1}
-                    onClick={() => adminMoveStage(stage.id, 1)}
-                  >
-                    <ChevronDown size={14} />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              From Leads
+            </Button>
           </div>
-          <DialogFooter>
-            <Button size="sm" className="bg-[#4080f0] text-white" onClick={() => setAdminOpen(false)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-
-      <Dialog
-        open={leadsOpen}
-        onOpenChange={(open) => {
-          setLeadsOpen(open);
-          if (!open) {
-            setSelectedLeadId(null);
-            setLeadSearch("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle>Add deal from leads</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            {!selectedLeadId ? (
-              <div className="space-y-4">
-                <div className="relative">
-                  <Search
-                    size={15}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
-                  />
-                  <Input
-                    value={leadSearch}
-                    onChange={(e) => setLeadSearch(e.target.value)}
-                    placeholder="Search leads by name or industry..."
-                    className="h-9 pl-9 border-[#e5e7eb]"
-                  />
+          {creationMode === "manual" ? (
+            <>
+              <div className="flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#fafbff] px-3 py-2 mb-4">
+                <div>
+                  <p className="text-sm font-medium text-[#1c1e21]">Quick capture</p>
+                  <p className="text-xs text-[#6b7280]">Minimal fields for direct sales</p>
                 </div>
-                <div className="max-h-[400px] overflow-y-auto rounded-md border border-[#e5e7eb]">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-[#f9fafb] text-xs uppercase text-[#6b7280]">
-                      <tr>
-                        <th className="px-4 py-2 text-left font-medium">Lead Name</th>
-                        <th className="px-4 py-2 text-left font-medium">Industry</th>
-                        <th className="px-4 py-2 text-left font-medium">Source</th>
-                        <th className="px-4 py-2 text-right font-medium">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                      {filteredLeads.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-8 text-center text-[#9ca3af]">
-                            No leads found.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredLeads.map((lead) => (
-                          <tr key={lead.id} className="hover:bg-[#f3f4f6]">
-                            <td className="px-4 py-3 font-medium text-[#1c1e21]">
-                              {lead.name}
-                            </td>
-                            <td className="px-4 py-3 text-[#6b7280]">{lead.industry}</td>
-                            <td className="px-4 py-3 text-[#6b7280]">
-                              {lead.leadSource || "—"}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 border-[#e5e7eb]"
-                                onClick={() => setSelectedLeadId(lead.id)}
-                              >
-                                Select
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <Switch checked={quickCapture} onCheckedChange={setQuickCapture} />
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg bg-[#f0f7ff] p-3 text-sm text-[#1e40af]">
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-full bg-[#dbeafe] p-1.5">
-                      <Briefcase size={16} />
-                    </div>
-                    <div>
-                      <p className="font-semibold">
-                        {dealCustomerAccounts.find((l) => l.id === selectedLeadId)?.name}
-                      </p>
-                      <p className="text-xs opacity-80">Converting to deal</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-[#1e40af] hover:bg-[#dbeafe]"
-                    onClick={() => setSelectedLeadId(null)}
-                  >
-                    Change lead
-                  </Button>
+              <div className="grid gap-4 py-1">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FormField label="Deal name *">
+                    <Input
+                      value={createForm.name}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                      className="h-9 border-[#e5e7eb]"
+                      placeholder="e.g. Acme Corp Q3"
+                    />
+                  </FormField>
+                  <FormField label="Customer account *">
+                    <Select
+                      value={createForm.customerId}
+                      onValueChange={(v) => setCreateForm((p) => ({ ...p, customerId: v }))}
+                    >
+                      <SelectTrigger className="h-9 border-[#e5e7eb]">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dealCustomerAccounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
                 </div>
 
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField label="Deal value *">
-                        <Input
-                          value={convertForm.value}
-                          onChange={(e) =>
-                            setConvertForm((p) => ({ ...p, value: e.target.value }))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="0"
-                          inputMode="decimal"
-                        />
-                      </FormField>
-                      <FormField label="Currency">
-                        <Select
-                          value={convertForm.currency}
-                          onValueChange={(v) =>
-                            setConvertForm((p) => ({ ...p, currency: v as DealCurrency }))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {CURRENCY_OPTIONS.map((c) => (
-                              <SelectItem key={c} value={c}>
-                                {c}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-                    </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField label="Deal value *">
+                      <Input
+                        value={createForm.value}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, value: e.target.value }))}
+                        className="h-9 border-[#e5e7eb]"
+                        placeholder="0"
+                        inputMode="decimal"
+                      />
+                    </FormField>
+                    <FormField label="Currency">
+                      <Select
+                        value={createForm.currency}
+                        onValueChange={(v) =>
+                          setCreateForm((p) => ({ ...p, currency: v as DealCurrency }))
+                        }
+                      >
+                        <SelectTrigger className="h-9 border-[#e5e7eb]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map((c) => (
+                            <SelectItem key={c} value={c}>
+                              {c}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormField>
+                  </div>
+
+                  {!quickCapture && (
                     <FormField label="Pipeline stage">
                       <Select
-                        value={convertForm.stageId}
-                        onValueChange={(v) =>
-                          setConvertForm((p) => ({ ...p, stageId: v }))
-                        }
+                        value={createForm.stageId}
+                        onValueChange={(v) => setCreateForm((p) => ({ ...p, stageId: v }))}
                       >
                         <SelectTrigger className="h-9 border-[#e5e7eb]">
                           <SelectValue />
@@ -1129,114 +797,355 @@ export function DealsManagementPage() {
                         </SelectContent>
                       </Select>
                     </FormField>
+                  )}
+                </div>
+
+                {!quickCapture && (
+                  <>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <FormField label="Close probability (%)">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={createForm.probability}
+                          onChange={(e) =>
+                            setCreateForm((p) => ({ ...p, probability: e.target.value }))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                        />
+                      </FormField>
+                      <FormField label="Expected close date">
+                        <Input
+                          type="date"
+                          value={createForm.expectedClose}
+                          onChange={(e) =>
+                            setCreateForm((p) => ({ ...p, expectedClose: e.target.value }))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                        />
+                      </FormField>
+                    </div>
+
+                    <Separator className="my-2" />
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <FormField label="Primary sales">
+                          <Select
+                            value={createForm.primarySales}
+                            onValueChange={(v) =>
+                              setCreateForm((p) => ({ ...p, primarySales: v }))
+                            }
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                        <FormField label="Pre-sales">
+                          <Select
+                            value={createForm.presales}
+                            onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                        <FormField label="Channel">
+                          <Select
+                            value={createForm.channel}
+                            onValueChange={(v) => setCreateForm((p) => ({ ...p, channel: v }))}
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="grid gap-4 py-2">
+              {!selectedLeadId ? (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search
+                      size={15}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                    />
+                    <Input
+                      value={leadSearch}
+                      onChange={(e) => setLeadSearch(e.target.value)}
+                      placeholder="Search leads by name or industry..."
+                      className="h-9 pl-9 border-[#e5e7eb]"
+                    />
+                  </div>
+                  <div className="max-h-[400px] overflow-y-auto rounded-md border border-[#e5e7eb]">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-[#f9fafb] text-xs uppercase text-[#6b7280]">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium">Lead Name</th>
+                          <th className="px-4 py-2 text-left font-medium">Industry</th>
+                          <th className="px-4 py-2 text-right font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
+                        {filteredLeads.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="px-4 py-8 text-center text-[#9ca3af]">
+                              No leads found.
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredLeads.map((lead) => (
+                            <tr key={lead.id} className="hover:bg-[#f3f4f6]">
+                              <td className="px-4 py-3 font-medium text-[#1c1e21]">
+                                {lead.name}
+                              </td>
+                              <td className="px-4 py-3 text-[#6b7280]">{lead.industry}</td>
+                              <td className="px-4 py-3 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 border-[#e5e7eb]"
+                                  onClick={() => setSelectedLeadId(lead.id)}
+                                >
+                                  Select
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between rounded-lg bg-[#f0f7ff] p-3 text-sm text-[#1e40af]">
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-full bg-[#dbeafe] p-1.5">
+                        <Briefcase size={16} />
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          {dealCustomerAccounts.find((l) => l.id === selectedLeadId)?.name}
+                        </p>
+                        <p className="text-xs opacity-80">Converting to deal</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-[#1e40af] hover:bg-[#dbeafe]"
+                      onClick={() => setSelectedLeadId(null)}
+                    >
+                      Change lead
+                    </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <FormField label="Close probability (%)">
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={convertForm.probability}
-                        onChange={(e) =>
-                          setConvertForm((p) => ({ ...p, probability: e.target.value }))
-                        }
-                        className="h-9 border-[#e5e7eb]"
-                      />
-                    </FormField>
-                    <FormField label="Expected close date">
-                      <Input
-                        type="date"
-                        value={convertForm.expectedClose}
-                        onChange={(e) =>
-                          setConvertForm((p) => ({ ...p, expectedClose: e.target.value }))
-                        }
-                        className="h-9 border-[#e5e7eb]"
-                      />
-                    </FormField>
-                  </div>
-
-                  <Separator className="my-2" />
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <FormField label="Primary sales">
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField label="Deal value *">
+                          <Input
+                            value={convertForm.value}
+                            onChange={(e) =>
+                              setConvertForm((p) => ({ ...p, value: e.target.value }))
+                            }
+                            className="h-9 border-[#e5e7eb]"
+                            placeholder="0"
+                            inputMode="decimal"
+                          />
+                        </FormField>
+                        <FormField label="Currency">
+                          <Select
+                            value={convertForm.currency}
+                            onValueChange={(v) =>
+                              setConvertForm((p) => ({ ...p, currency: v as DealCurrency }))
+                            }
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CURRENCY_OPTIONS.map((c) => (
+                                <SelectItem key={c} value={c}>
+                                  {c}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      </div>
+                      <FormField label="Pipeline stage">
                         <Select
-                          value={convertForm.primarySales}
+                          value={convertForm.stageId}
                           onValueChange={(v) =>
-                            setConvertForm((p) => ({ ...p, primarySales: v }))
+                            setConvertForm((p) => ({ ...p, stageId: v }))
                           }
                         >
                           <SelectTrigger className="h-9 border-[#e5e7eb]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {ownerOptions.map((o) => (
-                              <SelectItem key={o} value={o}>
-                                {o}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-                      <FormField label="Pre-sales">
-                        <Select
-                          value={convertForm.presales}
-                          onValueChange={(v) =>
-                            setConvertForm((p) => ({ ...p, presales: v }))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ownerOptions.map((o) => (
-                              <SelectItem key={o} value={o}>
-                                {o}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-                      <FormField label="Channel">
-                        <Select
-                          value={convertForm.channel}
-                          onValueChange={(v) => setConvertForm((p) => ({ ...p, channel: v }))}
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ownerOptions.map((o) => (
-                              <SelectItem key={o} value={o}>
-                                {o}
+                            {sortedStages.map((s) => (
+                              <SelectItem key={s.id} value={s.id}>
+                                {s.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </FormField>
                     </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <FormField label="Close probability (%)">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={convertForm.probability}
+                          onChange={(e) =>
+                            setConvertForm((p) => ({ ...p, probability: e.target.value }))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                        />
+                      </FormField>
+                      <FormField label="Expected close date">
+                        <Input
+                          type="date"
+                          value={convertForm.expectedClose}
+                          onChange={(e) =>
+                            setConvertForm((p) => ({ ...p, expectedClose: e.target.value }))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                        />
+                      </FormField>
+                    </div>
+
+                    <Separator className="my-2" />
+                    <div className="space-y-3">
+                      <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <FormField label="Primary sales">
+                          <Select
+                            value={convertForm.primarySales}
+                            onValueChange={(v) =>
+                              setConvertForm((p) => ({ ...p, primarySales: v }))
+                            }
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                        <FormField label="Pre-sales">
+                          <Select
+                            value={convertForm.presales}
+                            onValueChange={(v) =>
+                              setConvertForm((p) => ({ ...p, presales: v }))
+                            }
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                        <FormField label="Channel">
+                          <Select
+                            value={convertForm.channel}
+                            onValueChange={(v) => setConvertForm((p) => ({ ...p, channel: v }))}
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ownerOptions.map((o) => (
+                                <SelectItem key={o} value={o}>
+                                  {o}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormField>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setLeadsOpen(false)}>
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            {selectedLeadId && (
+            {creationMode === "manual" ? (
               <Button
                 size="sm"
                 className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                onClick={saveLeadAsDeal}
+                onClick={saveNewDeal}
               >
-                Create deal from lead
+                Create deal
               </Button>
+            ) : (
+              selectedLeadId && (
+                <Button
+                  size="sm"
+                  className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                  onClick={saveLeadAsDeal}
+                >
+                  Create deal from lead
+                </Button>
+              )
             )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
+
     </div>
   );
 }

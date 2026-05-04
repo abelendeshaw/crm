@@ -39,7 +39,15 @@ const navItems: NavItem[] = [
       { label: "Settings", path: "/leads/settings" },
     ],
   },
-  { label: "Deals", icon: <Handshake size={18} />, path: "/deals" },
+  {
+    label: "Deals",
+    icon: <Handshake size={18} />,
+    path: "/deals",
+    children: [
+      { label: "Pipeline", path: "/deals" },
+      { label: "Settings", path: "/deals/settings" },
+    ],
+  },
   {
     label: "Customer",
     icon: <Building2 size={18} />,

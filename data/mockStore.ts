@@ -1,4 +1,5 @@
 import { initialDeals, type CrmDeal, DEFAULT_PIPELINE_STAGES, type PipelineStage, type ActivityType } from "./dealsManagementData";
+import { initialTargets, type SalesTarget } from "./salesTargetsData";
 
 // Simple in-memory store for mock persistence within the session
 class MockDealStore {
@@ -9,12 +10,15 @@ class MockDealStore {
   private _dealsSubscribers: ((deals: CrmDeal[]) => void)[] = [];
   private _stagesSubscribers: ((stages: PipelineStage[]) => void)[] = [];
   private _activityTypesSubscribers: ((types: ActivityType[]) => void)[] = [];
+  private _targetsSubscribers: ((targets: SalesTarget[]) => void)[] = [];
 
   private _activityTypes: ActivityType[] = [
     { id: "act-type-1", name: "Call", icon: "Phone" },
     { id: "act-type-2", name: "Meeting", icon: "Users" },
     { id: "act-type-3", name: "External", icon: "Globe" },
   ];
+
+  private _targets: SalesTarget[] = [...initialTargets];
 
   private constructor() {}
 
@@ -52,8 +56,21 @@ class MockDealStore {
     this._notifyActivityTypes();
   }
 
+  public get targets(): SalesTarget[] {
+    return this._targets;
+  }
+
+  public set targets(newTargets: SalesTarget[]) {
+    this._targets = newTargets;
+    this._notifyTargets();
+  }
+
   public getDeal(id: string): CrmDeal | undefined {
     return this._deals.find(d => d.id === id);
+  }
+
+  public getTarget(id: string): SalesTarget | undefined {
+    return this._targets.find(t => t.id === id);
   }
 
   public subscribeDeals(callback: (deals: CrmDeal[]) => void) {
@@ -77,6 +94,13 @@ class MockDealStore {
     };
   }
 
+  public subscribeTargets(callback: (targets: SalesTarget[]) => void) {
+    this._targetsSubscribers.push(callback);
+    return () => {
+      this._targetsSubscribers = this._targetsSubscribers.filter(s => s !== callback);
+    };
+  }
+
   private _notifyDeals() {
     this._dealsSubscribers.forEach(s => s(this._deals));
   }
@@ -87,6 +111,10 @@ class MockDealStore {
 
   private _notifyActivityTypes() {
     this._activityTypesSubscribers.forEach(s => s(this._activityTypes));
+  }
+
+  private _notifyTargets() {
+    this._targetsSubscribers.forEach(s => s(this._targets));
   }
 }
 

@@ -43,6 +43,16 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -1151,6 +1161,9 @@ function CustomerAccountDetailView({
   const [confirmPrimaryContactId, setConfirmPrimaryContactId] = useState<
     string | null
   >(null);
+  const [confirmRemoveAssociationId, setConfirmRemoveAssociationId] = useState<
+    string | null
+  >(null);
   const [pipelineKind, setPipelineKind] = useState<
     "activeLeads" | "closedLeads" | "activeDeals" | "closedDeals"
   >("activeLeads");
@@ -1177,6 +1190,9 @@ function CustomerAccountDetailView({
   });
   const contactToConfirm = accountContacts.find(
     (item) => item.contact.id === confirmPrimaryContactId,
+  );
+  const contactToRemoveFromAccount = accountContacts.find(
+    (item) => item.association.id === confirmRemoveAssociationId,
   );
   const activityItems = useMemo(
     () =>
@@ -1731,7 +1747,7 @@ function CustomerAccountDetailView({
                             size="sm"
                             variant="outline"
                             className="absolute right-3 top-3 z-10 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#dc2626] border-[#fecaca] bg-[#fef2f2] hover:bg-[#fee2e2] transition-colors"
-                            onClick={() => onRemoveContact(association.id)}
+                            onClick={() => setConfirmRemoveAssociationId(association.id)}
                             title="Remove contact from account"
                           >
                             <Minus size={10} className="mr-1" strokeWidth={3} />
@@ -2087,6 +2103,39 @@ function CustomerAccountDetailView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(confirmRemoveAssociationId)}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemoveAssociationId(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[460px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove contact from customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {contactToRemoveFromAccount
+                ? `${contactToRemoveFromAccount.contact.firstName} ${contactToRemoveFromAccount.contact.lastName} will be unlinked from ${account.name}. The contact record is not deleted.`
+                : "This contact will be unlinked from this customer. The contact record is not deleted."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirmRemoveAssociationId) {
+                  onRemoveContact(confirmRemoveAssociationId);
+                }
+                setConfirmRemoveAssociationId(null);
+              }}
+            >
+              Remove from customer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

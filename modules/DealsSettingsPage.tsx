@@ -72,13 +72,14 @@ function IconRenderer({ name, className }: { name: string; className?: string })
 
 export function DealsSettingsPage() {
   const [activeSection, setActiveSection] = useState<"stages" | "activities">("stages");
-  const [stages, setStages] = useState<PipelineStage[]>([]);
-  const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
+  const [stages, setStages] = useState<PipelineStage[]>(() =>
+    [...mockDealStore.stages].sort((a, b) => a.order - b.order),
+  );
+  const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => [
+    ...mockDealStore.activityTypes,
+  ]);
 
   useEffect(() => {
-    setStages([...mockDealStore.stages].sort((a, b) => a.order - b.order));
-    setActivityTypes([...mockDealStore.activityTypes]);
-    
     const unsubStages = mockDealStore.subscribeStages((newStages) => {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
@@ -94,11 +95,11 @@ export function DealsSettingsPage() {
   }, []);
 
   const saveStages = (newStages: PipelineStage[]) => {
-    mockDealStore.stages = newStages;
+    setStages([...newStages].sort((a, b) => a.order - b.order));
   };
 
   const saveActivityTypes = (newTypes: ActivityType[]) => {
-    mockDealStore.activityTypes = newTypes;
+    setActivityTypes([...newTypes]);
   };
 
   // Stage Helpers
@@ -134,7 +135,7 @@ export function DealsSettingsPage() {
   };
 
   const addNewStage = () => {
-    const newId = `stage-custom-${Date.now()}`;
+    const newId = `stage-custom-${crypto.randomUUID()}`;
     const maxOrder = stages.reduce((max, s) => Math.max(max, s.order), -1);
     const newStage: PipelineStage = {
       id: newId,
@@ -156,7 +157,7 @@ export function DealsSettingsPage() {
   // Activity Helpers
   const addActivityType = () => {
     const newType: ActivityType = {
-      id: `act-type-${Date.now()}`,
+      id: `act-type-${crypto.randomUUID()}`,
       name: "New Activity",
       icon: "Activity",
     };

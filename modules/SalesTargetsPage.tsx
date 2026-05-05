@@ -153,10 +153,18 @@ const ownersPool = [
 
 export function SalesTargetsPage() {
   const router = useRouter();
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isSavingTarget, setIsSavingTarget] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [targets, setTargets] = useState<SalesTarget[]>(() => [...mockDealStore.targets]);
   const [deals, setDeals] = useState<CrmDeal[]>(() => [...mockDealStore.deals]);
 
   useEffect(() => {
+    const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
     const unsubTargets = mockDealStore.subscribeTargets((newTargets) => {
       setTargets([...newTargets]);
     });
@@ -164,10 +172,16 @@ export function SalesTargetsPage() {
       setDeals([...newDeals]);
     });
     return () => {
+      clearTimeout(loadingTimer);
       unsubTargets();
       unsubDeals();
     };
   }, []);
+  useEffect(() => {
+    if (!saveFeedback) return;
+    const timer = setTimeout(() => setSaveFeedback(null), 2800);
+    return () => clearTimeout(timer);
+  }, [saveFeedback]);
   const [search, setSearch] = useState("");
   const [dealSearch, setDealSearch] = useState("");
   const [filterOwner, setFilterOwner] = useState("all");
@@ -197,6 +211,7 @@ export function SalesTargetsPage() {
       status: true,
       selectedDealIds: [],
     });
+    setFormError(null);
     setDealSearch("");
     setEditTarget(null);
   };
@@ -225,8 +240,22 @@ export function SalesTargetsPage() {
 
   /* CRUD */
   const handleSave = () => {
+    setFormError(null);
     const valueNum = Number(form.targetValue.replace(/,/g, "")) || 0;
-    if (!form.name.trim() || !valueNum || !form.endDate) return;
+    if (!form.name.trim() || !valueNum || !form.endDate) {
+      setFormError("Target name, value, and end date are required.");
+      return;
+    }
+    if (form.startDate > form.endDate) {
+      setFormError("End date must be later than start date.");
+      return;
+    }
+    if (form.selectedDealIds.length === 0) {
+      setFormError("Select at least one contributing deal.");
+      return;
+    }
+
+    setIsSavingTarget(true);
 
     const selectedDeals = deals.filter(d => form.selectedDealIds.includes(d.id));
     const calculatedAchieved = selectedDeals.reduce((sum, d) => sum + d.baseValue, 0);
@@ -264,6 +293,11 @@ export function SalesTargetsPage() {
     }
 
     setCreateOpen(false);
+    setSaveFeedback({
+      type: "success",
+      message: editTarget ? "Target updated successfully." : "Target created successfully.",
+    });
+    setIsSavingTarget(false);
     resetForm();
   };
 
@@ -328,6 +362,34 @@ export function SalesTargetsPage() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
+        {saveFeedback && (
+          <div
+            className={cn(
+              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
+              saveFeedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700",
+            )}
+          >
+            {saveFeedback.message}
+          </div>
+        )}
+        {isPageLoading ? (
+          <div className="space-y-4 p-3 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-56 animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
           {/* Summary Cards */}
           <div className="flex flex-wrap gap-3">
@@ -512,6 +574,8 @@ export function SalesTargetsPage() {
             </div>
           )}
         </div>
+          </>
+        )}
       </div>
 
       {/* Create / Edit Modal */}
@@ -583,6 +647,9 @@ export function SalesTargetsPage() {
                     <div className="py-8 text-center text-[10px] text-[#9ca3af]">No deals found</div>
                   )}
                 </div>
+                <p className="text-[10px] text-[#6b7280]">
+                  Selected deals are used to auto-calculate achieved revenue.
+                </p>
               </div>
 
               {/* Right Column: Form Fields */}
@@ -662,6 +729,11 @@ export function SalesTargetsPage() {
                 </div>
               </div>
             </div>
+            {formError && (
+              <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {formError}
+              </p>
+            )}
           </div>
           <DialogFooter className="px-6 py-4 border-t border-[#e5e7eb] bg-[#fafbff]">
             <Button
@@ -679,13 +751,9 @@ export function SalesTargetsPage() {
               size="sm"
               className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
               onClick={handleSave}
-              disabled={
-                !form.name.trim() ||
-                !form.targetValue ||
-                !form.endDate
-              }
+              disabled={isSavingTarget}
             >
-              {editTarget ? "Save Changes" : "Create Target"}
+              {isSavingTarget ? "Saving..." : editTarget ? "Save Changes" : "Create Target"}
             </Button>
           </DialogFooter>
         </DialogContent>

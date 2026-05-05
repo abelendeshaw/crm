@@ -1256,8 +1256,11 @@ function CustomerAccountDetailView({
   );
 
   useEffect(() => {
-    setProfileDraft(account);
-    setIsEditingProfile(false);
+    const id = setTimeout(() => {
+      setProfileDraft(account);
+      setIsEditingProfile(false);
+    }, 0);
+    return () => clearTimeout(id);
   }, [account]);
 
   const handleAddContact = () => {

@@ -158,12 +158,25 @@ function StatCard({
 }
 
 export function DealsManagementPage() {
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isSavingDeal, setIsSavingDeal] = useState(false);
+  const [saveFeedback, setSaveFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [formErrors, setFormErrors] = useState<{
+    manual?: string;
+    fromLead?: string;
+  }>({});
+
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockDealStore.stages].sort((a, b) => a.order - b.order),
   );
   const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
 
   useEffect(() => {
+    const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
+
     // Sync deals
     const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
       _setDeals([...newDeals]);
@@ -174,10 +187,17 @@ export function DealsManagementPage() {
     });
 
     return () => {
+      clearTimeout(loadingTimer);
       unsubDeals();
       unsubStages();
     };
   }, []);
+
+  useEffect(() => {
+    if (!saveFeedback) return;
+    const timer = setTimeout(() => setSaveFeedback(null), 2800);
+    return () => clearTimeout(timer);
+  }, [saveFeedback]);
 
   const [search, setSearch] = useState("");
   const [filterStageId, setFilterStageId] = useState<string>("all");
@@ -292,12 +312,7 @@ export function DealsManagementPage() {
   }, [deals, stageById]);
 
   const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
-    if (typeof newDeals === "function") {
-      mockDealStore.deals = newDeals(mockDealStore.deals);
-    } else {
-      mockDealStore.deals = newDeals;
-    }
-    _setDeals(mockDealStore.deals);
+    _setDeals((prev) => (typeof newDeals === "function" ? newDeals(prev) : newDeals));
   };
 
   const router = useRouter();
@@ -350,16 +365,40 @@ export function DealsManagementPage() {
   };
 
   const saveNewDeal = () => {
-    if (!createForm.name.trim() || !createForm.customerId) return;
+    setFormErrors((prev) => ({ ...prev, manual: undefined }));
+
+    if (!createForm.name.trim() || !createForm.customerId) {
+      setFormErrors((prev) => ({
+        ...prev,
+        manual: "Deal name and customer are required.",
+      }));
+      return;
+    }
     const valueNum = Number(createForm.value.replace(/,/g, "")) || 0;
-    if (!quickCapture && (!valueNum || !createForm.expectedClose)) return;
+    if (!quickCapture && (!valueNum || !createForm.expectedClose)) {
+      setFormErrors((prev) => ({
+        ...prev,
+        manual: "Value and expected close date are required.",
+      }));
+      return;
+    }
+    if (quickCapture && valueNum <= 0) {
+      setFormErrors((prev) => ({
+        ...prev,
+        manual: "Quick capture still requires a valid deal value.",
+      }));
+      return;
+    }
+
+    setIsSavingDeal(true);
 
     const today = new Date().toISOString().split("T")[0]!;
     const currency = createForm.currency;
     const value = quickCapture ? Math.max(valueNum, 1) : valueNum;
     const probability = quickCapture ? 40 : Number(createForm.probability) || 0;
+    const newDealId = `deal-${crypto.randomUUID()}`;
     const newDeal: CrmDeal = {
-      id: `deal-${Date.now()}`,
+      id: newDealId,
       name: createForm.name.trim(),
       customerId: createForm.customerId,
       value,
@@ -390,19 +429,38 @@ export function DealsManagementPage() {
       presales: AUTOMATION_DEFAULT_ROLES.presales,
       channel: AUTOMATION_DEFAULT_ROLES.channel,
     });
+    setSaveFeedback({ type: "success", message: "Deal created successfully." });
+    setIsSavingDeal(false);
   };
 
   const saveLeadAsDeal = () => {
-    if (!selectedLeadId) return;
+    setFormErrors((prev) => ({ ...prev, fromLead: undefined }));
+    if (!selectedLeadId) {
+      setFormErrors((prev) => ({
+        ...prev,
+        fromLead: "Select a lead to continue.",
+      }));
+      return;
+    }
     const lead = dealCustomerAccounts.find((l) => l.id === selectedLeadId);
     if (!lead) return;
 
     const valueNum = Number(convertForm.value.replace(/,/g, "")) || 0;
+    if (!valueNum || !convertForm.expectedClose) {
+      setFormErrors((prev) => ({
+        ...prev,
+        fromLead: "Value and expected close date are required.",
+      }));
+      return;
+    }
     const currency = convertForm.currency;
     const today = new Date().toISOString().split("T")[0]!;
+    setIsSavingDeal(true);
 
+    const convertedDealId = `deal-from-lead-${crypto.randomUUID()}`;
+    const conversionActivityId = `act-conv-${crypto.randomUUID()}`;
     const newDeal: CrmDeal = {
-      id: `deal-from-lead-${Date.now()}`,
+      id: convertedDealId,
       name: `${lead.name} - Deal`,
       customerId: lead.id,
       value: valueNum,
@@ -419,7 +477,7 @@ export function DealsManagementPage() {
       leadConvertedAt: today,
       activities: [
         {
-          id: `act-conv-${Date.now()}`,
+          id: conversionActivityId,
           kind: "External",
           title: "Converted from lead",
           date: today,
@@ -440,6 +498,11 @@ export function DealsManagementPage() {
       presales: AUTOMATION_DEFAULT_ROLES.presales,
       channel: AUTOMATION_DEFAULT_ROLES.channel,
     });
+    setSaveFeedback({
+      type: "success",
+      message: "Lead converted and deal created successfully.",
+    });
+    setIsSavingDeal(false);
   };
 
 
@@ -462,6 +525,35 @@ export function DealsManagementPage() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
+        {saveFeedback && (
+          <div
+            className={cn(
+              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
+              saveFeedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700",
+            )}
+          >
+            {saveFeedback.message}
+          </div>
+        )}
+
+        {isPageLoading ? (
+          <div className="space-y-4 p-3 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
           <div className="flex flex-wrap gap-3">
             <StatCard
@@ -563,6 +655,16 @@ export function DealsManagementPage() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
+          {sortedStages.length === 0 ? (
+            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
+              <div>
+                <p className="text-sm font-medium text-[#374151]">No pipeline stages configured.</p>
+                <p className="mt-1 text-xs text-[#6b7280]">
+                  Add stages from Deals Settings before creating or moving deals.
+                </p>
+              </div>
+            </div>
+          ) : (
           <div className="flex h-full min-w-max gap-3 pb-1">
             {sortedStages.map((stage) => {
               const columnDeals = filteredDeals.filter((d) => d.stageId === stage.id);
@@ -589,6 +691,11 @@ export function DealsManagementPage() {
                     </div>
                   </div>
                   <div className="flex-1 space-y-2 overflow-y-auto p-2 no-scrollbar">
+                    {columnDeals.length === 0 && (
+                      <div className="rounded-md border border-dashed border-[#d1d5db] bg-white/70 p-3 text-center text-xs text-[#6b7280]">
+                        No deals in this stage
+                      </div>
+                    )}
                     {columnDeals.map((deal) => {
                       const customer = accountById.get(deal.customerId);
                       const stuck = agingLabel(deal);
@@ -672,7 +779,10 @@ export function DealsManagementPage() {
               );
             })}
           </div>
+          )}
         </div>
+          </>
+        )}
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -889,6 +999,9 @@ export function DealsManagementPage() {
                   </>
                 )}
               </div>
+              {formErrors.manual && (
+                <p className="text-xs text-red-600">{formErrors.manual}</p>
+              )}
             </>
           ) : (
             <div className="grid gap-4 py-2">
@@ -1114,6 +1227,9 @@ export function DealsManagementPage() {
                   </div>
                 </div>
               )}
+              {formErrors.fromLead && (
+                <p className="text-xs text-red-600">{formErrors.fromLead}</p>
+              )}
             </div>
           )}
 
@@ -1126,8 +1242,9 @@ export function DealsManagementPage() {
                 size="sm"
                 className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
                 onClick={saveNewDeal}
+                disabled={isSavingDeal}
               >
-                Create deal
+                {isSavingDeal ? "Saving..." : "Create deal"}
               </Button>
             ) : (
               selectedLeadId && (
@@ -1135,8 +1252,9 @@ export function DealsManagementPage() {
                   size="sm"
                   className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
                   onClick={saveLeadAsDeal}
+                  disabled={isSavingDeal}
                 >
-                  Create deal from lead
+                  {isSavingDeal ? "Saving..." : "Create deal from lead"}
                 </Button>
               )
             )}

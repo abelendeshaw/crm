@@ -58,6 +58,7 @@ import {
   FX_TO_ETB,
   initialDeals,
   computeBaseValue,
+  type ActivityType,
 } from "@/data/dealsManagementData";
 import { mockDealStore } from "@/data/mockStore";
 import Link from "next/link";
@@ -117,7 +118,7 @@ export function DealDetailPage({ id }: { id: string }) {
   const deal = deals.find((d) => d.id === id);
 
   const [detailDraft, setDetailDraft] = useState<CrmDeal | null>(deal ? { ...deal } : null);
-  const [activityTypes, setActivityTypes] = useState<string[]>(() => mockDealStore.activityTypes);
+  const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => mockDealStore.activityTypes);
 
   useEffect(() => {
     return mockDealStore.subscribeActivityTypes((types) => {
@@ -571,8 +572,8 @@ export function DealDetailPage({ id }: { id: string }) {
                 </SelectTrigger>
                 <SelectContent>
                   {activityTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
+                    <SelectItem key={type.id} value={type.name}>
+                      {type.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -720,7 +721,10 @@ function TimelineView({
   }, [deal, stageName, activityTypes]);
 
   const getIcon = (name?: string) => {
-    const icons: Record<string, any> = {
+    const icons: Record<
+      string,
+      React.ComponentType<{ size?: number; className?: string }>
+    > = {
       Phone, Users, Globe, Activity: ActivityIcon, Mail, Calendar, Video, Message: MessageSquare
     };
     const Comp = icons[name || ""] || ActivityIcon;

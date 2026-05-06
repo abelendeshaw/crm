@@ -1399,7 +1399,7 @@ function CustomerAccountDetailView({
                   )}
                 </div>
               </div>
-              <TabsContent value="profile">
+              <TabsContent value="profile" className="rounded-md p-3">
                 <div className="mb-3 flex items-center gap-2">
                   <h3 className="text-sm font-medium text-[#1c1e21]">Profile</h3>
                 </div>
@@ -1479,7 +1479,7 @@ function CustomerAccountDetailView({
 
             <div className="my-4 h-px bg-[#eef1f6]" />
 
-            <div>
+            <div className="rounded-[14px] bg-[#F9FAFB] p-3">
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Leads & Deals
               </h4>
@@ -1487,7 +1487,10 @@ function CustomerAccountDetailView({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  className={cn(
+                    "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
+                    pipelineKind === "activeLeads" && "border-[#d1d5db] bg-[#f3f4f6]",
+                  )}
                   onClick={() => openPipeline("activeLeads")}
                 >
                   <span className="rounded-md bg-[#eef2fd] p-2 text-[#4080f0]">
@@ -1503,7 +1506,10 @@ function CustomerAccountDetailView({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  className={cn(
+                    "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
+                    pipelineKind === "closedLeads" && "border-[#d1d5db] bg-[#f3f4f6]",
+                  )}
                   onClick={() => openPipeline("closedLeads")}
                 >
                   <span className="rounded-md bg-[#fef2f2] p-2 text-[#dc2626]">
@@ -1519,7 +1525,10 @@ function CustomerAccountDetailView({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  className={cn(
+                    "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
+                    pipelineKind === "activeDeals" && "border-[#d1d5db] bg-[#f3f4f6]",
+                  )}
                   onClick={() => openPipeline("activeDeals")}
                 >
                   <span className="rounded-md bg-[#e6f7ee] p-2 text-[#1a8a4a]">
@@ -1535,7 +1544,10 @@ function CustomerAccountDetailView({
                 <Button
                   type="button"
                   variant="outline"
-                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  className={cn(
+                    "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
+                    pipelineKind === "closedDeals" && "border-[#d1d5db] bg-[#f3f4f6]",
+                  )}
                   onClick={() => openPipeline("closedDeals")}
                 >
                   <span className="rounded-md bg-[#fff8e6] p-2 text-[#b07d00]">
@@ -1549,30 +1561,7 @@ function CustomerAccountDetailView({
                   </span>
                 </Button>
               </div>
-              <Card className="mt-3 gap-2 border-[#e5e7eb] bg-white py-4 shadow-none ring-0">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-sm">
-                      {pipelineKind === "activeLeads"
-                        ? "Active Leads"
-                        : pipelineKind === "closedLeads"
-                          ? "Closed Leads"
-                          : pipelineKind === "activeDeals"
-                            ? "Active Deals"
-                            : "Closed Deals"}
-                    </CardTitle>
-                    <Badge variant="outline" className="bg-border text-xs">
-                      {pipelineKind === "activeLeads"
-                        ? pipelineSummary.activeLeads.length
-                        : pipelineKind === "closedLeads"
-                          ? pipelineSummary.closedLeads.length
-                          : pipelineKind === "activeDeals"
-                            ? pipelineSummary.activeDeals.length
-                            : pipelineSummary.closedDeals.length}{" "}
-                      items
-                    </Badge>
-                  </div>
-                </CardHeader>
+              <Card className="mt-3 gap-2 rounded-md border-[#e5e7eb] bg-white py-3 shadow-none ring-0">
                 <CardContent className="px-3 pt-0">
                   <div className="space-y-2">
                     {(pipelineKind === "activeLeads" ? pipelineSummary.activeLeads : []).map((lead) => {
@@ -1580,11 +1569,17 @@ function CustomerAccountDetailView({
                       return (
                         <div
                           key={lead.id}
-                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                          className={cn(
+                            "overflow-hidden rounded-md border border-[#e5e7eb] bg-white transition-colors",
+                            isOpen && "bg-[#f3f4f6]",
+                          )}
                         >
                           <button
                             type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            className={cn(
+                              "w-full px-3 py-2 text-left transition-colors hover:bg-[#fafbff]",
+                              isOpen && "bg-[#f3f4f6] hover:bg-[#eceff3]",
+                            )}
                             onClick={() =>
                               setExpandedPipelineItemId((prev) => (prev === lead.id ? null : lead.id))
                             }
@@ -1613,11 +1608,17 @@ function CustomerAccountDetailView({
                       return (
                         <div
                           key={lead.id}
-                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                          className={cn(
+                            "overflow-hidden rounded-md border border-[#e5e7eb] bg-white transition-colors",
+                            isOpen && "bg-[#f3f4f6]",
+                          )}
                         >
                           <button
                             type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            className={cn(
+                              "w-full px-3 py-2 text-left transition-colors hover:bg-[#fafbff]",
+                              isOpen && "bg-[#f3f4f6] hover:bg-[#eceff3]",
+                            )}
                             onClick={() =>
                               setExpandedPipelineItemId((prev) => (prev === lead.id ? null : lead.id))
                             }
@@ -1646,11 +1647,17 @@ function CustomerAccountDetailView({
                       return (
                         <div
                           key={deal.id}
-                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                          className={cn(
+                            "overflow-hidden rounded-md border border-[#e5e7eb] bg-white transition-colors",
+                            isOpen && "bg-[#f3f4f6]",
+                          )}
                         >
                           <button
                             type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            className={cn(
+                              "w-full px-3 py-2 text-left transition-colors hover:bg-[#fafbff]",
+                              isOpen && "bg-[#f3f4f6] hover:bg-[#eceff3]",
+                            )}
                             onClick={() =>
                               setExpandedPipelineItemId((prev) => (prev === deal.id ? null : deal.id))
                             }
@@ -1679,11 +1686,17 @@ function CustomerAccountDetailView({
                       return (
                         <div
                           key={deal.id}
-                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                          className={cn(
+                            "overflow-hidden rounded-md border border-[#e5e7eb] bg-white transition-colors",
+                            isOpen && "bg-[#f3f4f6]",
+                          )}
                         >
                           <button
                             type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            className={cn(
+                              "w-full px-3 py-2 text-left transition-colors hover:bg-[#fafbff]",
+                              isOpen && "bg-[#f3f4f6] hover:bg-[#eceff3]",
+                            )}
                             onClick={() =>
                               setExpandedPipelineItemId((prev) => (prev === deal.id ? null : deal.id))
                             }

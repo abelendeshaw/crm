@@ -25,10 +25,33 @@ import {
   MessageSquare,
   Mail,
   ClipboardList,
+  BadgeCheck,
+  BadgeX,
+  Briefcase,
+  BriefcaseBusiness,
+  Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +60,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -57,6 +81,7 @@ import {
   accountSizes,
   associationRoles,
   customerAccounts as initialAccounts,
+  customerActivities as initialCustomerActivities,
   customerContacts as initialContacts,
   customerOwners,
   industries,
@@ -69,6 +94,26 @@ import {
 
 type Tab = "accounts" | "contacts";
 type CustomerActivityKind = "Call" | "Message" | "Email" | "Note";
+type PipelineItemStatus = "Active" | "Closed";
+
+type PipelineLead = {
+  id: string;
+  accountId: string;
+  title: string;
+  source: string;
+  status: PipelineItemStatus;
+  createdAt: string;
+};
+
+type PipelineDeal = {
+  id: string;
+  accountId: string;
+  title: string;
+  value: number;
+  stage: string;
+  status: PipelineItemStatus;
+  closedAt?: string;
+};
 
 const statusOptions: CustomerStatus[] = ["Lead", "Active", "Inactive"];
 const customerStatusConfig: Record<CustomerStatus, string> = {
@@ -81,16 +126,9 @@ const emptyAccountForm = {
   name: "",
   industry: "",
   size: "",
-  email: "",
-  phone: "",
   city: "",
   country: "Ethiopia",
   website: "",
-  owner: "",
-  status: "Lead" as CustomerStatus,
-  lifecycleStage: "Lead" as CustomerLifecycleStage,
-  leadSource: "",
-  expectedDealValue: "",
 };
 
 const emptyContactForm = {
@@ -125,7 +163,6 @@ export function CustomerManagementPage({
 
   const [search, setSearch] = useState("");
   const [accountDialogOpen, setAccountDialogOpen] = useState(false);
-  const [accountDialogStep, setAccountDialogStep] = useState<"basic" | "details">("basic");
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<CustomerAccount | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
@@ -142,6 +179,59 @@ export function CustomerManagementPage({
       date: string;
     }[]
   >([]);
+
+  const [pipelineLeads, setPipelineLeads] = useState<PipelineLead[]>(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return initialAccounts.flatMap((account, idx) => {
+      const baseId = `lead-${account.id}`;
+      const hasSeed = idx % 2 === 0;
+      if (!hasSeed) return [];
+      return [
+        {
+          id: `${baseId}-a`,
+          accountId: account.id,
+          title: `Inbound interest from ${account.name}`,
+          source: "Website",
+          status: "Active",
+          createdAt: today,
+        },
+        {
+          id: `${baseId}-c`,
+          accountId: account.id,
+          title: `Re-engagement outreach`,
+          source: "Outbound",
+          status: "Closed",
+          createdAt: today,
+        },
+      ];
+    });
+  });
+
+  const [pipelineDeals, setPipelineDeals] = useState<PipelineDeal[]>(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const seededDealsFromActivities = initialCustomerActivities
+      .filter((activity) => activity.type === "Deal")
+      .map((activity) => ({
+        id: `deal-${activity.id}`,
+        accountId: activity.accountId,
+        title: activity.title,
+        value: 0,
+        stage: "Proposal",
+        status: "Active" as const,
+      }));
+
+    const syntheticDeals = initialAccounts.map((account, idx) => ({
+      id: `deal-${account.id}-${idx}`,
+      accountId: account.id,
+      title: `Deal for ${account.name}`,
+      value: 125000 + idx * 25000,
+      stage: idx % 3 === 0 ? "Negotiation" : "Qualification",
+      status: idx % 4 === 0 ? ("Closed" as const) : ("Active" as const),
+      closedAt: idx % 4 === 0 ? today : undefined,
+    }));
+
+    return [...seededDealsFromActivities, ...syntheticDeals];
+  });
   const [linkForm, setLinkForm] = useState({
     accountId: "",
     contactId: "",
@@ -154,8 +244,7 @@ export function CustomerManagementPage({
     return accounts.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
-        item.industry.toLowerCase().includes(q) ||
-        item.owner.toLowerCase().includes(q),
+        item.industry.toLowerCase().includes(q),
     );
   }, [accounts, search]);
 
@@ -221,20 +310,11 @@ export function CustomerManagementPage({
     () => new Map(contacts.map((contact) => [contact.id, contact])),
     [contacts],
   );
-  const accountStats = useMemo(
-    () => ({
-      total: accounts.length,
-      active: accounts.filter((account) => account.status === "Active").length,
-      leads: accounts.filter((account) => account.status === "Lead").length,
-      linkedContacts: associations.length,
-    }),
-    [accounts, associations],
-  );
+
 
   const resetAccountForm = () => {
     setAccountForm(emptyAccountForm);
     setEditingAccountId(null);
-    setAccountDialogStep("basic");
   };
 
   const resetContactForm = () => {
@@ -254,9 +334,6 @@ export function CustomerManagementPage({
                 ...account,
                 ...accountForm,
                 address: account.address ?? "",
-                expectedDealValue: accountForm.expectedDealValue
-                  ? Number(accountForm.expectedDealValue)
-                  : undefined,
               }
             : account,
         ),
@@ -264,11 +341,18 @@ export function CustomerManagementPage({
     } else {
       const newAccount: CustomerAccount = {
         id: `acc-${Date.now()}`,
-        ...accountForm,
+        name: accountForm.name,
+        industry: accountForm.industry,
+        size: accountForm.size,
+        email: "",
+        phone: "",
         address: "",
-        expectedDealValue: accountForm.expectedDealValue
-          ? Number(accountForm.expectedDealValue)
-          : undefined,
+        city: accountForm.city,
+        country: accountForm.country,
+        website: accountForm.website,
+        owner: "",
+        status: "Lead",
+        lifecycleStage: "Lead",
         createdAt: new Date().toISOString().split("T")[0],
       };
       setAccounts((prev) => [newAccount, ...prev]);
@@ -278,11 +362,9 @@ export function CustomerManagementPage({
     resetAccountForm();
   };
 
-  useEffect(() => {
-    if (accountDialogOpen) {
-      setAccountDialogStep("basic");
-    }
-  }, [accountDialogOpen]);
+  const removeContactFromAccount = (associationId: string) => {
+    setAssociations((prev) => prev.filter((a) => a.id !== associationId));
+  };
 
   const handleSaveContact = () => {
     const required = [contactForm.firstName, contactForm.lastName, contactForm.email];
@@ -643,11 +725,12 @@ export function CustomerManagementPage({
       <CustomerAccountDetailView
         account={selectedAccount}
         accountContacts={selectedAccountContacts}
+        pipelineLeads={pipelineLeads.filter((lead) => lead.accountId === selectedAccount.id)}
+        pipelineDeals={pipelineDeals.filter((deal) => deal.accountId === selectedAccount.id)}
         accountActivities={customerActivities.filter(
           (activity) => activity.accountId === selectedAccount.id,
         )}
         onBack={() => setSelectedAccount(null)}
-        onMoveStage={(stage) => moveCustomerStage(selectedAccount.id, stage)}
         onUpdateAccount={(updatedAccount) => {
           setAccounts((prev) =>
             prev.map((item) => (item.id === updatedAccount.id ? updatedAccount : item)),
@@ -659,6 +742,7 @@ export function CustomerManagementPage({
         onAddExistingContact={addExistingContactForSelectedCustomer}
         onAddActivity={addActivityForSelectedCustomer}
         onAssignPrimaryContact={assignPrimaryContactForSelectedCustomer}
+        onRemoveContact={removeContactFromAccount}
       />
     );
   }
@@ -670,12 +754,7 @@ export function CustomerManagementPage({
       </div>
 
       <div className="flex-1 overflow-auto p-3 sm:p-5">
-        <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard title="Total Customers" value={String(accountStats.total)} icon={Building2} />
-          <StatCard title="Active Customers" value={String(accountStats.active)} icon={Users} />
-          <StatCard title="Lead Customers" value={String(accountStats.leads)} icon={UserRound} />
-          <StatCard title="Account-Contact Links" value={String(accountStats.linkedContacts)} icon={Link2} />
-        </div>
+
 
         {(activeTab === "accounts" || activeTab === "contacts") && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -686,7 +765,7 @@ export function CustomerManagementPage({
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={
                   activeTab === "accounts"
-                    ? "Search customers by name, industry, owner"
+                    ? "Search customers by name, industry"
                     : "Search contacts by name, email, title"
                 }
                 className="h-9 border-[#e5e7eb] bg-white pl-9"
@@ -727,6 +806,8 @@ export function CustomerManagementPage({
             accounts={filteredAccounts}
             contacts={contacts}
             associations={associations}
+            pipelineLeads={pipelineLeads}
+            pipelineDeals={pipelineDeals}
             duplicateAccountIds={duplicateAccountIds}
             onSetStatus={setAccountStatus}
             onEdit={(account) => {
@@ -735,18 +816,9 @@ export function CustomerManagementPage({
                 name: account.name,
                 industry: account.industry,
                 size: account.size,
-                email: account.email,
-                phone: account.phone,
                 city: account.city,
                 country: account.country,
                 website: account.website,
-                owner: account.owner,
-                status: account.status,
-                lifecycleStage: account.lifecycleStage,
-                leadSource: account.leadSource ?? "",
-                expectedDealValue: account.expectedDealValue
-                  ? String(account.expectedDealValue)
-                  : "",
               });
               setAccountDialogOpen(true);
             }}
@@ -785,201 +857,99 @@ export function CustomerManagementPage({
           <DialogHeader>
             <DialogTitle>{editingAccountId ? "Edit Customer Account" : "New Customer"}</DialogTitle>
           </DialogHeader>
-          <Tabs value={accountDialogStep} className="w-full">
-            <TabsList className="mb-3 grid w-full grid-cols-2">
-              <TabsTrigger value="basic">Step 1: Basic</TabsTrigger>
-              <TabsTrigger value="details">Step 2: Details</TabsTrigger>
-            </TabsList>
-            <TabsContent value="basic">
-              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
-                <FormField label="Account Name *">
-                  <Input
-                    value={accountForm.name}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, name: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Industry *">
-                  <Select
-                    value={accountForm.industry}
-                    onValueChange={(value) => setAccountForm((prev) => ({ ...prev, industry: value }))}
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {industries.map((industry) => (
-                        <SelectItem key={industry} value={industry}>
-                          {industry}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Organization Size *">
-                  <Select
-                    value={accountForm.size}
-                    onValueChange={(value) => setAccountForm((prev) => ({ ...prev, size: value }))}
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue placeholder="Select size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accountSizes.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {size}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Owner">
-                  <Select
-                    value={accountForm.owner || "unassigned"}
-                    onValueChange={(value) =>
-                      setAccountForm((prev) => ({
-                        ...prev,
-                        owner: value === "unassigned" ? "" : value,
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue placeholder="Assign later" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {customerOwners.map((owner) => (
-                        <SelectItem key={owner} value={owner}>
-                          {owner}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Email">
-                  <Input
-                    value={accountForm.email}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, email: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Phone">
-                  <Input
-                    value={accountForm.phone}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, phone: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-              </div>
-            </TabsContent>
-            <TabsContent value="details">
-              <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
-                <FormField label="City">
-                  <Input
-                    value={accountForm.city}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, city: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Country">
-                  <Input
-                    value={accountForm.country}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, country: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Website">
-                  <Input
-                    value={accountForm.website}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, website: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Customer Status">
-                  <Select
-                    value={accountForm.status}
-                    onValueChange={(value) =>
-                      setAccountForm((prev) => ({ ...prev, status: value as CustomerStatus }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Lifecycle Stage (Lead/Deal)">
-                  <Select
-                    value={accountForm.lifecycleStage}
-                    onValueChange={(value) =>
-                      setAccountForm((prev) => ({ ...prev, lifecycleStage: value as CustomerLifecycleStage }))
-                    }
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Lead">Lead</SelectItem>
-                      <SelectItem value="Deal">Deal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField label="Lead Source">
-                  <Input
-                    value={accountForm.leadSource}
-                    onChange={(event) => setAccountForm((prev) => ({ ...prev, leadSource: event.target.value }))}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </FormField>
-                <FormField label="Expected Deal Value">
-                  <Input
-                    value={accountForm.expectedDealValue}
-                    onChange={(event) =>
-                      setAccountForm((prev) => ({ ...prev, expectedDealValue: event.target.value }))
-                    }
-                    className="h-9 border-[#e5e7eb]"
-                    placeholder="e.g. 125000"
-                  />
-                </FormField>
-              </div>
-            </TabsContent>
-          </Tabs>
+          <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
+            <FormField label="Account Name *">
+              <Input
+                value={accountForm.name}
+                onChange={(event) =>
+                  setAccountForm((prev) => ({ ...prev, name: event.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+              />
+            </FormField>
+            <FormField label="Industry *">
+              <Select
+                value={accountForm.industry}
+                onValueChange={(value) =>
+                  setAccountForm((prev) => ({ ...prev, industry: value }))
+                }
+              >
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((industry) => (
+                    <SelectItem key={industry} value={industry}>
+                      {industry}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Organization Size *">
+              <Select
+                value={accountForm.size}
+                onValueChange={(value) =>
+                  setAccountForm((prev) => ({ ...prev, size: value }))
+                }
+              >
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accountSizes.map((size) => (
+                    <SelectItem key={size} value={size}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="City">
+              <Input
+                value={accountForm.city}
+                onChange={(event) =>
+                  setAccountForm((prev) => ({ ...prev, city: event.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+              />
+            </FormField>
+            <FormField label="Country">
+              <Input
+                value={accountForm.country}
+                onChange={(event) =>
+                  setAccountForm((prev) => ({
+                    ...prev,
+                    country: event.target.value,
+                  }))
+                }
+                className="h-9 border-[#e5e7eb]"
+              />
+            </FormField>
+            <FormField label="Website">
+              <Input
+                value={accountForm.website}
+                onChange={(event) =>
+                  setAccountForm((prev) => ({
+                    ...prev,
+                    website: event.target.value,
+                  }))
+                }
+                className="h-9 border-[#e5e7eb]"
+              />
+            </FormField>
+          </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setAccountDialogOpen(false)}>
               Cancel
             </Button>
-            {accountDialogStep === "basic" ? (
-              <Button
-                size="sm"
-                className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                onClick={() => setAccountDialogStep("details")}
-              >
-                Next
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAccountDialogStep("basic")}
-                >
-                  Back
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                  onClick={handleSaveAccount}
-                >
-                  {editingAccountId ? "Save Changes" : "Create Customer"}
-                </Button>
-              </>
-            )}
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={handleSaveAccount}
+            >
+              {editingAccountId ? "Save Changes" : "Create Customer"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1017,23 +987,6 @@ export function CustomerManagementPage({
                 className="h-9 border-[#e5e7eb]"
               />
             </FormField>
-            <FormField label="Owner">
-              <Select
-                value={contactForm.owner}
-                onValueChange={(value) => setContactForm((prev) => ({ ...prev, owner: value }))}
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerOwners.map((owner) => (
-                    <SelectItem key={owner} value={owner}>
-                      {owner}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
             <FormField label="Email *">
               <Input
                 value={contactForm.email}
@@ -1048,22 +1001,7 @@ export function CustomerManagementPage({
                 className="h-9 border-[#e5e7eb]"
               />
             </FormField>
-            <FormField label="Status">
-              <Select
-                value={contactForm.status}
-                onValueChange={(value) =>
-                  setContactForm((prev) => ({ ...prev, status: value as "Active" | "Inactive" }))
-                }
-              >
-                <SelectTrigger className="h-9 border-[#e5e7eb]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </FormField>
+
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setContactDialogOpen(false)}>
@@ -1167,18 +1105,22 @@ export function CustomerManagementPage({
 function CustomerAccountDetailView({
   account,
   accountContacts,
+  pipelineLeads,
+  pipelineDeals,
   accountActivities,
   allContacts,
   onBack,
-  onMoveStage,
   onUpdateAccount,
   onAddContact,
   onAddExistingContact,
   onAddActivity,
   onAssignPrimaryContact,
+  onRemoveContact,
 }: {
   account: CustomerAccount;
   accountContacts: { association: AccountContactAssociation; contact: CustomerContact }[];
+  pipelineLeads: PipelineLead[];
+  pipelineDeals: PipelineDeal[];
   accountActivities: {
     id: string;
     accountId: string;
@@ -1188,7 +1130,6 @@ function CustomerAccountDetailView({
   }[];
   allContacts: CustomerContact[];
   onBack: () => void;
-  onMoveStage: (stage: CustomerLifecycleStage) => void;
   onUpdateAccount: (account: CustomerAccount) => void;
   onAddContact: (payload: {
     form: {
@@ -1209,6 +1150,7 @@ function CustomerAccountDetailView({
   }) => void;
   onAddActivity: (payload: { kind: CustomerActivityKind; note: string }) => void;
   onAssignPrimaryContact: (contactId: string) => void;
+  onRemoveContact: (associationId: string) => void;
 }) {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addActivityOpen, setAddActivityOpen] = useState(false);
@@ -1219,6 +1161,13 @@ function CustomerAccountDetailView({
   const [confirmPrimaryContactId, setConfirmPrimaryContactId] = useState<
     string | null
   >(null);
+  const [confirmRemoveAssociationId, setConfirmRemoveAssociationId] = useState<
+    string | null
+  >(null);
+  const [pipelineKind, setPipelineKind] = useState<
+    "activeLeads" | "closedLeads" | "activeDeals" | "closedDeals"
+  >("activeLeads");
+  const [expandedPipelineItemId, setExpandedPipelineItemId] = useState<string | null>(null);
   const [contactForm, setContactForm] = useState({
     firstName: "",
     lastName: "",
@@ -1242,13 +1191,16 @@ function CustomerAccountDetailView({
   const contactToConfirm = accountContacts.find(
     (item) => item.contact.id === confirmPrimaryContactId,
   );
+  const contactToRemoveFromAccount = accountContacts.find(
+    (item) => item.association.id === confirmRemoveAssociationId,
+  );
   const activityItems = useMemo(
     () =>
       [
         {
           id: `account-created-${account.id}`,
           date: account.createdAt,
-          text: `Customer account created (${account.status} / ${account.lifecycleStage}).`,
+          text: "Customer account created.",
           type: "accountCreated" as const,
         },
         ...accountContacts.map(({ association, contact }) => ({
@@ -1275,6 +1227,26 @@ function CustomerAccountDetailView({
       ].sort((a, b) => b.date.localeCompare(a.date)),
     [account, accountContacts, accountActivities],
   );
+
+  const pipelineSummary = useMemo(() => {
+    const activeLeads = pipelineLeads.filter((lead) => lead.status === "Active");
+    const closedLeads = pipelineLeads.filter((lead) => lead.status === "Closed");
+    const activeDeals = pipelineDeals.filter((deal) => deal.status === "Active");
+    const closedDeals = pipelineDeals.filter((deal) => deal.status === "Closed");
+    return {
+      activeLeads,
+      closedLeads,
+      activeDeals,
+      closedDeals,
+    };
+  }, [pipelineLeads, pipelineDeals]);
+
+  const openPipeline = (
+    kind: "activeLeads" | "closedLeads" | "activeDeals" | "closedDeals",
+  ) => {
+    setPipelineKind(kind);
+    setExpandedPipelineItemId(null);
+  };
   const selectedPrimaryContact = accountContacts.find(
     (item) => item.contact.id === profileDraft.primaryContactId,
   )?.contact;
@@ -1284,8 +1256,11 @@ function CustomerAccountDetailView({
   );
 
   useEffect(() => {
-    setProfileDraft(account);
-    setIsEditingProfile(false);
+    const id = setTimeout(() => {
+      setProfileDraft(account);
+      setIsEditingProfile(false);
+    }, 0);
+    return () => clearTimeout(id);
   }, [account]);
 
   const handleAddContact = () => {
@@ -1350,34 +1325,6 @@ function CustomerAccountDetailView({
             Back to Customers
           </button>
           <h2 className="font-semibold text-[#1c1e21]">{account.name}</h2>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <div className="inline-flex items-center rounded-md border border-[#d6deef] bg-white p-1">
-            <button
-              type="button"
-              onClick={() => onMoveStage("Lead")}
-              className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                account.lifecycleStage === "Lead"
-                  ? "bg-[#fff8e6] text-[#9a6a00]"
-                  : "text-[#6b7280] hover:bg-[#f5f7fb]",
-              )}
-            >
-              Lead
-            </button>
-            <button
-              type="button"
-              onClick={() => onMoveStage("Deal")}
-              className={cn(
-                "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                account.lifecycleStage === "Deal"
-                  ? "bg-[#e6f7ee] text-[#1a8a4a]"
-                  : "text-[#6b7280] hover:bg-[#f5f7fb]",
-              )}
-            >
-              Deal
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1455,9 +1402,6 @@ function CustomerAccountDetailView({
               <TabsContent value="profile">
                 <div className="mb-3 flex items-center gap-2">
                   <h3 className="text-sm font-medium text-[#1c1e21]">Profile</h3>
-                  <span className="rounded-full border border-[#e2e8f5] bg-[#f8faff] px-2 py-0.5 text-xs text-[#4b5563]">
-                    {profileDraft.status} • {profileDraft.lifecycleStage}
-                  </span>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <ProfileField label="Account Name" value={profileDraft.name} isEditing={isEditingProfile}>
@@ -1503,140 +1447,7 @@ function CustomerAccountDetailView({
                       </SelectContent>
                     </Select>
                   </ProfileField>
-                  <ProfileField label="Owner" value={profileDraft.owner} isEditing={isEditingProfile}>
-                    <Select
-                      value={profileDraft.owner}
-                      onValueChange={(value) => setProfileDraft((prev) => ({ ...prev, owner: value }))}
-                    >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customerOwners.map((owner) => (
-                          <SelectItem key={owner} value={owner}>
-                            {owner}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ProfileField>
-                  <ProfileField label="Email Address" value={profileDraft.email || "—"} isEditing={isEditingProfile}>
-                    <Input
-                      value={profileDraft.email}
-                      onChange={(event) =>
-                        setProfileDraft((prev) => ({ ...prev, email: event.target.value }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                    />
-                  </ProfileField>
-                  <ProfileField label="Phone Number" value={profileDraft.phone || "—"} isEditing={isEditingProfile}>
-                    <Input
-                      value={profileDraft.phone}
-                      onChange={(event) =>
-                        setProfileDraft((prev) => ({ ...prev, phone: event.target.value }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                    />
-                  </ProfileField>
-                  <ProfileField label="Customer Status" value={profileDraft.status} isEditing={isEditingProfile}>
-                    <Select
-                      value={profileDraft.status}
-                      onValueChange={(value) =>
-                        setProfileDraft((prev) => ({ ...prev, status: value as CustomerStatus }))
-                      }
-                    >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ProfileField>
-                  <ProfileField label="Lifecycle Stage" value={profileDraft.lifecycleStage} isEditing={isEditingProfile}>
-                    <Select
-                      value={profileDraft.lifecycleStage}
-                      onValueChange={(value) =>
-                        setProfileDraft((prev) => ({
-                          ...prev,
-                          lifecycleStage: value as CustomerLifecycleStage,
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Lead">Lead</SelectItem>
-                        <SelectItem value="Deal">Deal</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </ProfileField>
-                  <ProfileField label="Lead Source" value={profileDraft.leadSource || "—"} isEditing={isEditingProfile}>
-                    <Input
-                      value={profileDraft.leadSource || ""}
-                      onChange={(event) =>
-                        setProfileDraft((prev) => ({ ...prev, leadSource: event.target.value }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                    />
-                  </ProfileField>
-                  <ProfileField
-                    label="Expected Deal Value"
-                    value={
-                      profileDraft.expectedDealValue
-                        ? `$${profileDraft.expectedDealValue.toLocaleString()}`
-                        : "—"
-                    }
-                    isEditing={isEditingProfile}
-                  >
-                    <Input
-                      value={profileDraft.expectedDealValue ? String(profileDraft.expectedDealValue) : ""}
-                      onChange={(event) =>
-                        setProfileDraft((prev) => ({
-                          ...prev,
-                          expectedDealValue: event.target.value ? Number(event.target.value) : undefined,
-                        }))
-                      }
-                      className="h-9 border-[#e5e7eb]"
-                      placeholder="e.g. 125000"
-                    />
-                  </ProfileField>
-                  <ProfileField
-                    label="Primary Contact"
-                    value={
-                      selectedPrimaryContact
-                        ? `${selectedPrimaryContact.firstName} ${selectedPrimaryContact.lastName}`
-                        : "Unassigned"
-                    }
-                    isEditing={isEditingProfile}
-                  >
-                    <Select
-                      value={profileDraft.primaryContactId || "none"}
-                      onValueChange={(value) =>
-                        setProfileDraft((prev) => ({
-                          ...prev,
-                          primaryContactId: value === "none" ? undefined : value,
-                        }))
-                      }
-                    >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Assign Later</SelectItem>
-                        {accountContacts.map(({ contact }) => (
-                          <SelectItem key={contact.id} value={contact.id}>
-                            {contact.firstName} {contact.lastName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </ProfileField>
+                
                   <ProfileField label="City" value={profileDraft.city || "—"} isEditing={isEditingProfile}>
                     <Input
                       value={profileDraft.city}
@@ -1670,12 +1481,256 @@ function CustomerAccountDetailView({
 
             <div>
               <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Lead/Deal Conversion
+                Leads & Deals
               </h4>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <InfoLine label="Lifecycle Stage" value={account.lifecycleStage} />
-                <InfoLine label="Customer Status" value={account.status} />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  onClick={() => openPipeline("activeLeads")}
+                >
+                  <span className="rounded-md bg-[#eef2fd] p-2 text-[#4080f0]">
+                    <BadgeCheck size={16} />
+                  </span>
+                  <span className="text-left">
+                    <p className="text-[11px] text-[#6b7280]">Active Leads</p>
+                    <p className="text-base font-semibold text-[#1c1e21]">
+                      {pipelineSummary.activeLeads.length}
+                    </p>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  onClick={() => openPipeline("closedLeads")}
+                >
+                  <span className="rounded-md bg-[#fef2f2] p-2 text-[#dc2626]">
+                    <BadgeX size={16} />
+                  </span>
+                  <span className="text-left">
+                    <p className="text-[11px] text-[#6b7280]">Closed Leads</p>
+                    <p className="text-base font-semibold text-[#1c1e21]">
+                      {pipelineSummary.closedLeads.length}
+                    </p>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  onClick={() => openPipeline("activeDeals")}
+                >
+                  <span className="rounded-md bg-[#e6f7ee] p-2 text-[#1a8a4a]">
+                    <BriefcaseBusiness size={16} />
+                  </span>
+                  <span className="text-left">
+                    <p className="text-[11px] text-[#6b7280]">Active Deals</p>
+                    <p className="text-base font-semibold text-[#1c1e21]">
+                      {pipelineSummary.activeDeals.length}
+                    </p>
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3"
+                  onClick={() => openPipeline("closedDeals")}
+                >
+                  <span className="rounded-md bg-[#fff8e6] p-2 text-[#b07d00]">
+                    <Briefcase size={16} />
+                  </span>
+                  <span className="text-left">
+                    <p className="text-[11px] text-[#6b7280]">Closed Deals</p>
+                    <p className="text-base font-semibold text-[#1c1e21]">
+                      {pipelineSummary.closedDeals.length}
+                    </p>
+                  </span>
+                </Button>
               </div>
+              <Card className="mt-3 gap-2 border-[#e5e7eb] bg-white py-4 shadow-none ring-0">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <CardTitle className="text-sm">
+                      {pipelineKind === "activeLeads"
+                        ? "Active Leads"
+                        : pipelineKind === "closedLeads"
+                          ? "Closed Leads"
+                          : pipelineKind === "activeDeals"
+                            ? "Active Deals"
+                            : "Closed Deals"}
+                    </CardTitle>
+                    <Badge variant="outline" className="bg-border text-xs">
+                      {pipelineKind === "activeLeads"
+                        ? pipelineSummary.activeLeads.length
+                        : pipelineKind === "closedLeads"
+                          ? pipelineSummary.closedLeads.length
+                          : pipelineKind === "activeDeals"
+                            ? pipelineSummary.activeDeals.length
+                            : pipelineSummary.closedDeals.length}{" "}
+                      items
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-3 pt-0">
+                  <div className="space-y-2">
+                    {(pipelineKind === "activeLeads" ? pipelineSummary.activeLeads : []).map((lead) => {
+                      const isOpen = expandedPipelineItemId === lead.id;
+                      return (
+                        <div
+                          key={lead.id}
+                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                        >
+                          <button
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            onClick={() =>
+                              setExpandedPipelineItemId((prev) => (prev === lead.id ? null : lead.id))
+                            }
+                          >
+                            <p className="text-sm font-medium text-[#1c1e21]">{lead.title}</p>
+                            <p className="text-xs text-[#6b7280]">
+                              Source: {lead.source} · Created: {lead.createdAt}
+                            </p>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <InfoLine label="Status" value={lead.status} />
+                                <InfoLine label="Source" value={lead.source} />
+                                <InfoLine label="Created" value={lead.createdAt} />
+                                <InfoLine label="Customer" value={account.name} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {(pipelineKind === "closedLeads" ? pipelineSummary.closedLeads : []).map((lead) => {
+                      const isOpen = expandedPipelineItemId === lead.id;
+                      return (
+                        <div
+                          key={lead.id}
+                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                        >
+                          <button
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            onClick={() =>
+                              setExpandedPipelineItemId((prev) => (prev === lead.id ? null : lead.id))
+                            }
+                          >
+                            <p className="text-sm font-medium text-[#1c1e21]">{lead.title}</p>
+                            <p className="text-xs text-[#6b7280]">
+                              Source: {lead.source} · Created: {lead.createdAt}
+                            </p>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <InfoLine label="Status" value={lead.status} />
+                                <InfoLine label="Source" value={lead.source} />
+                                <InfoLine label="Created" value={lead.createdAt} />
+                                <InfoLine label="Customer" value={account.name} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {(pipelineKind === "activeDeals" ? pipelineSummary.activeDeals : []).map((deal) => {
+                      const isOpen = expandedPipelineItemId === deal.id;
+                      return (
+                        <div
+                          key={deal.id}
+                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                        >
+                          <button
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            onClick={() =>
+                              setExpandedPipelineItemId((prev) => (prev === deal.id ? null : deal.id))
+                            }
+                          >
+                            <p className="text-sm font-medium text-[#1c1e21]">{deal.title}</p>
+                            <p className="text-xs text-[#6b7280]">
+                              Stage: {deal.stage} · Value: ${deal.value.toLocaleString()}
+                            </p>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <InfoLine label="Status" value={deal.status} />
+                                <InfoLine label="Stage" value={deal.stage} />
+                                <InfoLine label="Value" value={`$${deal.value.toLocaleString()}`} />
+                                <InfoLine label="Customer" value={account.name} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {(pipelineKind === "closedDeals" ? pipelineSummary.closedDeals : []).map((deal) => {
+                      const isOpen = expandedPipelineItemId === deal.id;
+                      return (
+                        <div
+                          key={deal.id}
+                          className="overflow-hidden rounded-md border border-[#e5e7eb] bg-white"
+                        >
+                          <button
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-[#fafbff]"
+                            onClick={() =>
+                              setExpandedPipelineItemId((prev) => (prev === deal.id ? null : deal.id))
+                            }
+                          >
+                            <p className="text-sm font-medium text-[#1c1e21]">{deal.title}</p>
+                            <p className="text-xs text-[#6b7280]">
+                              Stage: {deal.stage} · Value: ${deal.value.toLocaleString()}
+                              {deal.closedAt ? ` · Closed: ${deal.closedAt}` : ""}
+                            </p>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                <InfoLine label="Status" value={deal.status} />
+                                <InfoLine label="Stage" value={deal.stage} />
+                                <InfoLine label="Value" value={`$${deal.value.toLocaleString()}`} />
+                                <InfoLine label="Closed" value={deal.closedAt ?? "—"} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {pipelineKind === "activeLeads" && pipelineSummary.activeLeads.length === 0 && (
+                      <p className="py-6 text-center text-sm text-[#9ca3af]">
+                        No active leads for this customer.
+                      </p>
+                    )}
+                    {pipelineKind === "closedLeads" && pipelineSummary.closedLeads.length === 0 && (
+                      <p className="py-6 text-center text-sm text-[#9ca3af]">
+                        No closed leads for this customer.
+                      </p>
+                    )}
+                    {pipelineKind === "activeDeals" && pipelineSummary.activeDeals.length === 0 && (
+                      <p className="py-6 text-center text-sm text-[#9ca3af]">
+                        No active deals for this customer.
+                      </p>
+                    )}
+                    {pipelineKind === "closedDeals" && pipelineSummary.closedDeals.length === 0 && (
+                      <p className="py-6 text-center text-sm text-[#9ca3af]">
+                        No closed deals for this customer.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             <div className="my-4 h-px bg-[#eef1f6]" />
@@ -1685,45 +1740,94 @@ function CustomerAccountDetailView({
                 Contact
               </h4>
               {accountContacts.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {accountContacts.map(({ association, contact }) => (
-                    <div
-                      key={association.id}
-                      className="group h-[80px] overflow-hidden rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2 transition-[height] duration-200 hover:h-[106px]"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-[#1c1e21]">
-                            {contact.firstName} {contact.lastName}
-                          </p>
-                          <p className="truncate text-xs text-[#6b7280]">{contact.email}</p>
-                          <p className="text-xs text-[#6b7280]">{association.role}</p>
-                        </div>
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                            association.isPrimary
-                              ? "border border-[#a3d9b8] bg-[#e6f7ee] text-[#1a8a4a]"
-                              : "border border-[#d9e1f0] bg-white text-[#6b7280]",
-                          )}
-                        >
-                          {association.isPrimary ? "Primary" : "Contact"}
-                        </span>
-                      </div>
-                      {!association.isPrimary && (
-                        <div className="mt-2 opacity-0 transition-opacity group-hover:opacity-100">
+                    <Card key={association.id} className="relative overflow-hidden border-[#e5e7eb] py-4 hover:shadow-sm transition-shadow">
+                      <CardContent className="px-3 py-1">
+                        {isEditingProfile ? (
                           <Button
                             type="button"
                             size="sm"
                             variant="outline"
-                            className="h-7 border-[#d6deef] bg-white px-2 text-xs"
-                            onClick={() => setConfirmPrimaryContactId(contact.id)}
+                            className="absolute right-3 top-3 z-10 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#dc2626] border-[#fecaca] bg-[#fef2f2] hover:bg-[#fee2e2] transition-colors"
+                            onClick={() => setConfirmRemoveAssociationId(association.id)}
+                            title="Remove contact from account"
                           >
-                            Make Primary
+                            <Minus size={10} className="mr-1" strokeWidth={3} />
+                            Remove
                           </Button>
+                        ) : null}
+                        <div className="flex items-start gap-2.5">
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <Avatar className="size-8">
+                              <AvatarFallback className="text-xs">
+                                {`${contact.firstName} ${contact.lastName}`
+                                  .split(" ")
+                                  .filter(Boolean)
+                                  .slice(0, 2)
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate text-sm font-medium text-[#1c1e21]">
+                                  {contact.firstName} {contact.lastName}
+                                </p>
+                                {association.isPrimary ? (
+                                  <Badge className="bg-[#e6f7ee] text-[#1a8a4a] hover:bg-[#e6f7ee]">
+                                    Primary
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline">Contact</Badge>
+                                )}
+                              </div>
+                              <p className="truncate text-xs text-[#6b7280]">{contact.email}</p>
+                              <p className="truncate text-xs text-[#9ca3af]">{contact.phone || "—"}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Badge variant="secondary">{association.role}</Badge>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                    onClick={() => window.open(`mailto:${contact.email}`, "_blank")}
+                                  >
+                                    <Mail size={11} />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                    onClick={() => window.open(`tel:${contact.phone}`, "_blank")}
+                                    disabled={!contact.phone}
+                                  >
+                                    <Phone size={11} />
+                                  </Button>
+                                </div>
+                                {!isEditingProfile && !association.isPrimary ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="ml-auto h-7 text-xs opacity-0 transition-opacity group-hover/card:opacity-100"
+                                    onClick={() => setConfirmPrimaryContactId(contact.id)}
+                                  >
+                                    Make primary
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
+
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (
@@ -2005,6 +2109,39 @@ function CustomerAccountDetailView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(confirmRemoveAssociationId)}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemoveAssociationId(null);
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-[460px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove contact from customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {contactToRemoveFromAccount
+                ? `${contactToRemoveFromAccount.contact.firstName} ${contactToRemoveFromAccount.contact.lastName} will be unlinked from ${account.name}. The contact record is not deleted.`
+                : "This contact will be unlinked from this customer. The contact record is not deleted."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (confirmRemoveAssociationId) {
+                  onRemoveContact(confirmRemoveAssociationId);
+                }
+                setConfirmRemoveAssociationId(null);
+              }}
+            >
+              Remove from customer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -2088,6 +2225,8 @@ function AccountsTable({
   accounts,
   contacts,
   associations,
+  pipelineLeads,
+  pipelineDeals,
   duplicateAccountIds,
   onSetStatus,
   onEdit,
@@ -2097,6 +2236,8 @@ function AccountsTable({
   accounts: CustomerAccount[];
   contacts: CustomerContact[];
   associations: AccountContactAssociation[];
+  pipelineLeads: PipelineLead[];
+  pipelineDeals: PipelineDeal[];
   duplicateAccountIds: Set<string>;
   onSetStatus: (accountId: string, status: CustomerStatus) => void;
   onEdit: (account: CustomerAccount) => void;
@@ -2115,19 +2256,13 @@ function AccountsTable({
                 Customer
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Owner
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Industry
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                Deal/Lead
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Primary Contact
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Stage
               </th>
               <th className="w-12 px-4 py-3" />
             </tr>
@@ -2143,6 +2278,9 @@ function AccountsTable({
                 : account.primaryContactId
                   ? contactById.get(account.primaryContactId)
                   : undefined;
+              
+              const accountLeads = pipelineLeads.filter(l => l.accountId === account.id).length;
+              const accountDeals = pipelineDeals.filter(d => d.accountId === account.id).length;
 
               return (
                 <tr
@@ -2164,24 +2302,22 @@ function AccountsTable({
                     </div>
                     <p className="text-xs text-[#9ca3af]">{account.city}</p>
                   </td>
-                  <td className="px-4 py-3 text-[#4b5563]">{account.owner}</td>
                   <td className="px-4 py-3 text-[#4b5563]">{account.industry}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="outline" className="bg-[#e6f7ee] text-[#1a8a4a] border-[#a3d9b8] h-5 px-1.5 text-[10px]">
+                        {accountDeals} D
+                      </Badge>
+                      <Badge variant="outline" className="bg-[#fff8e6] text-[#b07d00] border-[#fcd34d] h-5 px-1.5 text-[10px]">
+                        {accountLeads} L
+                      </Badge>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-[#4b5563]">
                     {primaryContact
                       ? `${primaryContact.firstName} ${primaryContact.lastName}`
                       : "Unassigned"}
                   </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                        customerStatusConfig[account.status],
-                      )}
-                    >
-                      {account.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-[#4b5563]">{account.lifecycleStage}</td>
                   <td className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -2204,29 +2340,7 @@ function AccountsTable({
                           <Pencil size={13} className="mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        {account.status === "Active" ? (
-                          <DropdownMenuItem
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSetStatus(account.id, "Inactive");
-                            }}
-                            className="text-[#b07d00]"
-                          >
-                            <UserX size={13} className="mr-2" />
-                            Deactivate
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onSetStatus(account.id, "Active");
-                            }}
-                            className="text-[#1a8a4a]"
-                          >
-                            <CheckCircle2 size={13} className="mr-2" />
-                            Activate
-                          </DropdownMenuItem>
-                        )}
+
                         <DropdownMenuItem
                           onClick={(event) => {
                             event.stopPropagation();
@@ -2271,18 +2385,18 @@ function ContactsTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Contact
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Role
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+              <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Associated Customers
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                Owner
-              </th>
+                {/* <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                  Owner
+                </th> */}
               <th className="w-12 px-4 py-3" />
             </tr>
           </thead>
@@ -2318,7 +2432,7 @@ function ContactsTable({
                   </td>
                   <td className="px-4 py-3 text-[#4b5563]">{contact.roleTitle || "—"}</td>
                   <td className="px-4 py-3 text-[#4b5563]">{linkedAccounts || "Unlinked"}</td>
-                  <td className="px-4 py-3 text-[#4b5563]">{contact.owner}</td>
+                  {/* <td className="px-4 py-3 text-[#4b5563]">{contact.owner}</td> */}
                   <td className="px-4 py-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

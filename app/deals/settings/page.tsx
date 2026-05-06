@@ -1,10 +1,10 @@
 import { CRMLayout } from "@/components/layout/CRMLayout";
-import { DealsManagementPage } from "@/modules/DealsManagementPage";
+import { DealsSettingsPage } from "@/modules/DealsSettingsPage";
 
 export default function Page() {
   return (
     <CRMLayout>
-      <DealsManagementPage />
+      <DealsSettingsPage />
     </CRMLayout>
   );
 }

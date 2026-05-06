@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Settings,
   Plug,
@@ -121,10 +121,6 @@ export function SettingsPage() {
     : "general";
   const [activeSection, setActiveSection] =
     useState<SettingSection>(selectedSection);
-
-  useEffect(() => {
-    setActiveSection(selectedSection);
-  }, [selectedSection]);
 
   return (
     <div className="flex h-full overflow-hidden flex-col lg:flex-row">

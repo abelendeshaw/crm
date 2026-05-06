@@ -7,6 +7,7 @@ import {
   Mail,
   CheckCircle2,
   XCircle,
+  KeyRound,
 } from "lucide-react";
 
 import { invitation } from "@/lib/mock-invitation";
@@ -26,6 +27,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardDescription } from "@/components/ui/card";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 function getInitials(name: string) {
@@ -135,6 +141,19 @@ export function InvitationAcceptance() {
             ({invitation.inviter.email}) has invited you to collaborate on{" "}
             {invitation.organization.name}.
           </CardDescription>
+          <Alert className="mt-6 max-w-xl border-emerald-200/70 bg-emerald-50 text-left dark:border-emerald-800/50 dark:bg-emerald-950/35 [&>svg]:text-emerald-700 dark:[&>svg]:text-emerald-400">
+            <KeyRound aria-hidden />
+            <AlertTitle className="text-emerald-950 dark:text-emerald-100">
+              Access with Selamnew credentials
+            </AlertTitle>
+            <AlertDescription className="text-emerald-900/90 dark:text-emerald-100/80">
+              When you <span className="font-medium text-emerald-950 dark:text-emerald-50">accept</span>{" "}
+              this invitation, you can sign in to this CRM with your{" "}
+              <span className="font-medium text-emerald-950 dark:text-emerald-50">
+                existing Selamnew credentials
+              </span>.
+            </AlertDescription>
+          </Alert>
         </section>
 
         <section className="mx-auto mt-7 w-full max-w-xl sm:mt-8">

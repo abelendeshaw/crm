@@ -1489,7 +1489,7 @@ function CustomerAccountDetailView({
                   variant="outline"
                   className={cn(
                     "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
-                    pipelineKind === "activeLeads" && "border-[#d1d5db] bg-[#f3f4f6]",
+                    pipelineKind === "activeLeads" && "border-[#4080f0] bg-white",
                   )}
                   onClick={() => openPipeline("activeLeads")}
                 >
@@ -1508,7 +1508,7 @@ function CustomerAccountDetailView({
                   variant="outline"
                   className={cn(
                     "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
-                    pipelineKind === "closedLeads" && "border-[#d1d5db] bg-[#f3f4f6]",
+                    pipelineKind === "closedLeads" && "border-[#4080f0] bg-white",
                   )}
                   onClick={() => openPipeline("closedLeads")}
                 >
@@ -1527,7 +1527,7 @@ function CustomerAccountDetailView({
                   variant="outline"
                   className={cn(
                     "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
-                    pipelineKind === "activeDeals" && "border-[#d1d5db] bg-[#f3f4f6]",
+                    pipelineKind === "activeDeals" && "border-[#4080f0] bg-white",
                   )}
                   onClick={() => openPipeline("activeDeals")}
                 >
@@ -1546,7 +1546,7 @@ function CustomerAccountDetailView({
                   variant="outline"
                   className={cn(
                     "h-auto justify-start gap-3 border-[#e5e7eb] bg-white px-3 py-3 transition-colors",
-                    pipelineKind === "closedDeals" && "border-[#d1d5db] bg-[#f3f4f6]",
+                    pipelineKind === "closedDeals" && "border-[#4080f0] bg-white",
                   )}
                   onClick={() => openPipeline("closedDeals")}
                 >

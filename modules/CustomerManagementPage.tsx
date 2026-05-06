@@ -1549,7 +1549,7 @@ function CustomerAccountDetailView({
                   </span>
                 </Button>
               </div>
-              <Card className="mt-3 border-[#e5e7eb]">
+              <Card className="mt-3 gap-2 border-[#e5e7eb] bg-white py-4 shadow-none ring-0">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between gap-3">
                     <CardTitle className="text-sm">
@@ -1561,7 +1561,7 @@ function CustomerAccountDetailView({
                             ? "Active Deals"
                             : "Closed Deals"}
                     </CardTitle>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="bg-border text-xs">
                       {pipelineKind === "activeLeads"
                         ? pipelineSummary.activeLeads.length
                         : pipelineKind === "closedLeads"
@@ -1573,7 +1573,7 @@ function CustomerAccountDetailView({
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="px-3 pt-0">
                   <div className="space-y-2">
                     {(pipelineKind === "activeLeads" ? pipelineSummary.activeLeads : []).map((lead) => {
                       const isOpen = expandedPipelineItemId === lead.id;
@@ -1595,7 +1595,7 @@ function CustomerAccountDetailView({
                             </p>
                           </button>
                           {isOpen && (
-                            <div className="border-t border-[#eef1f6] bg-[#fafbff] px-3 py-2">
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
                               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <InfoLine label="Status" value={lead.status} />
                                 <InfoLine label="Source" value={lead.source} />
@@ -1628,7 +1628,7 @@ function CustomerAccountDetailView({
                             </p>
                           </button>
                           {isOpen && (
-                            <div className="border-t border-[#eef1f6] bg-[#fafbff] px-3 py-2">
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
                               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <InfoLine label="Status" value={lead.status} />
                                 <InfoLine label="Source" value={lead.source} />
@@ -1661,7 +1661,7 @@ function CustomerAccountDetailView({
                             </p>
                           </button>
                           {isOpen && (
-                            <div className="border-t border-[#eef1f6] bg-[#fafbff] px-3 py-2">
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
                               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <InfoLine label="Status" value={deal.status} />
                                 <InfoLine label="Stage" value={deal.stage} />
@@ -1695,7 +1695,7 @@ function CustomerAccountDetailView({
                             </p>
                           </button>
                           {isOpen && (
-                            <div className="border-t border-[#eef1f6] bg-[#fafbff] px-3 py-2">
+                            <div className="border-t border-[#eef1f6] bg-white px-3 py-2">
                               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <InfoLine label="Status" value={deal.status} />
                                 <InfoLine label="Stage" value={deal.stage} />
@@ -1742,8 +1742,8 @@ function CustomerAccountDetailView({
               {accountContacts.length > 0 ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {accountContacts.map(({ association, contact }) => (
-                    <Card key={association.id} className="relative overflow-hidden border-[#e5e7eb] hover:shadow-sm transition-shadow">
-                      <CardContent className="p-2">
+                    <Card key={association.id} className="relative overflow-hidden border-[#e5e7eb] py-4 hover:shadow-sm transition-shadow">
+                      <CardContent className="px-3 py-1">
                         {isEditingProfile ? (
                           <Button
                             type="button"
@@ -1756,19 +1756,7 @@ function CustomerAccountDetailView({
                             <Minus size={10} className="mr-1" strokeWidth={3} />
                             Remove
                           </Button>
-                        ) : (
-                          !association.isPrimary && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="absolute right-3 top-3 z-10 h-6 px-1.5 text-[9px] font-semibold uppercase tracking-wider bg-white/80 backdrop-blur-sm"
-                              onClick={() => setConfirmPrimaryContactId(contact.id)}
-                            >
-                              Make Primary
-                            </Button>
-                          )
-                        )}
+                        ) : null}
                         <div className="flex items-start gap-2.5">
                           <div className="flex min-w-0 items-start gap-2.5">
                             <Avatar className="size-8">
@@ -1782,7 +1770,7 @@ function CustomerAccountDetailView({
                                   .toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="truncate text-sm font-medium text-[#1c1e21]">
                                   {contact.firstName} {contact.lastName}
@@ -1794,30 +1782,45 @@ function CustomerAccountDetailView({
                                 ) : (
                                   <Badge variant="outline">Contact</Badge>
                                 )}
-                                <Badge variant="secondary">{association.role}</Badge>
                               </div>
                               <p className="truncate text-xs text-[#6b7280]">{contact.email}</p>
                               <p className="truncate text-xs text-[#9ca3af]">{contact.phone || "—"}</p>
-                              <div className="mt-1 flex items-center gap-1">
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
-                                  onClick={() => window.open(`mailto:${contact.email}`, "_blank")}
-                                >
-                                  <Mail size={11} />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
-                                  onClick={() => window.open(`tel:${contact.phone}`, "_blank")}
-                                  disabled={!contact.phone}
-                                >
-                                  <Phone size={11} />
-                                </Button>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Badge variant="secondary">{association.role}</Badge>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                    onClick={() => window.open(`mailto:${contact.email}`, "_blank")}
+                                  >
+                                    <Mail size={11} />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-5 w-5 text-[#6b7280] hover:text-[#4080f0]"
+                                    onClick={() => window.open(`tel:${contact.phone}`, "_blank")}
+                                    disabled={!contact.phone}
+                                  >
+                                    <Phone size={11} />
+                                  </Button>
+                                </div>
+                                {!isEditingProfile && !association.isPrimary ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="ml-auto h-7 text-xs opacity-0 transition-opacity group-hover/card:opacity-100"
+                                    onClick={() => setConfirmPrimaryContactId(contact.id)}
+                                  >
+                                    Make primary
+                                  </Button>
+                                ) : null}
                               </div>
                             </div>
                           </div>

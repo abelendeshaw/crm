@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Users,
   Shield,
   UsersRound,
+  Mail,
 } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
 import { TeamsTab } from "@/components/user-management/TeamsTab";
+import { InvitationAcceptance } from "@/modules/InvitationAcceptance";
 import { cn } from "@/lib/utils";
 
-type Tab = "users" | "roles" | "teams";
+export type UserManagementTab = "users" | "roles" | "teams" | "invitations";
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+const tabs: { id: UserManagementTab; label: string; icon: React.ReactNode }[] = [
   {
     id: "users",
     label: "Users",
@@ -29,10 +31,42 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     label: "Teams",
     icon: <UsersRound size={15} />,
   },
+  {
+    id: "invitations",
+    label: "Invitation Management",
+    icon: <Mail size={15} />,
+  },
 ];
 
+function parseTab(raw: string | null): UserManagementTab {
+  if (
+    raw === "users" ||
+    raw === "roles" ||
+    raw === "teams" ||
+    raw === "invitations"
+  ) {
+    return raw;
+  }
+  return "users";
+}
+
 export function UserManagementPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("users");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const activeTab = parseTab(searchParams.get("tab"));
+
+  const setActiveTab = (id: UserManagementTab) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (id === "users") {
+      next.delete("tab");
+    } else {
+      next.set("tab", id);
+    }
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -49,6 +83,7 @@ export function UserManagementPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
@@ -67,10 +102,20 @@ export function UserManagementPage() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden p-3 sm:p-5">
+      <div
+        className={cn(
+          "flex-1 overflow-hidden min-h-0 flex flex-col",
+          activeTab !== "invitations" && "p-3 sm:p-5"
+        )}
+      >
         {activeTab === "users" && <UsersTab />}
         {activeTab === "roles" && <RolesTab />}
         {activeTab === "teams" && <TeamsTab />}
+        {activeTab === "invitations" && (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <InvitationAcceptance />
+          </div>
+        )}
       </div>
     </div>
   );

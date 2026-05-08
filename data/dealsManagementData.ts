@@ -112,6 +112,7 @@ export type CrmDeal = {
   channel: string;
   createdFromLead?: boolean;
   leadConvertedAt?: string;
+  description?: string;
   activities: DealActivity[];
 };
 

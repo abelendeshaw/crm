@@ -2,11 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Briefcase,
-  ChevronLeft,
+  Building2,
+  CalendarClock,
+  Check,
+  Coins,
+  Edit2,
   Headphones,
+  Percent,
   Plus,
   Share2,
+  Sigma,
   Phone,
   Users,
   Globe,
@@ -15,6 +22,7 @@ import {
   Calendar,
   Video,
   MessageSquare,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -36,7 +44,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -61,7 +68,6 @@ import {
   type ActivityType,
 } from "@/data/dealsManagementData";
 import { mockDealStore } from "@/data/mockStore";
-import Link from "next/link";
 
 function initials(name: string) {
   return name
@@ -139,6 +145,30 @@ export function DealDetailPage({ id }: { id: string }) {
     note: "",
   });
 
+  const [activeTab, setActiveTab] = useState<"overview" | "activities" | "roles" | "timeline">(
+    "overview",
+  );
+  const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
+  const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmDeal | null>(null);
+
+  const startEditDealInfo = () => {
+    if (!detailDraft) return;
+    setDealInfoSnapshot({ ...detailDraft });
+    setIsEditingDealInfo(true);
+  };
+  const cancelEditDealInfo = () => {
+    if (dealInfoSnapshot) {
+      setDetailDraft(dealInfoSnapshot);
+    }
+    setIsEditingDealInfo(false);
+    setDealInfoSnapshot(null);
+  };
+  const saveEditDealInfo = () => {
+    persistDetailDraft();
+    setIsEditingDealInfo(false);
+    setDealInfoSnapshot(null);
+  };
+
   const stages = useMemo(
     () => [...DEFAULT_PIPELINE_STAGES].sort((a, b) => a.order - b.order),
     [],
@@ -164,13 +194,13 @@ export function DealDetailPage({ id }: { id: string }) {
 
   if (!detailDraft) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#f5f6fa]">
+      <div className="flex h-full items-center justify-center bg-[#f8f9fb]">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-[#1c1e21]">Deal not found</h2>
-          <p className="mt-1 text-sm text-[#6b7280]">The deal ID might be incorrect or has been removed.</p>
-          <Button variant="outline" className="mt-4 border-[#e5e7eb]" onClick={() => router.push("/deals")}>
-            <ChevronLeft size={16} className="mr-1.5" />
-            Back to deals
+          <h2 className="font-semibold text-[#1c1e21]">Deal not found</h2>
+          <p className="mt-1 text-xs text-[#6b7280]">The deal ID might be incorrect or has been removed.</p>
+          <Button variant="outline" size="sm" className="mt-4 h-8 border-[#e5e7eb]" onClick={() => router.push("/deals")}>
+            <ArrowLeft size={13} className="mr-1.5" />
+            Back to Deals
           </Button>
         </div>
       </div>
@@ -209,73 +239,129 @@ export function DealDetailPage({ id }: { id: string }) {
     setActivityOpen(false);
   };
 
+  const stage = stageById.get(detailDraft.stageId);
+  const customer = accountById.get(detailDraft.customerId);
+  const expectedRevenue = Math.round((detailDraft.value * detailDraft.probability) / 100);
+  const dealAgeDays = (() => {
+    const start = new Date(detailDraft.stageEnteredAt);
+    if (Number.isNaN(start.getTime())) return null;
+    const diffMs = Date.now() - start.getTime();
+    return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  })();
+  const lastModifiedLabel = (() => {
+    const date = new Date(detailDraft.stageEnteredAt);
+    if (Number.isNaN(date.getTime())) return "—";
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  })();
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[#f5f6fa]">
-      {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 border-b border-[#e5e7eb] bg-white px-4 py-3 text-sm sm:px-6">
-        <Link href="/deals" className="text-[#6b7280] hover:text-[#4080f0] transition-colors">
-          Deals
-        </Link>
-        <span className="text-[#d1d5db]">/</span>
-        <span className="font-medium text-[#1c1e21]">{detailDraft.name}</span>
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
+        <div>
+          <button
+            type="button"
+            onClick={() => router.push("/deals")}
+            className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+          >
+            <ArrowLeft size={13} />
+            Back to Deals
+          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="font-semibold text-[#1c1e21]">{detailDraft.name}</h2>
+            {stage && (
+              <Badge
+                variant="outline"
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                  stage.columnClass,
+                  stage.borderClass,
+                  "text-[#1c1e21]",
+                )}
+              >
+                {stage.name}
+              </Badge>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-[#6b7280]">
+            {customer?.name ?? "Unknown customer"} · Created from lead:{" "}
+            {detailDraft.createdFromLead ? "Yes" : "No"}
+          </p>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8 space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-[#1c1e21]">{detailDraft.name}</h1>
-                <Badge 
-                    variant="outline" 
-                    className={cn(
-                        "font-medium text-[11px]", 
-                        stageById.get(detailDraft.stageId)?.columnClass,
-                        stageById.get(detailDraft.stageId)?.borderClass
+      <div className="flex-1 overflow-auto bg-[#f8f9fb] p-3 sm:p-5">
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-4">
+          <Tabs
+            value={activeTab}
+            onValueChange={(value) =>
+              setActiveTab(value as "overview" | "activities" | "roles" | "timeline")
+            }
+            className="w-full"
+          >
+            <div className="mb-4">
+              <TabsList>
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="activities">Activities</TabsTrigger>
+                <TabsTrigger value="roles">Roles</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              </TabsList>
+            </div>
+
+              <TabsContent value="overview" className="mt-0 outline-none">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                  <div className="space-y-4 lg:col-span-8">
+                <Card className="border-[#e5e7eb] shadow-none">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
+                      Deal Information
+                    </CardTitle>
+                    {isEditingDealInfo ? (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]"
+                          onClick={cancelEditDealInfo}
+                          aria-label="Cancel editing"
+                        >
+                          <X size={14} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          className="size-7 bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                          onClick={saveEditDealInfo}
+                          aria-label="Save changes"
+                        >
+                          <Check size={14} />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]"
+                        onClick={startEditDealInfo}
+                        aria-label="Edit deal information"
+                      >
+                        <Edit2 size={14} />
+                      </Button>
                     )}
-                >
-                    {stageById.get(detailDraft.stageId)?.name}
-                </Badge>
-              </div>
-              <p className="mt-1 text-sm text-[#6b7280]">
-                {accountById.get(detailDraft.customerId)?.name} · Created from lead: {detailDraft.createdFromLead ? "Yes" : "No"}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-                <Button 
-                    variant="outline" 
-                    className="h-9 border-[#e5e7eb] bg-white"
-                    onClick={() => router.push("/deals")}
-                >
-                    <ChevronLeft size={16} className="mr-1.5" />
-                    Back
-                </Button>
-                <Button 
-                    className="h-9 bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                    onClick={persistDetailDraft}
-                >
-                    Save changes
-                </Button>
-            </div>
-          </div>
-
-          <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList className="h-10 bg-white p-1 ring-1 ring-[#e5e7eb] shadow-sm">
-              <TabsTrigger value="overview" className="px-4 text-xs font-medium data-[state=active]:bg-[#f8faff] data-[state=active]:text-[#4080f0]">Overview</TabsTrigger>
-              <TabsTrigger value="activities" className="px-4 text-xs font-medium data-[state=active]:bg-[#f8faff] data-[state=active]:text-[#4080f0]">Activities</TabsTrigger>
-              <TabsTrigger value="roles" className="px-4 text-xs font-medium data-[state=active]:bg-[#f8faff] data-[state=active]:text-[#4080f0]">Roles</TabsTrigger>
-              <TabsTrigger value="timeline" className="px-4 text-xs font-medium data-[state=active]:bg-[#f8faff] data-[state=active]:text-[#4080f0]">Timeline</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="overview" className="mt-4 outline-none">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-2 border-[#e5e7eb] shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Deal Information</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <FormField label="Deal name">
+                      <ProfileField
+                        label="Deal name"
+                        value={detailDraft.name}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Input
                           value={detailDraft.name}
                           onChange={(e) =>
@@ -283,8 +369,12 @@ export function DealDetailPage({ id }: { id: string }) {
                           }
                           className="h-9 border-[#e5e7eb]"
                         />
-                      </FormField>
-                      <FormField label="Stage">
+                      </ProfileField>
+                      <ProfileField
+                        label="Stage"
+                        value={stages.find((s) => s.id === detailDraft.stageId)?.name ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Select
                           value={detailDraft.stageId}
                           onValueChange={(v) => {
@@ -312,10 +402,12 @@ export function DealDetailPage({ id }: { id: string }) {
                             ))}
                           </SelectContent>
                         </Select>
-                      </FormField>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField label="Value">
+                      </ProfileField>
+                      <ProfileField
+                        label="Value"
+                        value={formatMoney(detailDraft.value, detailDraft.currency)}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Input
                           type="number"
                           value={String(detailDraft.value)}
@@ -333,8 +425,12 @@ export function DealDetailPage({ id }: { id: string }) {
                           }}
                           className="h-9 border-[#e5e7eb]"
                         />
-                      </FormField>
-                      <FormField label="Currency">
+                      </ProfileField>
+                      <ProfileField
+                        label="Currency"
+                        value={detailDraft.currency}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Select
                           value={detailDraft.currency}
                           onValueChange={(v) => {
@@ -361,10 +457,12 @@ export function DealDetailPage({ id }: { id: string }) {
                             ))}
                           </SelectContent>
                         </Select>
-                      </FormField>
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <FormField label="Close probability (%)">
+                      </ProfileField>
+                      <ProfileField
+                        label="Close probability"
+                        value={`${detailDraft.probability}%`}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Input
                           type="number"
                           min={0}
@@ -385,8 +483,12 @@ export function DealDetailPage({ id }: { id: string }) {
                           }
                           className="h-9 border-[#e5e7eb]"
                         />
-                      </FormField>
-                      <FormField label="Expected close">
+                      </ProfileField>
+                      <ProfileField
+                        label="Expected close"
+                        value={detailDraft.expectedClose || "—"}
+                        isEditing={isEditingDealInfo}
+                      >
                         <Input
                           type="date"
                           value={detailDraft.expectedClose}
@@ -397,162 +499,220 @@ export function DealDetailPage({ id }: { id: string }) {
                           }
                           className="h-9 border-[#e5e7eb]"
                         />
-                      </FormField>
+                      </ProfileField>
                     </div>
                   </CardContent>
                 </Card>
+                  </div>
 
-                <Card className="border-[#e5e7eb] shadow-none bg-[#fcfdfe]">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-semibold">Value Summary</CardTitle>
+                  <div className="space-y-4 lg:col-span-4">
+                <Card className="border-[#e5e7eb] shadow-none">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
+                      Value Summary
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div>
-                        <p className="text-xs text-[#6b7280] uppercase tracking-wider">Total Value</p>
-                        <p className="mt-1 text-2xl font-bold text-[#1c1e21]">
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-3 rounded-md border border-[#e5e7eb] bg-white px-3 py-3">
+                        <span className="rounded-md bg-[#eef2fd] p-2 text-[#4080f0]">
+                          <Sigma size={16} />
+                        </span>
+                        <span className="text-left">
+                          <p className="text-[11px] text-[#6b7280]">Total Value</p>
+                          <p className="text-base font-semibold text-[#1c1e21]">
                             {formatMoney(detailDraft.value, detailDraft.currency)}
-                        </p>
+                          </p>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-md border border-[#e5e7eb] bg-white px-3 py-3">
+                        <span className="rounded-md bg-[#e6f7ee] p-2 text-[#1a8a4a]">
+                          <Coins size={16} />
+                        </span>
+                        <span className="text-left">
+                          <p className="text-[11px] text-[#6b7280]">Expected</p>
+                          <p className="text-base font-semibold text-[#1c1e21]">
+                            {formatMoney(expectedRevenue, detailDraft.currency)}
+                          </p>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-md border border-[#e5e7eb] bg-white px-3 py-3">
+                        <span className="rounded-md bg-[#fff8e6] p-2 text-[#b07d00]">
+                          <Percent size={16} />
+                        </span>
+                        <span className="text-left">
+                          <p className="text-[11px] text-[#6b7280]">Probability</p>
+                          <p className="text-base font-semibold text-[#1c1e21]">
+                            {detailDraft.probability}%
+                          </p>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 rounded-md border border-[#e5e7eb] bg-white px-3 py-3">
+                        <span className="rounded-md bg-[#fef2f2] p-2 text-[#dc2626]">
+                          <CalendarClock size={16} />
+                        </span>
+                        <span className="text-left">
+                          <p className="text-[11px] text-[#6b7280]">Deal Age</p>
+                          <p className="text-base font-semibold text-[#1c1e21]">
+                            {dealAgeDays !== null
+                              ? `${dealAgeDays}d`
+                              : "—"}
+                          </p>
+                        </span>
+                      </div>
                     </div>
                     {detailDraft.currency !== BASE_CURRENCY && (
-                        <div className="rounded-lg bg-white p-3 border border-[#e5e7eb]">
-                            <p className="text-xs text-[#6b7280]">
-                                Base ({BASE_CURRENCY}):
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-[#1c1e21]">
-                                {formatMoney(detailDraft.baseValue, BASE_CURRENCY)}
-                            </p>
-                            <p className="mt-1 text-[10px] text-[#9ca3af]">
-                                Rate: 1 {detailDraft.currency} = {FX_TO_ETB[detailDraft.currency]} {BASE_CURRENCY}
-                            </p>
-                        </div>
+                      <div className="rounded-md border border-[#f0f2f7] bg-[#f9fafb] px-3 py-2 text-xs text-[#6b7280]">
+                        Base ({BASE_CURRENCY}):{" "}
+                        <span className="font-medium text-[#1c1e21]">
+                          {formatMoney(detailDraft.baseValue, BASE_CURRENCY)}
+                        </span>{" "}
+                        · 1 {detailDraft.currency} = {FX_TO_ETB[detailDraft.currency]}{" "}
+                        {BASE_CURRENCY}
+                      </div>
                     )}
-                    <Separator />
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-[#6b7280]">Customer</span>
-                            <span className="font-medium text-[#1c1e21]">{accountById.get(detailDraft.customerId)?.name}</span>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[#e5e7eb] shadow-none">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
+                      Metadata
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div>
+                      <p className="text-xs text-[#6b7280]">Customer</p>
+                      <div className="mt-0.5 flex items-center gap-1.5">
+                        <Building2 size={14} className="text-[#4080f0]" />
+                        <p className="truncate text-sm text-[#1c1e21]">
+                          {customer?.name ?? "—"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-[#6b7280]">Created From Lead</p>
+                        <p className="text-sm text-[#1c1e21]">
+                          {detailDraft.createdFromLead ? "Yes" : "No"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#6b7280]">Owner</p>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <Avatar className="size-5">
+                            <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                              {initials(detailDraft.primarySales)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <p className="truncate text-sm text-[#1c1e21]">
+                            {detailDraft.primarySales}
+                          </p>
                         </div>
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-[#6b7280]">Stage</span>
-                            <span className="font-medium text-[#1c1e21]">{stageById.get(detailDraft.stageId)?.name}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-[#6b7280]">Expected Close</span>
-                            <span className="font-medium text-[#1c1e21]">{detailDraft.expectedClose}</span>
-                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#6b7280]">Last Modified</p>
+                      <p className="text-sm text-[#1c1e21]">{lastModifiedLabel}</p>
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            </TabsContent>
+                  </div>
+                </div>
+              </TabsContent>
 
-            <TabsContent value="activities" className="mt-4 outline-none">
-              <Card className="border-[#e5e7eb] shadow-none">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">Activity History</CardTitle>
+              <TabsContent value="activities" className="mt-0 outline-none">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-[#1c1e21]">Activity</h3>
                   <Button
                     type="button"
                     size="sm"
                     className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
                     onClick={() => setActivityOpen(true)}
                   >
-                    <Plus size={14} className="mr-1.5" />
+                    <Plus size={13} className="mr-1.5" />
                     New Activity
                   </Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {detailDraft.activities.length === 0 ? (
-                      <div className="py-12 text-center">
-                        <p className="text-sm text-[#6b7280]">No activities recorded for this deal yet.</p>
-                      </div>
-                    ) : (
-                      detailDraft.activities.map((a) => (
-                        <div
-                          key={a.id}
-                          className="relative pl-6 before:absolute before:left-0 before:top-2 before:bottom-0 before:w-px before:bg-[#e5e7eb] last:before:bottom-2"
-                        >
-                          <div className="absolute left-[-4px] top-2 size-2 rounded-full border-2 border-white bg-[#4080f0]" />
-                          <div className="rounded-lg border border-[#e5e7eb] bg-white p-3 text-sm shadow-sm">
+                </div>
+                {detailDraft.activities.length === 0 ? (
+                  <p className="text-sm text-[#9ca3af]">No activity yet.</p>
+                ) : (
+                  <div className="relative pl-6">
+                    <div className="absolute bottom-0 left-2 top-0 w-px bg-[#dfe4ef]" />
+                    {detailDraft.activities.map((a) => {
+                      const typeCfg = activityTypes.find((t) => t.name === a.kind);
+                      return (
+                        <div key={a.id} className="relative mb-3 last:mb-0">
+                          <span className="absolute -left-7 top-1.5 flex size-5 items-center justify-center rounded-full border border-[#d7deef] bg-white text-[#6b7280]">
+                            <ActivityRowIcon name={typeCfg?.icon ?? a.kind} />
+                          </span>
+                          <div className="rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
                             <div className="flex items-center justify-between gap-2">
-                              <Badge variant="secondary" className="text-[10px] font-medium bg-[#f3f4f6]">
-                                {a.kind}
-                              </Badge>
-                              <span className="text-[11px] text-[#9ca3af]">{a.date}</span>
+                              <p className="text-sm text-[#1c1e21]">{a.title}</p>
+                              <span className="shrink-0 text-xs text-[#9ca3af]">{a.date}</span>
                             </div>
-                            <p className="mt-2 font-semibold text-[#1c1e21]">{a.title}</p>
-                            {a.note && (
-                              <p className="mt-1 text-xs text-[#6b7280] leading-relaxed">{a.note}</p>
-                            )}
+                            <p className="text-xs text-[#6b7280]">
+                              {a.kind}
+                              {a.note ? ` · ${a.note}` : ""}
+                            </p>
                           </div>
                         </div>
-                      ))
-                    )}
+                      );
+                    })}
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                )}
+              </TabsContent>
 
-            <TabsContent value="roles" className="mt-4 outline-none">
-              <Card className="border-[#e5e7eb] shadow-none">
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold">Deal Roles & Ownership</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                    <RoleRow
-                        label="Primary sales"
-                        name={detailDraft.primarySales}
-                        icon={Briefcase}
-                        onChange={(v) => setDetailDraft((d) => (d ? { ...d, primarySales: v } : d))}
-                        owners={ownerOptions}
-                    />
-                    <RoleRow
-                        label="Pre-sales"
-                        name={detailDraft.presales}
-                        icon={Headphones}
-                        onChange={(v) => setDetailDraft((d) => (d ? { ...d, presales: v } : d))}
-                        owners={ownerOptions}
-                    />
-                    <RoleRow
-                        label="Channel"
-                        name={detailDraft.channel}
-                        icon={Share2}
-                        onChange={(v) => setDetailDraft((d) => (d ? { ...d, channel: v } : d))}
-                        owners={ownerOptions}
-                    />
-                  </div>
-                </CardContent>
-                <div className="flex justify-end border-t border-[#e5e7eb] px-6 py-4">
+              <TabsContent value="roles" className="mt-0 outline-none">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium text-[#1c1e21]">Deal Roles & Ownership</h3>
                   <Button
                     type="button"
                     size="sm"
-                    className="bg-[#4080f0] text-white"
+                    className="h-8 bg-[#4080f0] text-white hover:bg-[#3070e0]"
                     onClick={persistDetailDraft}
                   >
                     Update Roles
                   </Button>
                 </div>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="timeline" className="mt-4 outline-none">
-              <Card className="border-[#e5e7eb] shadow-none">
-                <CardHeader>
-                  <CardTitle className="text-sm font-semibold">Deal Progression</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TimelineView 
-                    deal={detailDraft} 
-                    stageName={stageById.get(detailDraft.stageId)?.name} 
-                    activityTypes={activityTypes}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <RoleRow
+                    label="Primary sales"
+                    name={detailDraft.primarySales}
+                    icon={Briefcase}
+                    onChange={(v) => setDetailDraft((d) => (d ? { ...d, primarySales: v } : d))}
+                    owners={ownerOptions}
                   />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                  <RoleRow
+                    label="Pre-sales"
+                    name={detailDraft.presales}
+                    icon={Headphones}
+                    onChange={(v) => setDetailDraft((d) => (d ? { ...d, presales: v } : d))}
+                    owners={ownerOptions}
+                  />
+                  <RoleRow
+                    label="Channel"
+                    name={detailDraft.channel}
+                    icon={Share2}
+                    onChange={(v) => setDetailDraft((d) => (d ? { ...d, channel: v } : d))}
+                    owners={ownerOptions}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="timeline" className="mt-0 outline-none">
+                <div className="mb-3 flex items-center gap-2">
+                  <h3 className="text-sm font-medium text-[#1c1e21]">Deal Progression</h3>
+                </div>
+                <TimelineView
+                  deal={detailDraft}
+                  stageName={stageById.get(detailDraft.stageId)?.name}
+                  activityTypes={activityTypes}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
-      </div>
 
       <Dialog open={activityOpen} onOpenChange={setActivityOpen}>
         <DialogContent className="sm:max-w-md border-[#e5e7eb]">
@@ -643,32 +803,32 @@ function RoleRow({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[#e5e7eb] bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-2 rounded-md border border-[#e5e7eb] bg-white p-3">
       <div className="flex items-center gap-2">
-        <div className="rounded-lg bg-[#f0f7ff] p-2 text-[#4080f0]">
-          <Icon size={16} />
-        </div>
-        <span className="text-xs font-semibold text-[#374151] uppercase tracking-wider">{label}</span>
+        <span className="rounded-md bg-[#eef2fd] p-1.5 text-[#4080f0]">
+          <Icon size={13} />
+        </span>
+        <span className="text-xs text-[#6b7280]">{label}</span>
       </div>
       <Select value={name} onValueChange={onChange}>
-        <SelectTrigger className="h-10 border-[#e5e7eb] bg-[#f9fafb]">
-            <div className="flex items-center gap-2">
-                <Avatar className="size-6">
-                    <AvatarFallback className="text-[9px] bg-[#4080f0] text-white">
-                        {initials(name)}
-                    </AvatarFallback>
-                </Avatar>
-                <SelectValue />
-            </div>
+        <SelectTrigger className="h-9 border-[#f0f2f7] bg-[#f9fafb]">
+          <div className="flex items-center gap-2">
+            <Avatar className="size-5">
+              <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                {initials(name)}
+              </AvatarFallback>
+            </Avatar>
+            <SelectValue />
+          </div>
         </SelectTrigger>
         <SelectContent>
           {owners.map((o) => (
             <SelectItem key={o} value={o}>
               <div className="flex items-center gap-2">
                 <Avatar className="size-5">
-                    <AvatarFallback className="text-[8px] bg-[#eef2fd] text-[#4080f0]">
-                        {initials(o)}
-                    </AvatarFallback>
+                  <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                    {initials(o)}
+                  </AvatarFallback>
                 </Avatar>
                 <span>{o}</span>
               </div>
@@ -678,6 +838,30 @@ function RoleRow({
       </Select>
     </div>
   );
+}
+
+function ActivityRowIcon({ name }: { name: string }) {
+  const icons: Record<
+    string,
+    React.ComponentType<{ size?: number; className?: string }>
+  > = {
+    Phone,
+    Users,
+    Globe,
+    Activity: ActivityIcon,
+    Mail,
+    Calendar,
+    Video,
+    Message: MessageSquare,
+    MessageSquare,
+    Call: Phone,
+    Meeting: Users,
+    External: Globe,
+    Email: Mail,
+    Note: MessageSquare,
+  };
+  const Comp = icons[name] ?? ActivityIcon;
+  return <Comp size={11} />;
 }
 
 function TimelineView({
@@ -708,7 +892,7 @@ function TimelineView({
       icon: "Activity",
     });
     for (const a of deal.activities) {
-      const typeCfg = activityTypes.find(t => t.name === a.kind);
+      const typeCfg = activityTypes.find((t) => t.name === a.kind);
       rows.push({
         id: a.id,
         date: a.date,
@@ -720,38 +904,50 @@ function TimelineView({
     return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   }, [deal, stageName, activityTypes]);
 
-  const getIcon = (name?: string) => {
-    const icons: Record<
-      string,
-      React.ComponentType<{ size?: number; className?: string }>
-    > = {
-      Phone, Users, Globe, Activity: ActivityIcon, Mail, Calendar, Video, Message: MessageSquare
-    };
-    const Comp = icons[name || ""] || ActivityIcon;
-    return <Comp size={10} className="text-white" />;
-  };
-
   return (
-    <div className="relative pl-8">
-      <div className="absolute bottom-4 left-[15px] top-2 w-px bg-[#e5e7eb]" />
-      <ul className="space-y-6">
-        {items.map((item) => (
-          <li key={item.id} className="relative">
-            <span className="absolute -left-[25px] top-1.5 flex size-5 items-center justify-center rounded-full border-2 border-white bg-[#4080f0] shadow-sm">
-              {getIcon(item.icon)}
-            </span>
-            <div>
-                <p className="text-[10px] font-bold text-[#9ca3af] uppercase tracking-widest">{item.date}</p>
-                <p className="mt-1 text-sm font-semibold text-[#1c1e21]">{item.title}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge variant="outline" className="text-[9px] font-medium bg-[#f8faff] text-[#4080f0] border-[#dbeafe]">
-                    {item.kind}
-                  </Badge>
-                </div>
+    <div className="relative pl-6">
+      <div className="absolute bottom-0 left-2 top-0 w-px bg-[#dfe4ef]" />
+      {items.map((item) => (
+        <div key={item.id} className="relative mb-3 last:mb-0">
+          <span className="absolute -left-7 top-1.5 flex size-5 items-center justify-center rounded-full border border-[#d7deef] bg-white text-[#6b7280]">
+            <ActivityRowIcon name={item.icon ?? "Activity"} />
+          </span>
+          <div className="rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-[#1c1e21]">{item.title}</p>
+              <span className="shrink-0 text-xs text-[#9ca3af]">{item.date}</span>
             </div>
-          </li>
-        ))}
-      </ul>
+            <p className="text-xs text-[#6b7280]">{item.kind}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProfileField({
+  label,
+  value,
+  isEditing,
+  children,
+  className,
+}: {
+  label: string;
+  value: string;
+  isEditing: boolean;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs text-[#6b7280]">{label}</Label>
+      {isEditing && children ? (
+        children
+      ) : (
+        <div className="min-h-[38px] rounded-md border border-[#f0f2f7] bg-[#f9fafb] px-3 py-2.5 text-sm text-[#1c1e21]">
+          {value || "—"}
+        </div>
+      )}
     </div>
   );
 }

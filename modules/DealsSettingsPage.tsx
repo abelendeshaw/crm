@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -122,6 +122,7 @@ export function DealsSettingsPage() {
   const [stageConfigDraft, setStageConfigDraft] = useState<{ name: string; presetIndex: number } | null>(
     null,
   );
+  const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockDealStore.stages].sort((a, b) => a.order - b.order),
   );
@@ -183,11 +184,20 @@ export function DealsSettingsPage() {
   }, [draggedStageId]);
 
   useEffect(() => {
+    dropTargetStageIdRef.current = dropTargetStageId;
+  }, [dropTargetStageId]);
+
+  useEffect(() => {
     if (!draggedStageId) return;
     const onMouseMove = (event: MouseEvent) => {
       setDragPointer({ x: event.clientX, y: event.clientY });
     };
     const onMouseUp = () => {
+      const target = dropTargetStageIdRef.current;
+      if (target && target !== draggedStageId) {
+        handleStageDrop(target);
+        return;
+      }
       setDraggedStageId(null);
       setDropTargetStageId(null);
       setDragPointer(null);
@@ -352,9 +362,6 @@ export function DealsSettingsPage() {
   const dropTargetStageIndex = dropTargetStageId
     ? orderedStages.findIndex((s) => s.id === dropTargetStageId)
     : -1;
-  const openStageCount = orderedStages.filter((s) => s.category === "open").length;
-  const wonStageCount = orderedStages.filter((s) => s.category === "won").length;
-  const lostStageCount = orderedStages.filter((s) => s.category === "lost").length;
   const selectedStage = orderedStages.find((s) => s.id === selectedStageId) ?? orderedStages[0];
   const draggedStage = orderedStages.find((s) => s.id === draggedStageId) ?? null;
   const selectedStageDeals = selectedStage
@@ -446,9 +453,9 @@ export function DealsSettingsPage() {
                 <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h3 className="text-sm font-semibold text-[#1c1e21]">Pipeline Stages</h3>
-                    <p className="text-xs text-[#6b7280]">
-                      {orderedStages.length} stages ({openStageCount} open, {wonStageCount} won, {lostStageCount} lost)
-                    </p>
+                    <span className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eef2fd] px-2.5 py-0.5 text-xs font-semibold text-[#4080f0]">
+                      {orderedStages.length} stages
+                    </span>
                   </div>
                   <div className="overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
                     <div className="flex gap-4 min-w-max">
@@ -473,16 +480,9 @@ export function DealsSettingsPage() {
                             key={stage.id}
                             type="button"
                             onClick={() => setSelectedStageId(stage.id)}
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              handleStageDragStart(stage.id, { x: event.clientX, y: event.clientY });
-                            }}
                             onMouseEnter={() => handleStageDragOverCard(stage.id)}
-                            onMouseUp={() => handleStageDrop(stage.id)}
                             className={cn(
-                              "flex flex-col w-64 rounded-xl p-4 text-left border transform-gpu transition-[transform,box-shadow,background-color,border-color,opacity] duration-300 ease-out",
-                              draggedStageId ? "cursor-grab" : "cursor-pointer",
-                              isDraggedCard && "cursor-grabbing",
+                              "flex flex-col w-64 rounded-xl p-4 text-left border transform-gpu transition-[transform,box-shadow,background-color,border-color,opacity] duration-300 ease-out cursor-pointer",
                               isSelected
                                 ? "border-[#4080f0] bg-[#eef2fd] shadow-sm"
                                 : "border-[#e5e7eb] bg-white hover:border-[#cbd5e1]",
@@ -497,10 +497,31 @@ export function DealsSettingsPage() {
                           >
                             <div className="flex justify-between items-start mb-2">
                               <span />
-                              <GripVertical
-                                size={16}
-                                className={cn(draggedStageId ? "text-[#4080f0] animate-pulse" : "text-[#c4c7d4]")}
-                              />
+                              <span
+                                role="button"
+                                tabIndex={-1}
+                                aria-label="Drag stage to reorder"
+                                onMouseDown={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  handleStageDragStart(stage.id, {
+                                    x: event.clientX,
+                                    y: event.clientY,
+                                  });
+                                }}
+                                onClick={(event) => event.stopPropagation()}
+                                className={cn(
+                                  "inline-flex h-6 w-6 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
+                                  isDraggedCard && "cursor-grabbing",
+                                )}
+                              >
+                                <GripVertical
+                                  size={16}
+                                  className={cn(
+                                    draggedStageId ? "text-[#4080f0] animate-pulse" : "text-[#c4c7d4]",
+                                  )}
+                                />
+                              </span>
                             </div>
                             <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
                             <p className="text-sm text-[#6b7280] mb-4">

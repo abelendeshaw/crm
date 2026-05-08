@@ -80,6 +80,9 @@ export type ActivityType = {
   id: string;
   name: string;
   icon: string;
+  description?: string;
+  isDefault?: boolean;
+  order?: number;
 };
 
 export type DealActivityKind = string;

@@ -23,11 +23,14 @@ import {
   Calendar,
   Video,
   MessageSquare,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -80,6 +83,27 @@ const AVAILABLE_ICONS = [
   { name: "Message", icon: MessageSquare },
 ];
 
+const ACTIVITY_ICON_PALETTE: { bg: string; text: string }[] = [
+  { bg: "bg-[#eef2fd]", text: "text-[#4080f0]" },
+  { bg: "bg-[#ecfdf5]", text: "text-[#10b981]" },
+  { bg: "bg-[#fef3c7]", text: "text-[#d97706]" },
+  { bg: "bg-[#fce7f3]", text: "text-[#db2777]" },
+  { bg: "bg-[#ede9fe]", text: "text-[#7c3aed]" },
+  { bg: "bg-[#e0f2fe]", text: "text-[#0284c7]" },
+];
+
+type ActivityDraft = {
+  name: string;
+  description: string;
+  icon: string;
+};
+
+const EMPTY_ACTIVITY_DRAFT: ActivityDraft = {
+  name: "",
+  description: "",
+  icon: "Activity",
+};
+
 function IconRenderer({ name, className }: { name: string; className?: string }) {
   const Icon = AVAILABLE_ICONS.find((i) => i.name === name)?.icon || ActivityIcon;
   return <Icon className={className} />;
@@ -130,6 +154,13 @@ export function DealsSettingsPage() {
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => [
     ...mockDealStore.activityTypes,
   ]);
+  const [activitySearchQuery, setActivitySearchQuery] = useState("");
+  const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
+  const [editActivityDialogOpen, setEditActivityDialogOpen] = useState(false);
+  const [deleteActivityDialogOpen, setDeleteActivityDialogOpen] = useState(false);
+  const [activityDraft, setActivityDraft] = useState<ActivityDraft>(EMPTY_ACTIVITY_DRAFT);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
+  const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
@@ -333,29 +364,93 @@ export function DealsSettingsPage() {
   };
 
   // Activity Helpers
-  const addActivityType = () => {
+  const openAddActivityDialog = () => {
+    setActivityDraft(EMPTY_ACTIVITY_DRAFT);
+    setAddActivityDialogOpen(true);
+  };
+
+  const confirmAddActivity = () => {
+    const trimmedName = activityDraft.name.trim() || "New Activity";
+    const trimmedDescription = activityDraft.description.trim();
     const newType: ActivityType = {
       id: `act-type-${crypto.randomUUID()}`,
-      name: "New Activity",
-      icon: "Activity",
+      name: trimmedName,
+      icon: activityDraft.icon || "Activity",
+      description: trimmedDescription || undefined,
+      order: activityTypes.length,
     };
     saveActivityTypes([...activityTypes, newType]);
+    setAddActivityDialogOpen(false);
   };
 
-  const updateActivityType = (id: string, updates: Partial<ActivityType>) => {
-    const updated = activityTypes.map((t) =>
-      t.id === id ? { ...t, ...updates } : t
+  const openEditActivityDialog = (id: string) => {
+    const target = activityTypes.find((t) => t.id === id);
+    if (!target) return;
+    setEditingActivityId(id);
+    setActivityDraft({
+      name: target.name,
+      description: target.description ?? "",
+      icon: target.icon,
+    });
+    setEditActivityDialogOpen(true);
+  };
+
+  const confirmEditActivity = () => {
+    if (!editingActivityId) return;
+    const trimmedName = activityDraft.name.trim() || "Untitled";
+    const trimmedDescription = activityDraft.description.trim();
+    const next = activityTypes.map((t) =>
+      t.id === editingActivityId
+        ? {
+            ...t,
+            name: trimmedName,
+            description: trimmedDescription || undefined,
+            icon: activityDraft.icon || t.icon,
+          }
+        : t,
     );
-    saveActivityTypes(updated);
+    saveActivityTypes(next);
+    setEditActivityDialogOpen(false);
+    setEditingActivityId(null);
   };
 
-  const deleteActivityType = (id: string) => {
+  const requestDeleteActivity = (id: string) => {
     if (activityTypes.length <= 1) return;
-    const updated = activityTypes.filter((t) => t.id !== id);
-    saveActivityTypes(updated);
+    setDeletingActivityId(id);
+    setDeleteActivityDialogOpen(true);
+  };
+
+  const confirmDeleteActivity = () => {
+    if (!deletingActivityId) {
+      setDeleteActivityDialogOpen(false);
+      return;
+    }
+    if (activityTypes.length <= 1) {
+      setDeleteActivityDialogOpen(false);
+      setDeletingActivityId(null);
+      return;
+    }
+    const next = activityTypes.filter((t) => t.id !== deletingActivityId);
+    saveActivityTypes(next);
+    setDeleteActivityDialogOpen(false);
+    setDeletingActivityId(null);
   };
 
   const orderedStages = [...stages].sort((a, b) => a.order - b.order);
+  const orderedActivityTypes = [...activityTypes].sort(
+    (a, b) => (a.order ?? 0) - (b.order ?? 0),
+  );
+  const normalizedActivitySearch = activitySearchQuery.trim().toLowerCase();
+  const filteredActivityTypes = normalizedActivitySearch
+    ? orderedActivityTypes.filter(
+        (t) =>
+          t.name.toLowerCase().includes(normalizedActivitySearch) ||
+          (t.description?.toLowerCase().includes(normalizedActivitySearch) ?? false),
+      )
+    : orderedActivityTypes;
+  const deletingActivityType = deletingActivityId
+    ? activityTypes.find((t) => t.id === deletingActivityId) ?? null
+    : null;
   const draggedStageIndex = draggedStageId
     ? orderedStages.findIndex((s) => s.id === draggedStageId)
     : -1;
@@ -982,86 +1077,289 @@ export function DealsSettingsPage() {
               </div>
             ) : (
               <div className="space-y-6">
-                <Card className="border-[#e5e7eb] shadow-none overflow-hidden">
-                  <CardHeader className="bg-white border-b border-[#e5e7eb] pb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-lg">Activity Types</CardTitle>
-                        <CardDescription className="text-xs">
-                          Define different types of interactions tracked for your deals.
-                        </CardDescription>
+                <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-[#1c1e21]">Activity Types</h2>
+                    <p className="mt-1 max-w-2xl text-xs text-[#6b7280]">
+                      Configure and prioritize the types of activities your team records in the CRM.
+                      Use search to quickly find an activity, then edit or remove as needed.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={openAddActivityDialog}
+                    size="sm"
+                    className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
+                  >
+                    <Plus size={16} className="mr-1.5" />
+                    Add Type
+                  </Button>
+                </div>
+
+                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[#1c1e21]">Activity Types</h3>
+                    <span className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eef2fd] px-2.5 py-0.5 text-xs font-semibold text-[#4080f0]">
+                      {activityTypes.length} activit{activityTypes.length === 1 ? "y" : "ies"}
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="relative w-full max-w-sm">
+                      <Search
+                        size={14}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                      />
+                      <Input
+                        value={activitySearchQuery}
+                        onChange={(event) => setActivitySearchQuery(event.target.value)}
+                        placeholder="Filter activities..."
+                        className="h-9 border-[#e5e7eb] bg-white pl-9 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="-mx-4 -mb-4 divide-y divide-[#e5e7eb] border-t border-[#e5e7eb] [&>*:last-child]:rounded-b-lg [&>*:last-child]:overflow-hidden">
+                    {filteredActivityTypes.length > 0 ? (
+                      filteredActivityTypes.map((type, idx) => {
+                        const palette =
+                          ACTIVITY_ICON_PALETTE[idx % ACTIVITY_ICON_PALETTE.length] ??
+                          ACTIVITY_ICON_PALETTE[0]!;
+                        return (
+                          <div
+                            key={type.id}
+                            className="group flex items-center gap-4 bg-white px-4 py-3 transition-colors hover:bg-[#fafbff]"
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                                palette.bg,
+                              )}
+                            >
+                              <IconRenderer
+                                name={type.icon}
+                                className={cn("size-5", palette.text)}
+                              />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <h4 className="truncate text-sm font-semibold text-[#1c1e21]">
+                                {type.name}
+                              </h4>
+                              {type.description ? (
+                                <p className="mt-0.5 line-clamp-1 text-xs text-[#6b7280]">
+                                  {type.description}
+                                </p>
+                              ) : (
+                                <p className="mt-0.5 text-xs italic text-[#9ca3af]">
+                                  No description
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]"
+                                onClick={() => openEditActivityDialog(type.id)}
+                                title="Edit activity"
+                                aria-label={`Edit ${type.name}`}
+                              >
+                                <Pencil size={14} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-[#6b7280] hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                disabled={activityTypes.length <= 1}
+                                onClick={() => requestDeleteActivity(type.id)}
+                                title={
+                                  activityTypes.length <= 1
+                                    ? "At least one activity type is required"
+                                    : "Delete activity"
+                                }
+                                aria-label={`Delete ${type.name}`}
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                              <ChevronRight
+                                size={16}
+                                className="ml-1 text-[#c4c7d4]"
+                                aria-hidden
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
+                        <Search size={20} className="text-[#c4c7d4]" />
+                        <p className="text-sm font-medium text-[#1c1e21]">No activities match your filter</p>
+                        <p className="text-xs text-[#6b7280]">
+                          Try a different keyword or clear the search.
+                        </p>
                       </div>
-                      <Button 
-                        onClick={addActivityType}
-                        size="sm" 
-                        className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
+                    )}
+                  </div>
+
+                </section>
+
+                <Dialog
+                  open={addActivityDialogOpen}
+                  onOpenChange={(open) => {
+                    setAddActivityDialogOpen(open);
+                    if (!open) setActivityDraft(EMPTY_ACTIVITY_DRAFT);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Activity Type</DialogTitle>
+                      <DialogDescription>
+                        Define a new activity your team can log against deals.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ActivityDraftForm draft={activityDraft} onChange={setActivityDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddActivityDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmAddActivity}
                       >
-                        <Plus size={16} className="mr-1.5" />
                         Add Type
                       </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="divide-y divide-[#e5e7eb]">
-                      {activityTypes.map((type, idx) => (
-                        <div key={type.id} className="flex items-center gap-6 px-6 py-4 bg-white hover:bg-[#fcfcff] group transition-colors">
-                          <div className="text-[#9ca3af] font-mono text-[10px] w-4">{idx + 1}</div>
-                          
-                          {/* Icon Selection */}
-                          <div className="shrink-0 w-32">
-                            <Select
-                              value={type.icon}
-                              onValueChange={(v) => updateActivityType(type.id, { icon: v })}
-                            >
-                              <SelectTrigger className="h-9 border-[#e5e7eb] bg-[#f9fafb] text-xs">
-                                <div className="flex items-center gap-2">
-                                  <IconRenderer name={type.icon} className="size-3.5 text-[#4080f0]" />
-                                  <SelectValue />
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {AVAILABLE_ICONS.map((i) => (
-                                  <SelectItem key={i.name} value={i.name} className="text-xs">
-                                    <div className="flex items-center gap-2">
-                                      <i.icon className="size-3.5" />
-                                      {i.name}
-                                    </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-                          {/* Name Input */}
-                          <div className="flex-1">
-                            <Input
-                              value={type.name}
-                              onChange={(e) => updateActivityType(type.id, { name: e.target.value })}
-                              className="h-9 border-transparent hover:border-[#e5e7eb] focus:border-[#4080f0] bg-transparent focus:bg-white transition-all font-medium text-sm"
-                              placeholder="Activity name..."
-                            />
-                          </div>
+                <Dialog
+                  open={editActivityDialogOpen}
+                  onOpenChange={(open) => {
+                    setEditActivityDialogOpen(open);
+                    if (!open) setEditingActivityId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Activity Type</DialogTitle>
+                      <DialogDescription>
+                        Update the name, description, icon, and default state.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ActivityDraftForm draft={activityDraft} onChange={setActivityDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setEditActivityDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmEditActivity}
+                      >
+                        Save Changes
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
 
-                          {/* Actions */}
-                          <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-[#9ca3af] hover:text-red-500 hover:bg-red-50 hover:text-red-600"
-                              onClick={() => deleteActivityType(type.id)}
-                            >
-                              <Trash2 size={16} />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
+                <Dialog
+                  open={deleteActivityDialogOpen}
+                  onOpenChange={(open) => {
+                    setDeleteActivityDialogOpen(open);
+                    if (!open) setDeletingActivityId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete activity type?</DialogTitle>
+                      <DialogDescription>
+                        This will permanently remove
+                        {deletingActivityType ? ` "${deletingActivityType.name}"` : " this activity"} from
+                        the CRM. Past activity records keep their original label.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        variant="outline"
+                        onClick={() => setDeleteActivityDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        onClick={confirmDeleteActivity}
+                      >
+                        Delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityDraftForm({
+  draft,
+  onChange,
+}: {
+  draft: ActivityDraft;
+  onChange: (next: ActivityDraft) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Activity Name
+        </label>
+        <Input
+          value={draft.name}
+          onChange={(event) => onChange({ ...draft, name: event.target.value })}
+          placeholder="e.g. Call, Meeting, Email"
+          className="h-9 border-[#e5e7eb] bg-white text-sm"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Description
+        </label>
+        <Textarea
+          value={draft.description}
+          onChange={(event) => onChange({ ...draft, description: event.target.value })}
+          placeholder="Briefly describe when this activity is used"
+          rows={3}
+          className="resize-none border-[#e5e7eb] bg-white text-sm"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Icon
+        </label>
+        <Select
+          value={draft.icon}
+          onValueChange={(value) => onChange({ ...draft, icon: value })}
+        >
+          <SelectTrigger className="h-9 border-[#e5e7eb] bg-white">
+            <div className="flex items-center gap-2">
+              <IconRenderer name={draft.icon} className="size-4 text-[#4080f0]" />
+              <SelectValue />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {AVAILABLE_ICONS.map((i) => (
+              <SelectItem key={i.name} value={i.name}>
+                <span className="inline-flex items-center gap-2">
+                  <i.icon className="size-4" />
+                  {i.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

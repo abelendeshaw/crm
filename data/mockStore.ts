@@ -13,9 +13,28 @@ class MockDealStore {
   private _targetsSubscribers: ((targets: SalesTarget[]) => void)[] = [];
 
   private _activityTypes: ActivityType[] = [
-    { id: "act-type-1", name: "Call", icon: "Phone" },
-    { id: "act-type-2", name: "Meeting", icon: "Users" },
-    { id: "act-type-3", name: "External", icon: "Globe" },
+    {
+      id: "act-type-1",
+      name: "Call",
+      icon: "Phone",
+      description: "Outbound and inbound voice communication.",
+      isDefault: true,
+      order: 0,
+    },
+    {
+      id: "act-type-2",
+      name: "Meeting",
+      icon: "Users",
+      description: "Scheduled calendar events and virtual sessions.",
+      order: 1,
+    },
+    {
+      id: "act-type-3",
+      name: "External",
+      icon: "Globe",
+      description: "Events recorded from integrated 3rd-party apps.",
+      order: 2,
+    },
   ];
 
   private _targets: SalesTarget[] = [...initialTargets];

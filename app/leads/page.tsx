@@ -1,10 +1,10 @@
 import { CRMLayout } from "@/components/layout/CRMLayout";
-import { LeadsPage } from "@/modules/LeadsPage";
+import { LeadsManagementPage } from "@/modules/LeadsManagementPage";
 
 export default function Page() {
   return (
     <CRMLayout>
-      <LeadsPage />
+      <LeadsManagementPage />
     </CRMLayout>
   );
 }

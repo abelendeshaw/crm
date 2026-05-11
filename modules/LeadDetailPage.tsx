@@ -52,18 +52,17 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   BASE_CURRENCY,
   CURRENCY_OPTIONS,
-  type CrmDeal,
-  type DealActivity,
-  type DealActivityKind,
-  type DealCurrency,
-  DEFAULT_PIPELINE_STAGES,
-  dealCustomerAccounts,
   FX_TO_ETB,
-  initialDeals,
+  type CrmLead,
+  type LeadActivity,
+  type LeadActivityKind,
+  type DealCurrency,
   computeBaseValue,
   type ActivityType,
-} from "@/data/dealsManagementData";
-import { mockDealStore } from "@/data/mockStore";
+  type PipelineStage,
+  leadCustomerAccounts,
+} from "@/data/leadsManagementData";
+import { mockLeadStore } from "@/data/mockStore";
 
 function initials(name: string) {
   return name
@@ -103,34 +102,44 @@ function FormField({
   );
 }
 
-export function DealDetailPage({ id }: { id: string }) {
+export function LeadDetailPage({ id }: { id: string }) {
   const router = useRouter();
-  
-  const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
-  
-  const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
-    if (typeof newDeals === "function") {
-      mockDealStore.deals = newDeals(mockDealStore.deals);
+
+  const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
+
+  const setLeads = (next: CrmLead[] | ((prev: CrmLead[]) => CrmLead[])) => {
+    if (typeof next === "function") {
+      mockLeadStore.leads = next(mockLeadStore.leads);
     } else {
-      mockDealStore.deals = newDeals;
+      mockLeadStore.leads = next;
     }
-    _setDeals(mockDealStore.deals);
+    _setLeads(mockLeadStore.leads);
   };
 
-  const deal = deals.find((d) => d.id === id);
+  const lead = leads.find((l) => l.id === id);
 
-  const [detailDraft, setDetailDraft] = useState<CrmDeal | null>(deal ? { ...deal } : null);
-  const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => mockDealStore.activityTypes);
+  const [detailDraft, setDetailDraft] = useState<CrmLead | null>(lead ? { ...lead } : null);
+  const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => mockLeadStore.activityTypes);
+  const [stages, setStages] = useState<PipelineStage[]>(() =>
+    [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
+  );
 
   useEffect(() => {
-    return mockDealStore.subscribeActivityTypes((types) => {
+    const unsubActivities = mockLeadStore.subscribeActivityTypes((types) => {
       setActivityTypes([...types]);
     });
+    const unsubStages = mockLeadStore.subscribeStages((nextStages) => {
+      setStages([...nextStages].sort((a, b) => a.order - b.order));
+    });
+    return () => {
+      unsubActivities();
+      unsubStages();
+    };
   }, []);
 
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityForm, setActivityForm] = useState<{
-    kind: DealActivityKind;
+    kind: LeadActivityKind;
     title: string;
     date: string;
     note: string;
@@ -145,7 +154,7 @@ export function DealDetailPage({ id }: { id: string }) {
     "overview",
   );
   const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
-  const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmDeal | null>(null);
+  const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmLead | null>(null);
 
   const startEditDealInfo = () => {
     if (!detailDraft) return;
@@ -165,38 +174,34 @@ export function DealDetailPage({ id }: { id: string }) {
     setDealInfoSnapshot(null);
   };
 
-  const stages = useMemo(
-    () => [...DEFAULT_PIPELINE_STAGES].sort((a, b) => a.order - b.order),
-    [],
-  );
   const stageById = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
     [stages],
   );
   const accountById = useMemo(
-    () => new Map(dealCustomerAccounts.map((a) => [a.id, a])),
+    () => new Map(leadCustomerAccounts.map((a) => [a.id, a])),
     [],
   );
 
   const ownerOptions = useMemo(() => {
     const set = new Set<string>();
-    for (const d of deals) {
-      set.add(d.primarySales);
-      set.add(d.presales);
-      set.add(d.channel);
+    for (const l of leads) {
+      set.add(l.primarySales);
+      set.add(l.presales);
+      set.add(l.channel);
     }
     return Array.from(set).sort();
-  }, [deals]);
+  }, [leads]);
 
   if (!detailDraft) {
     return (
       <div className="flex h-full items-center justify-center bg-[#f8f9fb]">
         <div className="text-center">
-          <h2 className="font-semibold text-[#1c1e21]">Deal not found</h2>
-          <p className="mt-1 text-xs text-[#6b7280]">The deal ID might be incorrect or has been removed.</p>
-          <Button variant="outline" size="sm" className="mt-4 h-8 border-[#e5e7eb]" onClick={() => router.push("/deals")}>
+          <h2 className="font-semibold text-[#1c1e21]">Lead not found</h2>
+          <p className="mt-1 text-xs text-[#6b7280]">The lead ID might be incorrect or has been removed.</p>
+          <Button variant="outline" size="sm" className="mt-4 h-8 border-[#e5e7eb]" onClick={() => router.push("/leads")}>
             <ArrowLeft size={13} className="mr-1.5" />
-            Back to Deals
+            Back to Leads
           </Button>
         </div>
       </div>
@@ -205,16 +210,15 @@ export function DealDetailPage({ id }: { id: string }) {
 
   const persistDetailDraft = () => {
     if (!detailDraft) return;
-    setDeals((prev) =>
-      prev.map((d) => (d.id === detailDraft.id ? { ...detailDraft } : d)),
+    setLeads((prev) =>
+      prev.map((l) => (l.id === detailDraft.id ? { ...detailDraft } : l)),
     );
-    // Simulation: In a real app, this would be an API call
-    console.log("Saving deal changes...", detailDraft);
+    console.log("Saving lead changes...", detailDraft);
   };
 
   const addActivity = () => {
     if (!detailDraft || !activityForm.title.trim()) return;
-    const act: DealActivity = {
+    const act: LeadActivity = {
       id: `act-${Date.now()}`,
       kind: activityForm.kind,
       title: activityForm.title.trim(),
@@ -226,7 +230,7 @@ export function DealDetailPage({ id }: { id: string }) {
       activities: [act, ...detailDraft.activities],
     };
     setDetailDraft(next);
-    setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
     setActivityForm((f) => ({
       ...f,
       title: "",
@@ -238,7 +242,7 @@ export function DealDetailPage({ id }: { id: string }) {
   const stage = stageById.get(detailDraft.stageId);
   const customer = accountById.get(detailDraft.customerId);
   const expectedRevenue = Math.round((detailDraft.value * detailDraft.probability) / 100);
-  const dealAgeDays = (() => {
+  const leadAgeDays = (() => {
     const start = new Date(detailDraft.stageEnteredAt);
     if (Number.isNaN(start.getTime())) return null;
     const diffMs = Date.now() - start.getTime();
@@ -261,11 +265,11 @@ export function DealDetailPage({ id }: { id: string }) {
         <div>
           <button
             type="button"
-            onClick={() => router.push("/deals")}
+            onClick={() => router.push("/leads")}
             className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
           >
             <ArrowLeft size={13} />
-            Back to Deals
+            Back to Leads
           </button>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="font-semibold text-[#1c1e21]">{detailDraft.name}</h2>
@@ -284,8 +288,8 @@ export function DealDetailPage({ id }: { id: string }) {
             )}
           </div>
           <p className="mt-1 text-xs text-[#6b7280]">
-            {customer?.name ?? "Unknown customer"} · Created from lead:{" "}
-            {detailDraft.createdFromLead ? "Yes" : "No"}
+            {customer?.name ?? "Unknown customer"}
+            {customer?.industry ? ` · ${customer.industry}` : ""}
           </p>
         </div>
       </div>
@@ -313,7 +317,7 @@ export function DealDetailPage({ id }: { id: string }) {
                 <Card className="border-[#e5e7eb] shadow-none">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium text-[#1c1e21]">
-                      Deal Information
+                      Lead information
                     </CardTitle>
                     {isEditingDealInfo ? (
                       <div className="flex items-center gap-1">
@@ -344,7 +348,7 @@ export function DealDetailPage({ id }: { id: string }) {
                         size="icon"
                         className="size-7 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]"
                         onClick={startEditDealInfo}
-                        aria-label="Edit deal information"
+                        aria-label="Edit lead information"
                       >
                         <Edit2 size={14} />
                       </Button>
@@ -353,7 +357,7 @@ export function DealDetailPage({ id }: { id: string }) {
                   <CardContent>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <ProfileField
-                        label="Deal name"
+                        label="Lead name"
                         value={detailDraft.name}
                         isEditing={isEditingDealInfo}
                       >
@@ -454,7 +458,7 @@ export function DealDetailPage({ id }: { id: string }) {
                         </Select>
                       </ProfileField>
                       <ProfileField
-                        label="Close probability"
+                        label="Qualification score"
                         value={`${detailDraft.probability}%`}
                         isEditing={isEditingDealInfo}
                       >
@@ -480,7 +484,7 @@ export function DealDetailPage({ id }: { id: string }) {
                         />
                       </ProfileField>
                       <ProfileField
-                        label="Expected close"
+                        label="Target qualify date"
                         value={detailDraft.expectedClose || "—"}
                         isEditing={isEditingDealInfo}
                       >
@@ -502,7 +506,7 @@ export function DealDetailPage({ id }: { id: string }) {
                 <Card className="border-[#e5e7eb] shadow-none">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-[#1c1e21]">
-                      Deal Roles & Ownership
+                      Lead assignment
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -690,11 +694,11 @@ export function DealDetailPage({ id }: { id: string }) {
                       </div>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
-                          Deal Age
+                          Stage age
                         </p>
                         <p className="text-xl font-semibold text-[#1c1e21]">
-                          {dealAgeDays !== null
-                            ? `${dealAgeDays} Day${dealAgeDays === 1 ? "" : "s"}`
+                          {leadAgeDays !== null
+                            ? `${leadAgeDays} Day${leadAgeDays === 1 ? "" : "s"}`
                             : "—"}
                         </p>
                       </div>
@@ -720,9 +724,9 @@ export function DealDetailPage({ id }: { id: string }) {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-xs text-[#6b7280]">Created From Lead</p>
+                        <p className="text-xs text-[#6b7280]">Account lifecycle</p>
                         <p className="text-sm text-[#1c1e21]">
-                          {detailDraft.createdFromLead ? "Yes" : "No"}
+                          {customer?.lifecycleStage ?? "—"}
                         </p>
                       </div>
                       <div>
@@ -793,10 +797,10 @@ export function DealDetailPage({ id }: { id: string }) {
 
               <TabsContent value="timeline" className="mt-0 outline-none">
                 <div className="mb-3 flex items-center gap-2">
-                  <h3 className="text-sm font-medium text-[#1c1e21]">Deal Progression</h3>
+                  <h3 className="text-sm font-medium text-[#1c1e21]">Lead progression</h3>
                 </div>
                 <TimelineView
-                  deal={detailDraft}
+                  lead={detailDraft}
                   stageName={stageById.get(detailDraft.stageId)?.name}
                   activityTypes={activityTypes}
                 />
@@ -969,33 +973,24 @@ function ActivityRowIcon({ name }: { name: string }) {
 }
 
 function TimelineView({
-  deal,
+  lead,
   stageName,
   activityTypes,
 }: {
-  deal: CrmDeal;
+  lead: CrmLead;
   stageName?: string;
   activityTypes: ActivityType[];
 }) {
   const items = useMemo(() => {
     const rows: { id: string; date: string; title: string; kind: string; icon?: string }[] = [];
-    if (deal.createdFromLead && deal.leadConvertedAt) {
-      rows.push({
-        id: "tl-lead",
-        date: deal.leadConvertedAt,
-        title: "Lead converted to deal",
-        kind: "Conversion",
-        icon: "Globe",
-      });
-    }
     rows.push({
       id: "tl-stage",
-      date: deal.stageEnteredAt,
+      date: lead.stageEnteredAt,
       title: `Entered stage: ${stageName ?? "—"}`,
       kind: "Stage",
       icon: "Activity",
     });
-    for (const a of deal.activities) {
+    for (const a of lead.activities) {
       const typeCfg = activityTypes.find((t) => t.name === a.kind);
       rows.push({
         id: a.id,
@@ -1006,7 +1001,7 @@ function TimelineView({
       });
     }
     return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [deal, stageName, activityTypes]);
+  }, [lead, stageName, activityTypes]);
 
   return (
     <div className="relative pl-6">

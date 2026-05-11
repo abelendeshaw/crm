@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   Kanban,
+  Gauge,
   Phone,
   Users,
   Globe,
@@ -54,8 +55,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { mockDealStore } from "@/data/mockStore";
-import { PipelineStage, ActivityType, CrmDeal, dealCustomerAccounts } from "@/data/dealsManagementData";
+import { mockLeadStore } from "@/data/mockStore";
+import {
+  PipelineStage,
+  ActivityType,
+  type CrmLead,
+  leadCustomerAccounts,
+} from "@/data/leadsManagementData";
+import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -108,7 +115,7 @@ function IconRenderer({ name, className }: { name: string; className?: string })
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities";
+type Tab = "stages" | "activities" | "scoring";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -121,9 +128,14 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     label: "Activity Types",
     icon: <ActivityIcon size={15} />,
   },
+  {
+    id: "scoring",
+    label: "Lead Scoring",
+    icon: <Gauge size={15} />,
+  },
 ];
 
-export function DealsSettingsPage() {
+export function LeadsSettingsPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<Tab>("stages");
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -137,7 +149,7 @@ export function DealsSettingsPage() {
   const [stageDetailsFeedback, setStageDetailsFeedback] = useState<string | null>(null);
   const [isStageConfigEditing, setIsStageConfigEditing] = useState(false);
   const [deleteStageDialogOpen, setDeleteStageDialogOpen] = useState(false);
-  const [deleteStageHasDeals, setDeleteStageHasDeals] = useState(false);
+  const [deleteStageHasLeads, setDeleteStageHasLeads] = useState(false);
   const [addStageDialogOpen, setAddStageDialogOpen] = useState(false);
   const [newStageName, setNewStageName] = useState("");
   const [newStagePresetIndex, setNewStagePresetIndex] = useState("1");
@@ -147,11 +159,11 @@ export function DealsSettingsPage() {
   );
   const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
-    [...mockDealStore.stages].sort((a, b) => a.order - b.order),
+    [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
   );
-  const [deals, setDeals] = useState<CrmDeal[]>(() => [...mockDealStore.deals]);
+  const [leads, setLeads] = useState<CrmLead[]>(() => [...mockLeadStore.leads]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => [
-    ...mockDealStore.activityTypes,
+    ...mockLeadStore.activityTypes,
   ]);
   const [activitySearchQuery, setActivitySearchQuery] = useState("");
   const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
@@ -162,20 +174,20 @@ export function DealsSettingsPage() {
   const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
-      setDeals([...newDeals]);
+    const unsubLeads = mockLeadStore.subscribeLeads((newLeads) => {
+      setLeads([...newLeads]);
     });
 
-    const unsubStages = mockDealStore.subscribeStages((newStages) => {
+    const unsubStages = mockLeadStore.subscribeStages((newStages) => {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
 
-    const unsubActivities = mockDealStore.subscribeActivityTypes((newTypes) => {
+    const unsubActivities = mockLeadStore.subscribeActivityTypes((newTypes) => {
       setActivityTypes([...newTypes]);
     });
 
     return () => {
-      unsubDeals();
+      unsubLeads();
       unsubStages();
       unsubActivities();
     };
@@ -241,11 +253,14 @@ export function DealsSettingsPage() {
   }, [draggedStageId]);
 
   const saveStages = (newStages: PipelineStage[]) => {
-    setStages([...newStages].sort((a, b) => a.order - b.order));
+    const sorted = [...newStages].sort((a, b) => a.order - b.order);
+    setStages(sorted);
+    mockLeadStore.stages = sorted;
   };
 
   const saveActivityTypes = (newTypes: ActivityType[]) => {
     setActivityTypes([...newTypes]);
+    mockLeadStore.activityTypes = newTypes;
   };
 
   // Stage Helpers
@@ -318,7 +333,7 @@ export function DealsSettingsPage() {
     const preset = STAGE_COLOR_PRESETS[Number(newStagePresetIndex)] ?? STAGE_COLOR_PRESETS[1]!;
     const stageName = newStageName.trim() || "New Stage";
     const newStage: PipelineStage = {
-      id: `stage-custom-${crypto.randomUUID()}`,
+      id: `lead-stage-custom-${crypto.randomUUID()}`,
       name: stageName,
       category: "open",
       order: 0,
@@ -347,8 +362,8 @@ export function DealsSettingsPage() {
 
   const deleteStage = (stageId: string) => {
     if (stages.length <= 1) return;
-    if (deals.some((deal) => deal.stageId === stageId)) {
-      setStageDetailsFeedback("Cannot delete this stage while it still contains deals.");
+    if (leads.some((lead) => lead.stageId === stageId)) {
+      setStageDetailsFeedback("Cannot delete this stage while it still contains leads.");
       return;
     }
     const updated = stages.filter((s) => s.id !== stageId);
@@ -356,10 +371,10 @@ export function DealsSettingsPage() {
     setStageDetailsFeedback(null);
   };
 
-  const updateDeal = (dealId: string, updates: Partial<CrmDeal>) => {
-    const updated = deals.map((deal) => (deal.id === dealId ? { ...deal, ...updates } : deal));
-    setDeals(updated);
-    mockDealStore.deals = updated;
+  const updateLead = (leadId: string, updates: Partial<CrmLead>) => {
+    const updated = leads.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead));
+    setLeads(updated);
+    mockLeadStore.leads = updated;
   };
 
   // Activity Helpers
@@ -372,7 +387,7 @@ export function DealsSettingsPage() {
     const trimmedName = activityDraft.name.trim() || "New Activity";
     const trimmedDescription = activityDraft.description.trim();
     const newType: ActivityType = {
-      id: `act-type-${crypto.randomUUID()}`,
+      id: `lead-act-type-${crypto.randomUUID()}`,
       name: trimmedName,
       icon: activityDraft.icon || "Activity",
       description: trimmedDescription || undefined,
@@ -458,10 +473,10 @@ export function DealsSettingsPage() {
     : -1;
   const selectedStage = orderedStages.find((s) => s.id === selectedStageId) ?? orderedStages[0];
   const draggedStage = orderedStages.find((s) => s.id === draggedStageId) ?? null;
-  const selectedStageDeals = selectedStage
-    ? deals.filter((deal) => deal.stageId === selectedStage.id)
+  const selectedStageLeads = selectedStage
+    ? leads.filter((lead) => lead.stageId === selectedStage.id)
     : [];
-  const selectedStageHasDeals = selectedStageDeals.length > 0;
+  const selectedStageHasLeads = selectedStageLeads.length > 0;
   const selectedStagePresetIndex = selectedStage
     ? Math.max(
         0,
@@ -477,11 +492,11 @@ export function DealsSettingsPage() {
     orderedStages.findIndex((s) => s.id === selectedStage?.id),
   );
   const selectedStageProbability = Math.max(5, Math.min(95, (selectedStageIndex + 1) * 15));
-  const stageDealCountById = new Map<string, number>();
-  for (const deal of deals) {
-    stageDealCountById.set(deal.stageId, (stageDealCountById.get(deal.stageId) ?? 0) + 1);
+  const stageLeadCountById = new Map<string, number>();
+  for (const lead of leads) {
+    stageLeadCountById.set(lead.stageId, (stageLeadCountById.get(lead.stageId) ?? 0) + 1);
   }
-  const customerNameById = new Map(dealCustomerAccounts.map((account) => [account.id, account.name]));
+  const customerNameById = new Map(leadCustomerAccounts.map((account) => [account.id, account.name]));
   const getStageInitials = (name: string) =>
     name
       .split(/\s+/)
@@ -493,9 +508,11 @@ export function DealsSettingsPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
-        <h1 className="font-semibold text-[#1c1e21]">Deals Settings</h1>
+        <h1 className="font-semibold text-[#1c1e21]">Leads Settings</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
-          Configure sales pipeline stages and interaction types
+          {activeSection === "scoring"
+            ? "Define rules to prioritize and qualify leads automatically."
+            : "Configure lead pipeline stages and interaction types"}
         </p>
 
         {/* Tab Bar - same pattern as UserManagement */}
@@ -523,13 +540,13 @@ export function DealsSettingsPage() {
       <div className="flex-1 overflow-hidden bg-[#f8f9fb] p-3 sm:p-5">
         <div className="h-full overflow-y-auto no-scrollbar">
           <div className="w-full pb-4">
-            {activeSection === "stages" ? (
+            {activeSection === "stages" && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-4 rounded-lg border border-[#e5e7eb] bg-white p-4 md:flex-row md:items-end md:justify-between">
                   <div>
-                    <h2 className="font-semibold text-[#1c1e21]">Deals Settings</h2>
+                    <h2 className="font-semibold text-[#1c1e21]">Leads Settings</h2>
                     <p className="mt-1 text-xs text-[#6b7280]">
-                      Design and manage your sales flow architecture.
+                      Design and manage your lead qualification flow.
                     </p>
                   </div>
                   <div className="flex items-start gap-2">
@@ -637,7 +654,7 @@ export function DealsSettingsPage() {
                                 <span className="text-xs text-[#6b7280]">Stage color</span>
                               </div>
                               <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                                {stageDealCountById.get(stage.id) ?? 0} Deals
+                                {stageLeadCountById.get(stage.id) ?? 0} Leads
                               </span>
                             </div>
                           </button>
@@ -685,7 +702,7 @@ export function DealsSettingsPage() {
                           <span className="text-xs text-[#6b7280]">Stage color</span>
                         </div>
                         <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                          {stageDealCountById.get(draggedStage.id) ?? 0} Deals
+                          {stageLeadCountById.get(draggedStage.id) ?? 0} Leads
                         </span>
                       </div>
                     </div>
@@ -710,7 +727,7 @@ export function DealsSettingsPage() {
                             size="icon"
                             className="text-red-500 hover:bg-red-50 hover:text-red-600"
                             onClick={() => {
-                              setDeleteStageHasDeals(selectedStageHasDeals);
+                              setDeleteStageHasLeads(selectedStageHasLeads);
                               setDeleteStageDialogOpen(true);
                             }}
                             title="Delete stage"
@@ -837,9 +854,9 @@ export function DealsSettingsPage() {
 
                           <Card className="border-[#e5e7eb] bg-white shadow-none">
                             <CardHeader className="pb-3">
-                              <CardTitle className="text-sm font-semibold">Deals in Stage</CardTitle>
+                              <CardTitle className="text-sm font-semibold">Leads in Stage</CardTitle>
                               <CardDescription className="text-xs">
-                                {selectedStageDeals.length} deal(s) currently mapped to this stage.
+                                {selectedStageLeads.length} lead(s) currently mapped to this stage.
                               </CardDescription>
                             </CardHeader>
                             <CardContent className="pt-0">
@@ -848,7 +865,7 @@ export function DealsSettingsPage() {
                                   <thead>
                                     <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Deal
+                                        Lead
                                       </th>
                                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                                         Customer
@@ -856,27 +873,27 @@ export function DealsSettingsPage() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {selectedStageDeals.length > 0 ? (
-                                      selectedStageDeals.map((deal) => (
+                                    {selectedStageLeads.length > 0 ? (
+                                      selectedStageLeads.map((lead) => (
                                         <tr
-                                          key={deal.id}
+                                          key={lead.id}
                                           className="border-b border-[#f0f2f7] transition-colors hover:bg-[#fafbff]"
                                         >
                                           <td className="px-4 py-3">
-                                            <p className="text-sm font-medium text-[#1c1e21]">{deal.name}</p>
+                                            <p className="text-sm font-medium text-[#1c1e21]">{lead.name}</p>
                                           </td>
                                           <td className="px-4 py-3">
                                             <div className="flex items-center justify-between gap-3">
                                               <p className="text-sm text-[#1c1e21]">
-                                                {customerNameById.get(deal.customerId) ?? "Unknown customer"}
+                                                {customerNameById.get(lead.customerId) ?? "Unknown customer"}
                                               </p>
                                               <Button
                                                 type="button"
                                                 size="sm"
                                                 className="h-7 bg-[#4080f0] px-2 text-xs text-white hover:bg-[#3070e0]"
-                                                onClick={() => router.push(`/deals/${deal.id}`)}
+                                                onClick={() => router.push(`/leads/${lead.id}`)}
                                               >
-                                                View Deal
+                                                View Lead
                                               </Button>
                                             </div>
                                           </td>
@@ -885,7 +902,7 @@ export function DealsSettingsPage() {
                                     ) : (
                                       <tr>
                                         <td colSpan={2} className="px-4 py-8 text-center text-sm text-[#6b7280]">
-                                          No deals currently in this stage.
+                                          No leads currently in this stage.
                                         </td>
                                       </tr>
                                     )}
@@ -904,12 +921,12 @@ export function DealsSettingsPage() {
 
                 <Dialog open={deleteStageDialogOpen} onOpenChange={setDeleteStageDialogOpen}>
                   <DialogContent>
-                    {deleteStageHasDeals ? (
+                    {deleteStageHasLeads ? (
                       <>
                         <DialogHeader>
                           <DialogTitle>Cannot delete stage</DialogTitle>
                           <DialogDescription>
-                            This stage has deals assigned to it. Move or remove those deals first, then try deleting
+                            This stage has leads assigned to it. Move or remove those leads first, then try deleting
                             the stage again.
                           </DialogDescription>
                         </DialogHeader>
@@ -1074,7 +1091,8 @@ export function DealsSettingsPage() {
                   </DialogContent>
                 </Dialog>
               </div>
-            ) : (
+            )}
+            {activeSection === "activities" && (
               <div className="space-y-6">
                 <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -1214,7 +1232,7 @@ export function DealsSettingsPage() {
                     <DialogHeader>
                       <DialogTitle>Add Activity Type</DialogTitle>
                       <DialogDescription>
-                        Define a new activity your team can log against deals.
+                        Define a new activity your team can log against leads.
                       </DialogDescription>
                     </DialogHeader>
                     <ActivityDraftForm draft={activityDraft} onChange={setActivityDraft} />
@@ -1295,6 +1313,7 @@ export function DealsSettingsPage() {
                 </Dialog>
               </div>
             )}
+            {activeSection === "scoring" && <LeadScoringSettingsSection />}
           </div>
         </div>
       </div>

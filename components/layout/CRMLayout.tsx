@@ -35,8 +35,7 @@ const navItems: NavItem[] = [
     icon: <Users size={18} />,
     path: "/leads",
     children: [
-      { label: "Leads", path: "/leads" },
-      { label: "Activity", path: "/leads/activity" },
+      { label: "Pipeline", path: "/leads" },
       { label: "Settings", path: "/leads/settings" },
     ],
   },

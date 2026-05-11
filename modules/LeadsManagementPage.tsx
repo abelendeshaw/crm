@@ -20,6 +20,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -35,7 +36,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { customerOwners } from "@/data/customerManagementData";
+import {
+  customerOwners,
+  industries,
+  accountSizes,
+  customerContacts as initialCustomerContacts,
+  accountContactAssociations as initialAccountContactAssociations,
+  associationRoles,
+  type CustomerAccount,
+  type CustomerContact,
+  type AccountContactAssociation,
+} from "@/data/customerManagementData";
 import {
   AUTOMATION_DEFAULT_LEAD_ROLES,
   AUTOMATION_DEFAULT_LEAD_STAGE_ID,
@@ -123,7 +134,6 @@ export function LeadsManagementPage() {
   } | null>(null);
   const [formErrors, setFormErrors] = useState<{
     manual?: string;
-    fromAccount?: string;
   }>({});
 
   const [stages, setStages] = useState<PipelineStage[]>(() =>
@@ -163,28 +173,41 @@ export function LeadsManagementPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [quickCapture, setQuickCapture] = useState(false);
 
-  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
-  const [accountPickSearch, setAccountPickSearch] = useState("");
-  const [creationMode, setCreationMode] = useState<"manual" | "fromAccount">("manual");
+  const [extraCustomerAccounts, setExtraCustomerAccounts] = useState<CustomerAccount[]>([]);
+  const [inlineAccountIds, setInlineAccountIds] = useState<Set<string>>(() => new Set());
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    name: "",
+    industry: industries[0] ?? "Technology",
+    size: accountSizes[0] ?? "1-10",
+    city: "",
+    country: "Ethiopia",
+    website: "",
+  });
+
+  const [extraContacts, setExtraContacts] =
+    useState<CustomerContact[]>([]);
+  const [extraAssociations, setExtraAssociations] =
+    useState<AccountContactAssociation[]>([]);
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactRoleFilter, setContactRoleFilter] = useState<string>("all");
+  const [contactMode, setContactMode] = useState<"pick" | "add">("pick");
+  const [newContact, setNewContact] = useState({
+    firstName: "",
+    lastName: "",
+    roleTitle: "",
+    email: "",
+    phone: "",
+    associationRole: associationRoles[0] ?? "Decision Maker",
+  });
 
   const [createForm, setCreateForm] = useState({
     name: "",
     customerId: "",
+    contactId: "",
     value: "",
     currency: "ETB" as DealCurrency,
-    probability: "50",
-    expectedClose: "2026-05-20",
-    stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
-    primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
-    presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
-    channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
-  });
-
-  const [fromAccountForm, setFromAccountForm] = useState({
-    value: "",
-    currency: "ETB" as DealCurrency,
-    probability: "50",
-    expectedClose: new Date().toISOString().split("T")[0]!,
     stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
     primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
     presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
@@ -196,10 +219,71 @@ export function LeadsManagementPage() {
     () => new Map(stages.map((s) => [s.id, s])),
     [stages],
   );
-  const accountById = useMemo(
-    () => new Map(leadCustomerAccounts.map((a) => [a.id, a])),
-    [],
+  const allCustomerAccounts = useMemo(
+    () => [...leadCustomerAccounts, ...extraCustomerAccounts],
+    [extraCustomerAccounts],
   );
+
+  const accountById = useMemo(
+    () => new Map(allCustomerAccounts.map((a) => [a.id, a])),
+    [allCustomerAccounts],
+  );
+
+  const allContacts = useMemo(
+    () => [...initialCustomerContacts, ...extraContacts],
+    [extraContacts],
+  );
+
+  const contactById = useMemo(
+    () => new Map(allContacts.map((c) => [c.id, c])),
+    [allContacts],
+  );
+
+  const allAssociations = useMemo(
+    () => [...initialAccountContactAssociations, ...extraAssociations],
+    [extraAssociations],
+  );
+
+  const contactsForAccountId = (accountId: string): CustomerContact[] => {
+    const ids = allAssociations
+      .filter((a) => a.accountId === accountId)
+      .map((a) => a.contactId);
+    return ids
+      .map((id) => contactById.get(id))
+      .filter((c): c is CustomerContact => Boolean(c));
+  };
+
+  const associationFor = (accountId: string, contactId: string) =>
+    allAssociations.find(
+      (a) => a.accountId === accountId && a.contactId === contactId,
+    ) ?? null;
+
+  useEffect(() => {
+    if (!createForm.customerId) {
+      if (createForm.contactId) {
+        setCreateForm((p) => ({ ...p, contactId: "" }));
+      }
+      return;
+    }
+    const ids = allAssociations
+      .filter((a) => a.accountId === createForm.customerId)
+      .map((a) => a.contactId);
+    const contacts = ids
+      .map((id) => contactById.get(id))
+      .filter((c): c is CustomerContact => Boolean(c));
+    if (contacts.length === 1 && contacts[0]) {
+      if (createForm.contactId !== contacts[0].id) {
+        setCreateForm((p) => ({ ...p, contactId: contacts[0]!.id }));
+      }
+      return;
+    }
+    if (
+      createForm.contactId &&
+      !contacts.some((c) => c.id === createForm.contactId)
+    ) {
+      setCreateForm((p) => ({ ...p, contactId: "" }));
+    }
+  }, [createForm.customerId, createForm.contactId, allAssociations, contactById]);
 
   const ownerOptions = useMemo(() => {
     const set = new Set<string>(customerOwners);
@@ -233,19 +317,6 @@ export function LeadsManagementPage() {
     () => [...stages].sort((a, b) => a.order - b.order),
     [stages],
   );
-
-  const leadLifecycleAccounts = useMemo(() => {
-    return leadCustomerAccounts.filter((acc) => acc.lifecycleStage === "Lead");
-  }, []);
-
-  const filteredAccountsForPick = useMemo(() => {
-    const q = accountPickSearch.trim().toLowerCase();
-    if (!q) return leadLifecycleAccounts;
-    return leadLifecycleAccounts.filter(
-      (l) =>
-        l.name.toLowerCase().includes(q) || l.industry.toLowerCase().includes(q),
-    );
-  }, [leadLifecycleAccounts, accountPickSearch]);
 
   const setLeads = (next: CrmLead[] | ((prev: CrmLead[]) => CrmLead[])) => {
     _setLeads((prev) => {
@@ -303,38 +374,32 @@ export function LeadsManagementPage() {
       }));
       return;
     }
+    if (!createForm.contactId) {
+      setFormErrors((prev) => ({
+        ...prev,
+        manual: "Choose a contact person for this lead.",
+      }));
+      return;
+    }
     const valueNum = Number(createForm.value.replace(/,/g, "")) || 0;
-    if (!quickCapture && (!valueNum || !createForm.expectedClose)) {
-      setFormErrors((prev) => ({
-        ...prev,
-        manual: "Value and target qualify date are required.",
-      }));
-      return;
-    }
-    if (quickCapture && valueNum <= 0) {
-      setFormErrors((prev) => ({
-        ...prev,
-        manual: "Quick capture still requires a valid estimated value.",
-      }));
-      return;
-    }
+    const value = Math.max(0, valueNum);
 
     setIsSavingLead(true);
 
     const today = new Date().toISOString().split("T")[0]!;
     const currency = createForm.currency;
-    const value = quickCapture ? Math.max(valueNum, 1) : valueNum;
-    const probability = quickCapture ? 40 : Number(createForm.probability) || 0;
+    const probability = quickCapture ? 40 : 50;
     const newLeadId = `lead-${crypto.randomUUID()}`;
     const newLead: CrmLead = {
       id: newLeadId,
       name: createForm.name.trim(),
       customerId: createForm.customerId,
+      contactId: createForm.contactId || undefined,
       value,
       currency,
       baseValue: computeBaseValue(value, currency),
       probability: Math.min(100, Math.max(0, probability)),
-      expectedClose: quickCapture ? today : createForm.expectedClose,
+      expectedClose: today,
       stageId: quickCapture ? AUTOMATION_DEFAULT_LEAD_STAGE_ID : createForm.stageId,
       stageEnteredAt: today,
       primarySales: quickCapture
@@ -349,10 +414,9 @@ export function LeadsManagementPage() {
     setCreateForm({
       name: "",
       customerId: "",
+      contactId: "",
       value: "",
       currency: "ETB",
-      probability: "50",
-      expectedClose: today,
       stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
       primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
       presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
@@ -362,75 +426,135 @@ export function LeadsManagementPage() {
     setIsSavingLead(false);
   };
 
-  const saveLeadFromAccount = () => {
-    setFormErrors((prev) => ({ ...prev, fromAccount: undefined }));
-    if (!selectedAccountId) {
-      setFormErrors((prev) => ({
-        ...prev,
-        fromAccount: "Select a customer account to continue.",
-      }));
-      return;
-    }
-    const account = leadCustomerAccounts.find((a) => a.id === selectedAccountId);
-    if (!account) return;
-
-    const valueNum = Number(fromAccountForm.value.replace(/,/g, "")) || 0;
-    if (!valueNum || !fromAccountForm.expectedClose) {
-      setFormErrors((prev) => ({
-        ...prev,
-        fromAccount: "Estimated value and target qualify date are required.",
-      }));
-      return;
-    }
-    const currency = fromAccountForm.currency;
+  const addInlineCustomer = () => {
+    const name = newCustomer.name.trim();
+    if (!name || !newCustomer.industry || !newCustomer.size) return;
     const today = new Date().toISOString().split("T")[0]!;
-    setIsSavingLead(true);
-
-    const newLeadId = `lead-from-acc-${crypto.randomUUID()}`;
-    const activityId = `lead-act-conv-${crypto.randomUUID()}`;
-    const newLead: CrmLead = {
-      id: newLeadId,
-      name: `${account.name} — pipeline`,
-      customerId: account.id,
-      value: valueNum,
-      currency,
-      baseValue: computeBaseValue(valueNum, currency),
-      probability: Number(fromAccountForm.probability) || 0,
-      expectedClose: fromAccountForm.expectedClose,
-      stageId: fromAccountForm.stageId,
-      stageEnteredAt: today,
-      primarySales: fromAccountForm.primarySales,
-      presales: fromAccountForm.presales,
-      channel: fromAccountForm.channel,
-      activities: [
-        {
-          id: activityId,
-          kind: "External",
-          title: "Created from customer account",
-          date: today,
-        },
-      ],
+    const owner = customerOwners[0] ?? "Sara Tesfaye";
+    const id = `acc-new-${crypto.randomUUID().slice(0, 8)}`;
+    const account: CustomerAccount = {
+      id,
+      name,
+      industry: newCustomer.industry,
+      size: newCustomer.size,
+      email: "",
+      phone: "",
+      address: "",
+      city: newCustomer.city.trim() || "Addis Ababa",
+      country: newCustomer.country.trim() || "Ethiopia",
+      website: newCustomer.website.trim(),
+      owner,
+      status: "Lead",
+      lifecycleStage: "Lead",
+      leadSource: "CRM",
+      createdAt: today,
     };
-
-    setLeads((prev) => [newLead, ...prev]);
-    setCreateOpen(false);
-    setSelectedAccountId(null);
-    setFromAccountForm({
-      value: "",
-      currency: "ETB",
-      probability: "50",
-      expectedClose: today,
-      stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
-      primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
-      presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
-      channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
+    setExtraCustomerAccounts((prev) => [...prev, account]);
+    setInlineAccountIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
     });
-    setSaveFeedback({
-      type: "success",
-      message: "Lead added to pipeline from account.",
+    setCreateForm((p) => ({ ...p, customerId: id, contactId: "" }));
+    setNewCustomer({
+      name: "",
+      industry: industries[0] ?? "Technology",
+      size: accountSizes[0] ?? "1-10",
+      city: "",
+      country: "Ethiopia",
+      website: "",
     });
-    setIsSavingLead(false);
+    setAddCustomerOpen(false);
+    setContactSearch("");
+    setContactRoleFilter("all");
+    setNewContact({
+      firstName: "",
+      lastName: "",
+      roleTitle: "",
+      email: "",
+      phone: "",
+      associationRole: associationRoles[0] ?? "Decision Maker",
+    });
+    setContactMode("add");
+    setContactPickerOpen(true);
   };
+
+  const isForcedContactCreation = (accountId: string | "") => {
+    if (!accountId) return false;
+    if (!inlineAccountIds.has(accountId)) return false;
+    return contactsForAccountId(accountId).length === 0;
+  };
+
+  const openContactPickerForExistingAccount = () => {
+    if (!createForm.customerId) return;
+    setContactSearch("");
+    setContactRoleFilter("all");
+    setContactMode(isForcedContactCreation(createForm.customerId) ? "add" : "pick");
+    setContactPickerOpen(true);
+  };
+
+  const selectContactForLead = (contactId: string) => {
+    if (!createForm.customerId) return;
+    const accountId = createForm.customerId;
+    const existing = associationFor(accountId, contactId);
+    if (!existing) {
+      const newAssoc: AccountContactAssociation = {
+        id: `assoc-new-${crypto.randomUUID().slice(0, 8)}`,
+        accountId,
+        contactId,
+        role: associationRoles[0] ?? "Decision Maker",
+        isPrimary: contactsForAccountId(accountId).length === 0,
+      };
+      setExtraAssociations((prev) => [...prev, newAssoc]);
+    }
+    setCreateForm((p) => ({ ...p, contactId }));
+    setContactPickerOpen(false);
+  };
+
+  const addInlineContact = () => {
+    const first = newContact.firstName.trim();
+    const last = newContact.lastName.trim();
+    const email = newContact.email.trim();
+    if (!first || !last || !email) return;
+    if (!createForm.customerId) return;
+    const today = new Date().toISOString().split("T")[0]!;
+    const owner = customerOwners[0] ?? "Sara Tesfaye";
+    const contactId = `con-new-${crypto.randomUUID().slice(0, 8)}`;
+    const contact: CustomerContact = {
+      id: contactId,
+      firstName: first,
+      lastName: last,
+      roleTitle: newContact.roleTitle.trim() || "—",
+      email: newContact.email.trim(),
+      phone: newContact.phone.trim(),
+      owner,
+      status: "Active",
+      createdAt: today,
+    };
+    const newAssoc: AccountContactAssociation = {
+      id: `assoc-new-${crypto.randomUUID().slice(0, 8)}`,
+      accountId: createForm.customerId,
+      contactId,
+      role: newContact.associationRole,
+      isPrimary: contactsForAccountId(createForm.customerId).length === 0,
+    };
+    setExtraContacts((prev) => [...prev, contact]);
+    setExtraAssociations((prev) => [...prev, newAssoc]);
+    setCreateForm((p) => ({ ...p, contactId }));
+    setNewContact({
+      firstName: "",
+      lastName: "",
+      roleTitle: "",
+      email: "",
+      phone: "",
+      associationRole: associationRoles[0] ?? "Decision Maker",
+    });
+    setContactMode("pick");
+    setContactPickerOpen(false);
+  };
+
+  const contactDisplayName = (c: CustomerContact) =>
+    `${c.firstName} ${c.lastName}`.trim() || c.email || "Untitled contact";
 
   const agingLabel = (lead: CrmLead) => {
     const st = stageById.get(lead.stageId);
@@ -548,7 +672,6 @@ export function LeadsManagementPage() {
                 className="h-9 bg-[#4080f0] text-white hover:bg-[#3070e0]"
                 onClick={() => {
                   setQuickCapture(false);
-                  setCreationMode("manual");
                   setCreateOpen(true);
                 }}
               >
@@ -690,486 +813,667 @@ export function LeadsManagementPage() {
         )}
       </div>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) setAddCustomerOpen(false);
+        }}
+      >
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[800px]">
           <DialogHeader>
-            <DialogTitle>
-              {creationMode === "fromAccount"
-                ? "Add lead from customer account"
-                : "Create new lead"}
-            </DialogTitle>
+            <DialogTitle>Create new lead</DialogTitle>
           </DialogHeader>
 
-          <div className="flex items-center gap-2 rounded-lg bg-[#f3f4f6] p-1 mb-2">
-            <Button
-              variant={creationMode === "manual" ? "secondary" : "ghost"}
-              size="sm"
-              className={cn(
-                "flex-1 h-8 text-xs font-medium",
-                creationMode === "manual" && "bg-white shadow-sm"
-              )}
-              onClick={() => setCreationMode("manual")}
-            >
-              Manual entry
-            </Button>
-            <Button
-              variant={creationMode === "fromAccount" ? "secondary" : "ghost"}
-              size="sm"
-              className={cn(
-                "flex-1 h-8 text-xs font-medium",
-                creationMode === "fromAccount" && "bg-white shadow-sm"
-              )}
-              onClick={() => setCreationMode("fromAccount")}
-            >
-              From account
-            </Button>
+          <div className="mb-4 flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
+            <div>
+              <p className="text-sm font-medium text-[#1c1e21]">Quick capture</p>
+              <p className="text-xs text-[#6b7280]">Minimal fields for direct sales</p>
+            </div>
+            <Switch checked={quickCapture} onCheckedChange={setQuickCapture} />
           </div>
 
-          {creationMode === "manual" ? (
-            <>
-              <div className="flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#fafbff] px-3 py-2 mb-4">
-                <div>
-                  <p className="text-sm font-medium text-[#1c1e21]">Quick capture</p>
-                  <p className="text-xs text-[#6b7280]">Minimal fields for direct sales</p>
-                </div>
-                <Switch checked={quickCapture} onCheckedChange={setQuickCapture} />
-              </div>
-              <div className="grid gap-4 py-1">
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <FormField label="Lead name *">
-                    <Input
-                      value={createForm.name}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                      className="h-9 border-[#e5e7eb]"
-                      placeholder="e.g. Acme Corp Q3"
-                    />
-                  </FormField>
-                  <FormField label="Customer account *">
-                    <Select
-                      value={createForm.customerId}
-                      onValueChange={(v) => setCreateForm((p) => ({ ...p, customerId: v }))}
+          <div className="grid gap-4 py-1">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField label="Lead name *">
+                <Input
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+                  className="h-9 border-[#e5e7eb]"
+                  placeholder="Lead Name"
+                />
+              </FormField>
+              <FormField label="Customer account *">
+                <Select
+                  value={createForm.customerId}
+                  onValueChange={(v) =>
+                    setCreateForm((p) => ({ ...p, customerId: v, contactId: "" }))
+                  }
+                >
+                  <SelectTrigger className="h-9 border-[#e5e7eb]">
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allCustomerAccounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                    <div
+                      className="border-t border-[#e5e7eb] p-1"
+                      onPointerDown={(e) => e.preventDefault()}
                     >
-                      <SelectTrigger className="h-9 border-[#e5e7eb]">
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {leadCustomerAccounts.map((a) => (
-                          <SelectItem key={a.id} value={a.id}>
-                            {a.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormField>
-                </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-full justify-start gap-1.5 font-medium text-[#4080f0] hover:bg-[#eef2fd] hover:text-[#3070e0]"
+                        onClick={() => {
+                          setNewCustomer({
+                            name: "",
+                            industry: industries[0] ?? "Technology",
+                            size: accountSizes[0] ?? "1-10",
+                            city: "",
+                            country: "Ethiopia",
+                            website: "",
+                          });
+                          setAddCustomerOpen(true);
+                        }}
+                      >
+                        <Plus size={14} />
+                        + New Customer
+                      </Button>
+                    </div>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField label="Estimated value *">
-                      <Input
-                        value={createForm.value}
-                        onChange={(e) => setCreateForm((p) => ({ ...p, value: e.target.value }))}
-                        className="h-9 border-[#e5e7eb]"
-                        placeholder="0"
-                        inputMode="decimal"
-                      />
-                    </FormField>
-                    <FormField label="Currency">
+            {createForm.customerId && (() => {
+              const accountId = createForm.customerId;
+              const isInline = inlineAccountIds.has(accountId);
+              const contacts = contactsForAccountId(accountId);
+              const selectedContact = createForm.contactId
+                ? contactById.get(createForm.contactId)
+                : null;
+              return (
+                <FormField label="Contact person *">
+                  {selectedContact ? (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-[#1c1e21]">
+                          {contactDisplayName(selectedContact)}
+                        </p>
+                        <p className="truncate text-xs text-[#6b7280]">
+                          {selectedContact.roleTitle}
+                          {selectedContact.email
+                            ? ` · ${selectedContact.email}`
+                            : ""}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs text-[#4080f0] hover:bg-[#eef2fd] hover:text-[#3070e0]"
+                        onClick={openContactPickerForExistingAccount}
+                      >
+                        Change
+                      </Button>
+                    </div>
+                  ) : isInline || contacts.length === 0 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full justify-start gap-1.5 border-dashed border-[#cbd5e1] text-[#4080f0] hover:bg-[#eef2fd] hover:text-[#3070e0]"
+                      onClick={openContactPickerForExistingAccount}
+                    >
+                      <Plus size={14} />
+                      Choose contact person
+                    </Button>
+                  ) : (
+                    <div className="space-y-1.5">
                       <Select
-                        value={createForm.currency}
+                        value={createForm.contactId || undefined}
                         onValueChange={(v) =>
-                          setCreateForm((p) => ({ ...p, currency: v as DealCurrency }))
+                          setCreateForm((p) => ({ ...p, contactId: v }))
+                        }
+                      >
+                        <SelectTrigger className="h-9 border-[#e5e7eb]">
+                          <SelectValue placeholder="Select contact" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {contacts.map((c) => {
+                            const assoc = associationFor(accountId, c.id);
+                            return (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-baseline gap-1.5">
+                                  {contactDisplayName(c)}
+                                  {assoc?.isPrimary && (
+                                    <span className="text-[10px] font-medium uppercase tracking-wide text-[#4080f0]">
+                                      primary
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-[#9ca3af]">
+                                    · {c.roleTitle}
+                                  </span>
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-[#4080f0] hover:underline"
+                        onClick={openContactPickerForExistingAccount}
+                      >
+                        + Add another contact
+                      </button>
+                    </div>
+                  )}
+                </FormField>
+              );
+            })()}
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-2 gap-3">
+                <FormField label="Estimated value (optional)">
+                  <Input
+                    value={createForm.value}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, value: e.target.value }))}
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="0"
+                    inputMode="decimal"
+                  />
+                </FormField>
+                <FormField label="Currency">
+                  <Select
+                    value={createForm.currency}
+                    onValueChange={(v) =>
+                      setCreateForm((p) => ({ ...p, currency: v as DealCurrency }))
+                    }
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              </div>
+
+              {!quickCapture && (
+                <FormField label="Pipeline stage">
+                  <Select
+                    value={createForm.stageId}
+                    onValueChange={(v) => setCreateForm((p) => ({ ...p, stageId: v }))}
+                  >
+                    <SelectTrigger className="h-9 border-[#e5e7eb]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortedStages.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+              )}
+            </div>
+
+            {!quickCapture && (
+              <>
+                <Separator className="my-2" />
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <FormField label="Primary sales">
+                      <Select
+                        value={createForm.primarySales}
+                        onValueChange={(v) =>
+                          setCreateForm((p) => ({ ...p, primarySales: v }))
                         }
                       >
                         <SelectTrigger className="h-9 border-[#e5e7eb]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {CURRENCY_OPTIONS.map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
+                          {ownerOptions.map((o) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </FormField>
-                  </div>
-
-                  {!quickCapture && (
-                    <FormField label="Pipeline stage">
+                    <FormField label="Pre-sales">
                       <Select
-                        value={createForm.stageId}
-                        onValueChange={(v) => setCreateForm((p) => ({ ...p, stageId: v }))}
+                        value={createForm.presales}
+                        onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
                       >
                         <SelectTrigger className="h-9 border-[#e5e7eb]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {sortedStages.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>
-                              {s.name}
+                          {ownerOptions.map((o) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </FormField>
-                  )}
-                </div>
-
-                {!quickCapture && (
-                  <>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <FormField label="Qualification score (%)">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={createForm.probability}
-                          onChange={(e) =>
-                            setCreateForm((p) => ({ ...p, probability: e.target.value }))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </FormField>
-                      <FormField label="Target qualify date">
-                        <Input
-                          type="date"
-                          value={createForm.expectedClose}
-                          onChange={(e) =>
-                            setCreateForm((p) => ({ ...p, expectedClose: e.target.value }))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </FormField>
-                    </div>
-
-                    <Separator className="my-2" />
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <FormField label="Primary sales">
-                          <Select
-                            value={createForm.primarySales}
-                            onValueChange={(v) =>
-                              setCreateForm((p) => ({ ...p, primarySales: v }))
-                            }
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                        <FormField label="Pre-sales">
-                          <Select
-                            value={createForm.presales}
-                            onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                        <FormField label="Channel">
-                          <Select
-                            value={createForm.channel}
-                            onValueChange={(v) => setCreateForm((p) => ({ ...p, channel: v }))}
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-              {formErrors.manual && (
-                <p className="text-xs text-red-600">{formErrors.manual}</p>
-              )}
-            </>
-          ) : (
-            <div className="grid gap-4 py-2">
-              {!selectedAccountId ? (
-                <div className="space-y-4">
-                  <div className="relative">
-                    <Search
-                      size={15}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
-                    />
-                    <Input
-                      value={accountPickSearch}
-                      onChange={(e) => setAccountPickSearch(e.target.value)}
-                      placeholder="Search accounts by name or industry..."
-                      className="h-9 pl-9 border-[#e5e7eb]"
-                    />
-                  </div>
-                  <div className="max-h-[400px] overflow-y-auto rounded-md border border-[#e5e7eb]">
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-[#f9fafb] text-xs uppercase text-[#6b7280]">
-                        <tr>
-                          <th className="px-4 py-2 text-left font-medium">Account</th>
-                          <th className="px-4 py-2 text-left font-medium">Industry</th>
-                          <th className="px-4 py-2 text-right font-medium">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#e5e7eb] bg-white">
-                        {filteredAccountsForPick.length === 0 ? (
-                          <tr>
-                            <td colSpan={3} className="px-4 py-8 text-center text-[#9ca3af]">
-                              No qualifying accounts found. Lead lifecycle accounts appear here.
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredAccountsForPick.map((acct) => (
-                            <tr key={acct.id} className="hover:bg-[#f3f4f6]">
-                              <td className="px-4 py-3 font-medium text-[#1c1e21]">
-                                {acct.name}
-                              </td>
-                              <td className="px-4 py-3 text-[#6b7280]">{acct.industry}</td>
-                              <td className="px-4 py-3 text-right">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-8 border-[#e5e7eb]"
-                                  onClick={() => setSelectedAccountId(acct.id)}
-                                >
-                                  Select
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                    <FormField label="Channel">
+                      <Select
+                        value={createForm.channel}
+                        onValueChange={(v) => setCreateForm((p) => ({ ...p, channel: v }))}
+                      >
+                        <SelectTrigger className="h-9 border-[#e5e7eb]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ownerOptions.map((o) => (
+                            <SelectItem key={o} value={o}>
+                              {o}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormField>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between rounded-lg bg-[#f0f7ff] p-3 text-sm text-[#1e40af]">
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-full bg-[#dbeafe] p-1.5">
-                        <Briefcase size={16} />
-                      </div>
-                      <div>
-                        <p className="font-semibold">
-                          {leadCustomerAccounts.find((l) => l.id === selectedAccountId)?.name}
-                        </p>
-                        <p className="text-xs opacity-80">Adding to pipeline</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-[#1e40af] hover:bg-[#dbeafe]"
-                      onClick={() => setSelectedAccountId(null)}
-                    >
-                      Change account
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-4">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <div className="grid grid-cols-2 gap-3">
-                        <FormField label="Estimated value *">
-                          <Input
-                            value={fromAccountForm.value}
-                            onChange={(e) =>
-                              setFromAccountForm((p) => ({ ...p, value: e.target.value }))
-                            }
-                            className="h-9 border-[#e5e7eb]"
-                            placeholder="0"
-                            inputMode="decimal"
-                          />
-                        </FormField>
-                        <FormField label="Currency">
-                          <Select
-                            value={fromAccountForm.currency}
-                            onValueChange={(v) =>
-                              setFromAccountForm((p) => ({ ...p, currency: v as DealCurrency }))
-                            }
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CURRENCY_OPTIONS.map((c) => (
-                                <SelectItem key={c} value={c}>
-                                  {c}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                      </div>
-                      <FormField label="Pipeline stage">
-                        <Select
-                          value={fromAccountForm.stageId}
-                          onValueChange={(v) =>
-                            setFromAccountForm((p) => ({ ...p, stageId: v }))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sortedStages.map((s) => (
-                              <SelectItem key={s.id} value={s.id}>
-                                {s.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <FormField label="Qualification score (%)">
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={fromAccountForm.probability}
-                          onChange={(e) =>
-                            setFromAccountForm((p) => ({ ...p, probability: e.target.value }))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </FormField>
-                      <FormField label="Target qualify date">
-                        <Input
-                          type="date"
-                          value={fromAccountForm.expectedClose}
-                          onChange={(e) =>
-                            setFromAccountForm((p) => ({ ...p, expectedClose: e.target.value }))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </FormField>
-                    </div>
-
-                    <Separator className="my-2" />
-                    <div className="space-y-3">
-                      <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <FormField label="Primary sales">
-                          <Select
-                            value={fromAccountForm.primarySales}
-                            onValueChange={(v) =>
-                              setFromAccountForm((p) => ({ ...p, primarySales: v }))
-                            }
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                        <FormField label="Pre-sales">
-                          <Select
-                            value={fromAccountForm.presales}
-                            onValueChange={(v) =>
-                              setFromAccountForm((p) => ({ ...p, presales: v }))
-                            }
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                        <FormField label="Channel">
-                          <Select
-                            value={fromAccountForm.channel}
-                            onValueChange={(v) => setFromAccountForm((p) => ({ ...p, channel: v }))}
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </FormField>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {formErrors.fromAccount && (
-                <p className="text-xs text-red-600">{formErrors.fromAccount}</p>
-              )}
-            </div>
+              </>
+            )}
+          </div>
+          {formErrors.manual && (
+            <p className="text-xs text-red-600">{formErrors.manual}</p>
           )}
 
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            {creationMode === "manual" ? (
-              <Button
-                size="sm"
-                className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                onClick={saveNewLead}
-                disabled={isSavingLead}
-              >
-                {isSavingLead ? "Saving..." : "Create lead"}
-              </Button>
-            ) : (
-              selectedAccountId && (
-                <Button
-                  size="sm"
-                  className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                  onClick={saveLeadFromAccount}
-                  disabled={isSavingLead}
-                >
-                  {isSavingLead ? "Saving..." : "Create lead from account"}
-                </Button>
-              )
-            )}
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={saveNewLead}
+              disabled={isSavingLead}
+            >
+              {isSavingLead ? "Saving..." : "Create lead"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>New Customer</DialogTitle>
+            <DialogDescription>
+              Capture firmographic details for this account. After saving, you&apos;ll be asked to add a
+              primary contact.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 py-1 sm:grid-cols-2">
+            <FormField label="Account Name *" className="sm:col-span-2">
+              <Input
+                value={newCustomer.name}
+                onChange={(e) =>
+                  setNewCustomer((p) => ({ ...p, name: e.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+                placeholder="Company name"
+                autoFocus
+              />
+            </FormField>
+            <FormField label="Industry *">
+              <Select
+                value={newCustomer.industry}
+                onValueChange={(v) => setNewCustomer((p) => ({ ...p, industry: v }))}
+              >
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select industry" />
+                </SelectTrigger>
+                <SelectContent>
+                  {industries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="Organization Size *">
+              <Select
+                value={newCustomer.size}
+                onValueChange={(v) => setNewCustomer((p) => ({ ...p, size: v }))}
+              >
+                <SelectTrigger className="h-9 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select size" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accountSizes.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField label="City">
+              <Input
+                value={newCustomer.city}
+                onChange={(e) =>
+                  setNewCustomer((p) => ({ ...p, city: e.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+                placeholder="City"
+              />
+            </FormField>
+            <FormField label="Country">
+              <Input
+                value={newCustomer.country}
+                onChange={(e) =>
+                  setNewCustomer((p) => ({ ...p, country: e.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+                placeholder="Country"
+              />
+            </FormField>
+            <FormField label="Website" className="sm:col-span-2">
+              <Input
+                value={newCustomer.website}
+                onChange={(e) =>
+                  setNewCustomer((p) => ({ ...p, website: e.target.value }))
+                }
+                className="h-9 border-[#e5e7eb]"
+                placeholder="https://example.com"
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setAddCustomerOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={addInlineCustomer}
+              disabled={
+                !newCustomer.name.trim() ||
+                !newCustomer.industry ||
+                !newCustomer.size
+              }
+            >
+              Create Customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
+      <Dialog
+        open={contactPickerOpen}
+        onOpenChange={(open) => {
+          setContactPickerOpen(open);
+          if (!open) setContactMode("pick");
+        }}
+      >
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[640px]">
+          {(() => {
+            const accountId = createForm.customerId;
+            const acc = accountId ? accountById.get(accountId) : null;
+            const forced = accountId ? isForcedContactCreation(accountId) : false;
+            return (
+              <DialogHeader>
+                <DialogTitle>
+                  {forced || contactMode === "add" ? "Add Contact" : "Choose contact person"}
+                </DialogTitle>
+                <DialogDescription>
+                  {forced
+                    ? `Please create a contact for ${acc?.name ?? "this account"} to link to this lead.`
+                    : contactMode === "add"
+                      ? `Create a new contact and link them to ${acc?.name ?? "this account"}.`
+                      : `Pick or add a contact for ${acc?.name ?? "this account"}.`}
+                </DialogDescription>
+              </DialogHeader>
+            );
+          })()}
 
+          {contactMode === "pick" ? (
+            (() => {
+              const accountId = createForm.customerId;
+              const isInline = accountId ? inlineAccountIds.has(accountId) : false;
+              const accountContacts = accountId
+                ? contactsForAccountId(accountId)
+                : [];
+              const showAll = isInline || accountContacts.length === 0;
+              const pool = showAll ? allContacts : accountContacts;
+              const q = contactSearch.trim().toLowerCase();
+              const roleQ = contactRoleFilter;
+              const filtered = pool.filter((c) => {
+                if (
+                  q &&
+                  !contactDisplayName(c).toLowerCase().includes(q) &&
+                  !c.email.toLowerCase().includes(q) &&
+                  !c.roleTitle.toLowerCase().includes(q)
+                ) {
+                  return false;
+                }
+                if (roleQ !== "all" && accountId) {
+                  const assoc = associationFor(accountId, c.id);
+                  if (!assoc || assoc.role !== roleQ) return false;
+                }
+                return true;
+              });
+              return (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="relative flex-1">
+                      <Search
+                        size={14}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                      />
+                      <Input
+                        value={contactSearch}
+                        onChange={(e) => setContactSearch(e.target.value)}
+                        placeholder="Search name, email, or title"
+                        className="h-9 border-[#e5e7eb] pl-9"
+                      />
+                    </div>
+                    {!showAll && (
+                      <Select
+                        value={contactRoleFilter}
+                        onValueChange={setContactRoleFilter}
+                      >
+                        <SelectTrigger className="h-9 w-full border-[#e5e7eb] sm:w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All roles</SelectItem>
+                          {associationRoles.map((r) => (
+                            <SelectItem key={r} value={r}>
+                              {r}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto rounded-md border border-[#e5e7eb]">
+                    {filtered.length === 0 ? (
+                      <div className="px-4 py-10 text-center text-sm text-[#6b7280]">
+                        No contacts match. Try adjusting filters or add a new contact.
+                      </div>
+                    ) : (
+                      <ul className="divide-y divide-[#f0f2f7]">
+                        {filtered.map((c) => {
+                          const assoc = accountId
+                            ? associationFor(accountId, c.id)
+                            : null;
+                          return (
+                            <li
+                              key={c.id}
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-[#fafbff]"
+                            >
+                              <Avatar className="size-9 border border-[#e5e7eb]">
+                                <AvatarFallback className="bg-[#eef2fd] text-[10px] text-[#245fcb]">
+                                  {initials(contactDisplayName(c))}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-[#1c1e21]">
+                                  {contactDisplayName(c)}
+                                  {assoc?.isPrimary && (
+                                    <span className="ml-1.5 rounded-full bg-[#eef2fd] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#4080f0]">
+                                      Primary
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="truncate text-xs text-[#6b7280]">
+                                  {c.roleTitle}
+                                  {c.email ? ` · ${c.email}` : ""}
+                                  {assoc ? ` · ${assoc.role}` : ""}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 border-[#e5e7eb]"
+                                onClick={() => selectContactForLead(c.id)}
+                              >
+                                Select
+                              </Button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-center gap-1.5 text-[#4080f0] hover:bg-[#eef2fd] hover:text-[#3070e0]"
+                    onClick={() => setContactMode("add")}
+                  >
+                    <Plus size={14} />
+                    Add new contact
+                  </Button>
+                </div>
+              );
+            })()
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <FormField label="First Name *">
+                  <Input
+                    value={newContact.firstName}
+                    onChange={(e) =>
+                      setNewContact((p) => ({ ...p, firstName: e.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="First name"
+                    autoFocus
+                  />
+                </FormField>
+                <FormField label="Last Name *">
+                  <Input
+                    value={newContact.lastName}
+                    onChange={(e) =>
+                      setNewContact((p) => ({ ...p, lastName: e.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="Last name"
+                  />
+                </FormField>
+                <FormField label="Role / Title">
+                  <Input
+                    value={newContact.roleTitle}
+                    onChange={(e) =>
+                      setNewContact((p) => ({ ...p, roleTitle: e.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="e.g. Procurement Director"
+                  />
+                </FormField>
+                <FormField label="Email *">
+                  <Input
+                    type="email"
+                    value={newContact.email}
+                    onChange={(e) =>
+                      setNewContact((p) => ({ ...p, email: e.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="name@company.com"
+                  />
+                </FormField>
+                <FormField label="Phone" className="sm:col-span-2">
+                  <Input
+                    value={newContact.phone}
+                    onChange={(e) =>
+                      setNewContact((p) => ({ ...p, phone: e.target.value }))
+                    }
+                    className="h-9 border-[#e5e7eb]"
+                    placeholder="0911..."
+                  />
+                </FormField>
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const accountId = createForm.customerId;
+            const forced = accountId ? isForcedContactCreation(accountId) : false;
+            return (
+              <DialogFooter>
+                {contactMode === "add" ? (
+                  <>
+                    {!forced && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setContactMode("pick")}
+                      >
+                        Back
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                      onClick={addInlineContact}
+                      disabled={
+                        !newContact.firstName.trim() ||
+                        !newContact.lastName.trim() ||
+                        !newContact.email.trim()
+                      }
+                    >
+                      Create Contact
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setContactPickerOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </DialogFooter>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

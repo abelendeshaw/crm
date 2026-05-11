@@ -31,6 +31,7 @@ export type CrmLead = {
   id: string;
   name: string;
   customerId: string;
+  contactId?: string;
   value: number;
   currency: DealCurrency;
   baseValue: number;

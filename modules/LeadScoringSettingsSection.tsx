@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Info, Lightbulb, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -109,7 +109,6 @@ function ScoreSparkline() {
 
 export function LeadScoringSettingsSection() {
   const [rules, setRules] = useState<ScoringRule[]>(INITIAL_RULES);
-  const [mqlThreshold, setMqlThreshold] = useState(50);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   const [newRuleOpen, setNewRuleOpen] = useState(false);
   const [draft, setDraft] = useState<RuleDraft>(EMPTY_DRAFT);
@@ -143,10 +142,6 @@ export function LeadScoringSettingsSection() {
     setDraft(EMPTY_DRAFT);
     setNewRuleOpen(false);
   };
-
-  const gaugeBefore = Math.max(0, Math.min(100, mqlThreshold)) * 0.6;
-  const gaugeHighlight = Math.max(0, Math.min(100, mqlThreshold)) * 0.2;
-  const gaugeAfter = Math.max(0, 100 - gaugeBefore - gaugeHighlight);
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6 pb-4">
@@ -190,109 +185,70 @@ export function LeadScoringSettingsSection() {
                 {rules.length} total rules · {enabledCount} enabled
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-[#e5e7eb] bg-[#f9fafb] hover:bg-[#f9fafb]">
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                      Rule name
-                    </TableHead>
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                      Criteria
-                    </TableHead>
-                    <TableHead className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                      Value
-                    </TableHead>
-                    <TableHead className="text-right text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                      Status
-                    </TableHead>
+            <Table className="table-fixed">
+              <colgroup>
+                <col className="w-[26%]" />
+                <col />
+                <col className="w-[100px]" />
+                <col className="w-[88px]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow className="border-[#e5e7eb] bg-[#f9fafb] hover:bg-[#f9fafb]">
+                  <TableHead className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                    Rule name
+                  </TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                    Criteria
+                  </TableHead>
+                  <TableHead className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                    Value
+                  </TableHead>
+                  <TableHead className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rules.map((rule) => (
+                  <TableRow
+                    key={rule.id}
+                    className="border-[#e5e7eb] transition-colors hover:bg-[#fafbff]"
+                  >
+                    <TableCell className="whitespace-normal break-words px-5 py-4 align-top font-semibold text-[#1c1e21]">
+                      {rule.name}
+                    </TableCell>
+                    <TableCell className="whitespace-normal break-words px-5 py-4 align-top text-sm text-[#6b7280]">
+                      {rule.criteria}
+                    </TableCell>
+                    <TableCell className="px-5 py-4 align-top">
+                      <span
+                        className={cn(
+                          "text-sm font-bold",
+                          rule.points >= 0 ? "text-[#004ac6]" : "text-[#ba1a1a]",
+                        )}
+                      >
+                        {rule.points >= 0 ? "+" : ""}
+                        {rule.points} pts
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-5 py-4 text-right align-top">
+                      <div className="flex justify-end">
+                        <Switch
+                          checked={rule.enabled}
+                          onCheckedChange={(v) => toggleRule(rule.id, Boolean(v))}
+                          aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
+                          className="data-checked:bg-[#4080f0] data-checked:hover:bg-[#3070e0]"
+                        />
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rules.map((rule) => (
-                    <TableRow
-                      key={rule.id}
-                      className="border-[#e5e7eb] transition-colors hover:bg-[#fafbff]"
-                    >
-                      <TableCell className="font-semibold text-[#1c1e21]">{rule.name}</TableCell>
-                      <TableCell className="max-w-[280px] text-sm text-[#6b7280]">
-                        {rule.criteria}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={cn(
-                            "text-sm font-bold",
-                            rule.points >= 0 ? "text-[#004ac6]" : "text-[#ba1a1a]",
-                          )}
-                        >
-                          {rule.points >= 0 ? "+" : ""}
-                          {rule.points} pts
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end">
-                          <Switch
-                            checked={rule.enabled}
-                            onCheckedChange={(v) => toggleRule(rule.id, Boolean(v))}
-                            className="h-6 w-11 data-[size=default]:h-6 data-[size=default]:w-11 [&>span]:size-5"
-                            aria-label={`${rule.enabled ? "Disable" : "Enable"} ${rule.name}`}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </div>
 
         <div className="space-y-5 lg:col-span-4">
-          <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-[#1c1e21]">MQL threshold</h3>
-              <button
-                type="button"
-                className="rounded-md p-1 text-[#9ca3af] hover:bg-[#f3f4f6] hover:text-[#6b7280]"
-                title="Leads at or above this score are treated as marketing qualified."
-              >
-                <Info size={18} aria-hidden />
-              </button>
-            </div>
-            <div className="mb-4">
-              <div className="mb-2 flex items-end justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
-                  Current setting
-                </span>
-                <span className="text-xl font-semibold text-[#004ac6]">{mqlThreshold} pts</span>
-              </div>
-              <div className="flex h-4 w-full overflow-hidden rounded-full bg-[#e6e8ea]">
-                <div className="h-full bg-[#bec6e0]" style={{ width: `${gaugeBefore}%` }} />
-                <div className="relative h-full bg-[#2563eb]" style={{ width: `${gaugeHighlight}%` }}>
-                  <span className="absolute right-0 top-0 h-full w-0.5 bg-white" />
-                </div>
-                <div className="h-full bg-[#e6e8ea]" style={{ width: `${gaugeAfter}%` }} />
-              </div>
-              <div className="mt-1 flex justify-between text-xs text-[#6b7280]">
-                <span>0</span>
-                <span className="font-semibold text-[#003ea8]">{mqlThreshold} (MQL)</span>
-                <span>100+</span>
-              </div>
-            </div>
-            <p className="mb-4 text-sm text-[#434655]">
-              Leads reaching this threshold are automatically flagged as &apos;Marketing Qualified&apos; and
-              assigned to SDRs.
-            </p>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={mqlThreshold}
-              onChange={(e) => setMqlThreshold(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[#e6e8ea] accent-[#2563eb]"
-            />
-          </div>
-
           <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
             <h3 className="mb-4 text-base font-semibold text-[#1c1e21]">Lead distribution</h3>
             <div className="space-y-4">
@@ -317,17 +273,6 @@ export function LeadScoringSettingsSection() {
             </div>
             <div className="mt-5 border-t border-[#e5e7eb] pt-5">
               <ScoreSparkline />
-            </div>
-          </div>
-
-          <div className="flex gap-3 rounded-xl bg-[#d3e4fe] p-5 text-[#0b1c30] shadow-sm">
-            <Lightbulb className="size-8 shrink-0 text-[#46566c]" aria-hidden />
-            <div>
-              <h4 className="mb-1 text-xs font-bold uppercase tracking-wider">Optimizer tip</h4>
-              <p className="text-sm leading-relaxed opacity-90">
-                Reducing the threshold to 45 could increase MQL volume by 12% based on last month&apos;s
-                data.
-              </p>
             </div>
           </div>
         </div>

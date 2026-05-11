@@ -50,6 +50,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  customerContacts,
+  accountContactAssociations,
+  type CustomerContact,
+} from "@/data/customerManagementData";
+import {
   BASE_CURRENCY,
   CURRENCY_OPTIONS,
   FX_TO_ETB,
@@ -183,6 +188,25 @@ export function LeadDetailPage({ id }: { id: string }) {
     [],
   );
 
+  const contactById = useMemo(
+    () => new Map(customerContacts.map((c) => [c.id, c])),
+    [],
+  );
+
+  const leadContact = useMemo((): CustomerContact | null => {
+    if (!detailDraft) return null;
+    if (detailDraft.contactId) {
+      return contactById.get(detailDraft.contactId) ?? null;
+    }
+    const assocs = accountContactAssociations.filter(
+      (a) => a.accountId === detailDraft.customerId,
+    );
+    const primary = assocs.find((a) => a.isPrimary);
+    const pickId = primary?.contactId ?? assocs[0]?.contactId;
+    if (!pickId) return null;
+    return contactById.get(pickId) ?? null;
+  }, [detailDraft, contactById]);
+
   const ownerOptions = useMemo(() => {
     const set = new Set<string>();
     for (const l of leads) {
@@ -247,17 +271,6 @@ export function LeadDetailPage({ id }: { id: string }) {
     if (Number.isNaN(start.getTime())) return null;
     const diffMs = Date.now() - start.getTime();
     return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-  })();
-  const lastModifiedLabel = (() => {
-    const date = new Date(detailDraft.stageEnteredAt);
-    if (Number.isNaN(date.getTime())) return "—";
-    return date.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
   })();
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -706,46 +719,82 @@ export function LeadDetailPage({ id }: { id: string }) {
                   </div>
                 </div>
 
-                <Card className="border-[#e5e7eb] shadow-none">
-                  <CardHeader className="pb-3">
+                <Card className="gap-2 border-[#e5e7eb] shadow-none">
+                  <CardHeader className="pb-0">
                     <CardTitle className="text-sm font-medium text-[#1c1e21]">
                       Metadata
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div>
-                      <p className="text-xs text-[#6b7280]">Customer</p>
-                      <div className="mt-0.5 flex items-center gap-1.5">
-                        <Building2 size={14} className="text-[#4080f0]" />
-                        <p className="truncate text-sm text-[#1c1e21]">
-                          {customer?.name ?? "—"}
-                        </p>
-                      </div>
-                    </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-[#6b7280]">Account lifecycle</p>
-                        <p className="text-sm text-[#1c1e21]">
-                          {customer?.lifecycleStage ?? "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-[#6b7280]">Owner</p>
+                      <div className="min-w-0">
+                        <p className="text-xs text-[#6b7280]">Customer</p>
                         <div className="mt-0.5 flex items-center gap-1.5">
-                          <Avatar className="size-5">
-                            <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-                              {initials(detailDraft.primarySales)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <Building2 size={14} className="shrink-0 text-[#4080f0]" />
                           <p className="truncate text-sm text-[#1c1e21]">
-                            {detailDraft.primarySales}
+                            {customer?.name ?? "—"}
                           </p>
+                        </div>
+                      </div>
+                      <div className="flex min-w-0 justify-end">
+                        <div className="inline-flex min-w-0 flex-col items-start">
+                          <p className="text-xs text-[#6b7280]">Owner</p>
+                          <div className="mt-0.5 flex items-center gap-1.5">
+                            <Avatar className="size-5">
+                              <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                                {initials(detailDraft.primarySales)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <p className="truncate text-sm text-[#1c1e21]">
+                              {detailDraft.primarySales}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-[#6b7280]">Last Modified</p>
-                      <p className="text-sm text-[#1c1e21]">{lastModifiedLabel}</p>
+                      <p className="mb-2.5 text-xs text-[#6b7280]">Contact person</p>
+                      {leadContact ? (
+                        <Card className="relative gap-0 overflow-hidden border-[#e5e7eb] py-0 shadow-none">
+                          <CardContent className="p-2.5">
+                            {leadContact.roleTitle ? (
+                              <Badge
+                                variant="secondary"
+                                className="absolute right-2 top-2 h-4 px-1.5 text-[10px]"
+                              >
+                                {leadContact.roleTitle}
+                              </Badge>
+                            ) : null}
+                            <div className="flex items-start gap-2.5 pr-2">
+                              <Avatar className="size-7 shrink-0">
+                                <AvatarFallback className="text-[10px]">
+                                  {initials(
+                                    `${leadContact.firstName} ${leadContact.lastName}`.trim() ||
+                                      leadContact.email,
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <p className="truncate text-sm font-medium text-[#1c1e21]">
+                                  {`${leadContact.firstName} ${leadContact.lastName}`.trim() ||
+                                    leadContact.email ||
+                                    "—"}
+                                </p>
+                                <p className="truncate text-[11px] text-[#6b7280]">
+                                  {leadContact.email || "—"}
+                                </p>
+                                {leadContact.phone ? (
+                                  <p className="truncate text-[11px] text-[#9ca3af]">
+                                    {leadContact.phone}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <p className="text-sm text-[#9ca3af]">No contact linked yet.</p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

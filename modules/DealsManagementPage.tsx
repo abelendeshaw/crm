@@ -9,7 +9,9 @@ import {
   ChevronDown,
   ChevronUp,
   Headphones,
+  Kanban,
   LineChart,
+  List as ListIcon,
   Percent,
   Plus,
   Search,
@@ -45,6 +47,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { type CustomerAccount, customerOwners } from "@/data/customerManagementData";
 import {
   AUTOMATION_DEFAULT_ROLES,
@@ -204,6 +214,7 @@ export function DealsManagementPage() {
   const [filterOwner, setFilterOwner] = useState<string>("all");
   const [filterProbability, setFilterProbability] =
     useState<ProbabilityFilter>("all");
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [quickCapture, setQuickCapture] = useState(false);
@@ -637,6 +648,42 @@ export function DealsManagementPage() {
               </FormField>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div
+                role="group"
+                aria-label="Toggle view"
+                className="inline-flex h-9 items-center rounded-md border border-[#e5e7eb] bg-white p-0.5"
+              >
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "kanban"}
+                  aria-label="Kanban view"
+                  onClick={() => setViewMode("kanban")}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium transition-colors",
+                    viewMode === "kanban"
+                      ? "bg-[#eef2fd] text-[#245fcb]"
+                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]",
+                  )}
+                >
+                  <Kanban size={14} />
+                  Kanban
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "list"}
+                  aria-label="List view"
+                  onClick={() => setViewMode("list")}
+                  className={cn(
+                    "inline-flex h-8 items-center gap-1.5 rounded-[5px] px-2.5 text-xs font-medium transition-colors",
+                    viewMode === "list"
+                      ? "bg-[#eef2fd] text-[#245fcb]"
+                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]",
+                  )}
+                >
+                  <ListIcon size={14} />
+                  List
+                </button>
+              </div>
               <Button
                 type="button"
                 size="sm"
@@ -654,6 +701,7 @@ export function DealsManagementPage() {
           </div>
         </div>
 
+        {viewMode === "kanban" ? (
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
           {sortedStages.length === 0 ? (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
@@ -781,6 +829,133 @@ export function DealsManagementPage() {
           </div>
           )}
         </div>
+        ) : (
+        <div className="min-h-0 flex-1 overflow-auto px-3 pb-4 sm:px-5 no-scrollbar">
+          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f9fafb] hover:bg-[#f9fafb]">
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Deal
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Customer
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Stage
+                  </TableHead>
+                  <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Value
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Probability
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Expected close
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Owner
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDeals.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="px-4 py-10 text-center text-sm text-[#6b7280]"
+                    >
+                      No deals match the current filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredDeals.map((deal) => {
+                    const customer = accountById.get(deal.customerId);
+                    const stage = stageById.get(deal.stageId);
+                    const stuck = agingLabel(deal);
+                    return (
+                      <TableRow
+                        key={deal.id}
+                        className="cursor-pointer"
+                        onClick={() => openDealDetail(deal)}
+                      >
+                        <TableCell className="font-medium text-[#1c1e21]">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate">{deal.name}</span>
+                            {stuck && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-900"
+                              >
+                                <AlertTriangle className="mr-0.5 size-3" />
+                                {stuck}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-[#374151]">
+                          {customer?.name ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {stage ? (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "border text-xs font-medium",
+                                stage.borderClass,
+                                stage.columnClass,
+                                "text-[#1c1e21]",
+                              )}
+                            >
+                              {stage.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-[#9ca3af]">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-semibold text-[#1c1e21]">
+                          <div className="inline-flex flex-col items-end">
+                            <span>{formatMoney(deal.value, deal.currency)}</span>
+                            {deal.currency !== BASE_CURRENCY && (
+                              <span className="text-[10px] font-normal text-[#9ca3af]">
+                                {formatMoney(deal.baseValue, BASE_CURRENCY)}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
+                            <Percent size={12} />
+                            {deal.probability}%
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
+                            <Calendar size={12} />
+                            {deal.expectedClose}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-6">
+                              <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
+                                {initials(deal.primarySales)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-xs text-[#374151]">
+                              {deal.primarySales}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+        )}
           </>
         )}
       </div>

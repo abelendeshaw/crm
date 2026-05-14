@@ -64,10 +64,29 @@ import {
   type DealCurrency,
   computeBaseValue,
   type ActivityType,
+  type LeadSource,
   type PipelineStage,
   leadCustomerAccounts,
 } from "@/data/leadsManagementData";
+import {
+  createEmptyDealPqq,
+  computeDealPqqTotal,
+  PQQ_MAX_TOTAL,
+  type DealPqq,
+} from "@/data/dealsManagementData";
+import {
+  clonePqqFormValues,
+  createEmptyPqqFormValues,
+  getBantScoreFromFormValues,
+  getDefaultPqqFormDefinition,
+  hasCustomPqqFormFields,
+  isLeadPqqQualified,
+  type LeadPqqSettings,
+  type PqqFormValues,
+} from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import { DealPqqSection } from "@/modules/DealPqqSection";
+import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
 function initials(name: string) {
   return name
@@ -128,6 +147,17 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
   );
+  const [leadSources, setLeadSources] = useState<LeadSource[]>(() => [...mockLeadStore.leadSources]);
+  const [pqqTemplates, setPqqTemplates] = useState(() => [...mockLeadStore.pqqTemplates]);
+  const [pqqSettings, setPqqSettings] = useState<LeadPqqSettings>(() => ({
+    ...mockLeadStore.pqqSettings,
+  }));
+
+  const defaultPqqFormDefinition = useMemo(
+    () => getDefaultPqqFormDefinition(pqqTemplates),
+    [pqqTemplates],
+  );
+  const usesCustomPqqForm = hasCustomPqqFormFields(defaultPqqFormDefinition);
 
   useEffect(() => {
     const unsubActivities = mockLeadStore.subscribeActivityTypes((types) => {
@@ -136,9 +166,21 @@ export function LeadDetailPage({ id }: { id: string }) {
     const unsubStages = mockLeadStore.subscribeStages((nextStages) => {
       setStages([...nextStages].sort((a, b) => a.order - b.order));
     });
+    const unsubSources = mockLeadStore.subscribeLeadSources((nextSources) => {
+      setLeadSources([...nextSources]);
+    });
+    const unsubPqqTemplates = mockLeadStore.subscribePqqTemplates((nextTemplates) => {
+      setPqqTemplates([...nextTemplates]);
+    });
+    const unsubPqqSettings = mockLeadStore.subscribePqqSettings((nextSettings) => {
+      setPqqSettings({ ...nextSettings });
+    });
     return () => {
       unsubActivities();
       unsubStages();
+      unsubSources();
+      unsubPqqTemplates();
+      unsubPqqSettings();
     };
   }, []);
 
@@ -182,6 +224,14 @@ export function LeadDetailPage({ id }: { id: string }) {
   const stageById = useMemo(
     () => new Map(stages.map((s) => [s.id, s])),
     [stages],
+  );
+  const sourceById = useMemo(
+    () => new Map(leadSources.map((source) => [source.id, source])),
+    [leadSources],
+  );
+  const sortedLeadSources = useMemo(
+    () => [...leadSources].sort((a, b) => a.order - b.order),
+    [leadSources],
   );
   const accountById = useMemo(
     () => new Map(leadCustomerAccounts.map((a) => [a.id, a])),
@@ -240,6 +290,20 @@ export function LeadDetailPage({ id }: { id: string }) {
     console.log("Saving lead changes...", detailDraft);
   };
 
+  const updateLeadPqq = (pqq: DealPqq) => {
+    if (!detailDraft) return;
+    const next = { ...detailDraft, pqq };
+    setDetailDraft(next);
+    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+  };
+
+  const updateLeadPqqFormValues = (pqqFormValues: PqqFormValues) => {
+    if (!detailDraft) return;
+    const next = { ...detailDraft, pqqFormValues: clonePqqFormValues(pqqFormValues) };
+    setDetailDraft(next);
+    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+  };
+
   const addActivity = () => {
     if (!detailDraft || !activityForm.title.trim()) return;
     const act: LeadActivity = {
@@ -265,6 +329,24 @@ export function LeadDetailPage({ id }: { id: string }) {
 
   const stage = stageById.get(detailDraft.stageId);
   const customer = accountById.get(detailDraft.customerId);
+  const leadSource = sourceById.get(detailDraft.sourceId);
+  const customPqqTotal = getBantScoreFromFormValues(
+    defaultPqqFormDefinition,
+    detailDraft.pqqFormValues,
+  );
+  const pqqTotal = usesCustomPqqForm
+    ? customPqqTotal
+    : detailDraft.pqq
+      ? computeDealPqqTotal(detailDraft.pqq.bant)
+      : null;
+  const pqqQualification = isLeadPqqQualified(
+    detailDraft.pqq,
+    pqqSettings.bantDecisionThreshold,
+    {
+      formDefinition: defaultPqqFormDefinition,
+      formValues: detailDraft.pqqFormValues,
+    },
+  );
   const expectedRevenue = Math.round((detailDraft.value * detailDraft.probability) / 100);
   const leadAgeDays = (() => {
     const start = new Date(detailDraft.stageEnteredAt);
@@ -297,6 +379,14 @@ export function LeadDetailPage({ id }: { id: string }) {
                 )}
               >
                 {stage.name}
+              </Badge>
+            )}
+            {pqqQualification === false && (
+              <Badge
+                variant="outline"
+                className="rounded-full border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-900"
+              >
+                Non-qualified
               </Badge>
             )}
           </div>
@@ -512,6 +602,29 @@ export function LeadDetailPage({ id }: { id: string }) {
                           className="h-9 border-[#e5e7eb]"
                         />
                       </ProfileField>
+                      <ProfileField
+                        label="Lead source"
+                        value={leadSource?.name ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Select
+                          value={detailDraft.sourceId}
+                          onValueChange={(v) =>
+                            setDetailDraft((d) => (d ? { ...d, sourceId: v } : d))
+                          }
+                        >
+                          <SelectTrigger className="h-9 border-[#e5e7eb]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sortedLeadSources.map((source) => (
+                              <SelectItem key={source.id} value={source.id}>
+                                {source.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </ProfileField>
                     </div>
                   </CardContent>
                 </Card>
@@ -557,6 +670,23 @@ export function LeadDetailPage({ id }: { id: string }) {
                     </div>
                   </CardContent>
                 </Card>
+
+                {usesCustomPqqForm ? (
+                  <DynamicPqqForm
+                    definition={defaultPqqFormDefinition}
+                    value={
+                      detailDraft.pqqFormValues ??
+                      createEmptyPqqFormValues(defaultPqqFormDefinition)
+                    }
+                    onChange={updateLeadPqqFormValues}
+                  />
+                ) : (
+                  <DealPqqSection
+                    value={detailDraft.pqq ?? createEmptyDealPqq()}
+                    onChange={updateLeadPqq}
+                    decisionThreshold={pqqSettings.bantDecisionThreshold}
+                  />
+                )}
                   </div>
 
                   <div className="space-y-4 lg:col-span-4">
@@ -714,6 +844,33 @@ export function LeadDetailPage({ id }: { id: string }) {
                             ? `${leadAgeDays} Day${leadAgeDays === 1 ? "" : "s"}`
                             : "—"}
                         </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
+                          PQQ score
+                        </p>
+                        {pqqTotal !== null ? (
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <p className="text-xl font-semibold text-[#1c1e21]">
+                              {usesCustomPqqForm
+                                ? pqqTotal
+                                : `${pqqTotal} / ${PQQ_MAX_TOTAL}`}
+                            </p>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[11px] font-medium",
+                                pqqQualification
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                                  : "border-rose-200 bg-rose-50 text-rose-900",
+                              )}
+                            >
+                              {pqqQualification ? "Qualified" : "Non-qualified"}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
+                        )}
                       </div>
                     </div>
                   </div>

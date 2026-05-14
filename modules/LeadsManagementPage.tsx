@@ -59,17 +59,32 @@ import {
 } from "@/data/customerManagementData";
 import {
   AUTOMATION_DEFAULT_LEAD_ROLES,
+  AUTOMATION_DEFAULT_LEAD_SOURCE_ID,
   AUTOMATION_DEFAULT_LEAD_STAGE_ID,
   BASE_CURRENCY,
   CURRENCY_OPTIONS,
   type CrmLead,
   type DealCurrency,
+  type LeadSource,
   STAGE_AGING_WARNING_DAYS,
   computeBaseValue,
   leadCustomerAccounts,
   type PipelineStage,
 } from "@/data/leadsManagementData";
+import { type DealPqq } from "@/data/dealsManagementData";
+import {
+  clonePqqFormValues,
+  createEmptyPqqFormValues,
+  getDefaultPqqFormDefinition,
+  getDefaultPqqWorksheet,
+  hasCustomPqqFormFields,
+  isLeadPqqQualified,
+  type LeadPqqSettings,
+  type PqqFormValues,
+} from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import { DealPqqSection } from "@/modules/DealPqqSection";
+import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
 type ProbabilityFilter = "all" | "high" | "medium" | "low";
 
@@ -149,6 +164,11 @@ export function LeadsManagementPage() {
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
   );
+  const [leadSources, setLeadSources] = useState<LeadSource[]>(() => [...mockLeadStore.leadSources]);
+  const [pqqTemplates, setPqqTemplates] = useState(() => [...mockLeadStore.pqqTemplates]);
+  const [pqqSettings, setPqqSettings] = useState<LeadPqqSettings>(() => ({
+    ...mockLeadStore.pqqSettings,
+  }));
   const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
 
   useEffect(() => {
@@ -160,11 +180,23 @@ export function LeadsManagementPage() {
     const unsubStages = mockLeadStore.subscribeStages((newStages) => {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
+    const unsubSources = mockLeadStore.subscribeLeadSources((newSources) => {
+      setLeadSources([...newSources]);
+    });
+    const unsubPqqTemplates = mockLeadStore.subscribePqqTemplates((newTemplates) => {
+      setPqqTemplates([...newTemplates]);
+    });
+    const unsubPqqSettings = mockLeadStore.subscribePqqSettings((newSettings) => {
+      setPqqSettings({ ...newSettings });
+    });
 
     return () => {
       clearTimeout(loadingTimer);
       unsubLeads();
       unsubStages();
+      unsubSources();
+      unsubPqqTemplates();
+      unsubPqqSettings();
     };
   }, []);
 
@@ -217,13 +249,28 @@ export function LeadsManagementPage() {
     name: "",
     customerId: "",
     contactId: "",
+    sourceId: AUTOMATION_DEFAULT_LEAD_SOURCE_ID,
     value: "",
     currency: "ETB" as DealCurrency,
-    stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
     primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
     presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
     channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
   });
+  const [createPqq, setCreatePqq] = useState<DealPqq | null>(null);
+  const [createPqqFormValues, setCreatePqqFormValues] = useState<PqqFormValues | null>(null);
+  const [pqqDialogOpen, setPqqDialogOpen] = useState(false);
+  const [pqqDraft, setPqqDraft] = useState<DealPqq>(() =>
+    getDefaultPqqWorksheet(mockLeadStore.pqqTemplates),
+  );
+  const [pqqFormDraft, setPqqFormDraft] = useState<PqqFormValues>(() =>
+    createEmptyPqqFormValues(getDefaultPqqFormDefinition(mockLeadStore.pqqTemplates)),
+  );
+
+  const defaultPqqFormDefinition = useMemo(
+    () => getDefaultPqqFormDefinition(pqqTemplates),
+    [pqqTemplates],
+  );
+  const usesCustomPqqForm = hasCustomPqqFormFields(defaultPqqFormDefinition);
 
 
   const stageById = useMemo(
@@ -328,6 +375,10 @@ export function LeadsManagementPage() {
     () => [...stages].sort((a, b) => a.order - b.order),
     [stages],
   );
+  const sortedLeadSources = useMemo(
+    () => [...leadSources].sort((a, b) => a.order - b.order),
+    [leadSources],
+  );
 
   const setLeads = (next: CrmLead[] | ((prev: CrmLead[]) => CrmLead[])) => {
     _setLeads((prev) => {
@@ -400,24 +451,32 @@ export function LeadsManagementPage() {
     const today = new Date().toISOString().split("T")[0]!;
     const currency = createForm.currency;
     const probability = quickCapture ? 40 : 50;
+    const initialStageId = sortedStages[0]?.id ?? AUTOMATION_DEFAULT_LEAD_STAGE_ID;
     const newLeadId = `lead-${crypto.randomUUID()}`;
     const newLead: CrmLead = {
       id: newLeadId,
       name: createForm.name.trim(),
       customerId: createForm.customerId,
       contactId: createForm.contactId || undefined,
+      sourceId: createForm.sourceId,
       value,
       currency,
       baseValue: computeBaseValue(value, currency),
       probability: Math.min(100, Math.max(0, probability)),
       expectedClose: today,
-      stageId: quickCapture ? AUTOMATION_DEFAULT_LEAD_STAGE_ID : createForm.stageId,
+      stageId: initialStageId,
       stageEnteredAt: today,
       primarySales: quickCapture
         ? AUTOMATION_DEFAULT_LEAD_ROLES.primarySales
         : createForm.primarySales,
       presales: quickCapture ? AUTOMATION_DEFAULT_LEAD_ROLES.presales : createForm.presales,
       channel: quickCapture ? AUTOMATION_DEFAULT_LEAD_ROLES.channel : createForm.channel,
+      pqq: usesCustomPqqForm ? undefined : createPqq ?? undefined,
+      pqqFormValues: usesCustomPqqForm
+        ? createPqqFormValues
+          ? clonePqqFormValues(createPqqFormValues)
+          : undefined
+        : undefined,
       activities: [],
     };
     setLeads((prev) => [newLead, ...prev]);
@@ -426,13 +485,20 @@ export function LeadsManagementPage() {
       name: "",
       customerId: "",
       contactId: "",
+      sourceId:
+        sortedLeadSources.find((source) => source.isDefault)?.id ??
+        sortedLeadSources[0]?.id ??
+        AUTOMATION_DEFAULT_LEAD_SOURCE_ID,
       value: "",
       currency: "ETB",
-      stageId: AUTOMATION_DEFAULT_LEAD_STAGE_ID,
       primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
       presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
       channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
     });
+    setCreatePqq(null);
+    setCreatePqqFormValues(null);
+    setPqqDraft(getDefaultPqqWorksheet(pqqTemplates));
+    setPqqFormDraft(createEmptyPqqFormValues(defaultPqqFormDefinition));
     setSaveFeedback({ type: "success", message: "Lead created successfully." });
     setIsSavingLead(false);
   };
@@ -566,6 +632,46 @@ export function LeadsManagementPage() {
 
   const contactDisplayName = (c: CustomerContact) =>
     `${c.firstName} ${c.lastName}`.trim() || c.email || "Untitled contact";
+
+  const buildPqqDraftFromCreateForm = (): DealPqq => {
+    const base = createPqq ?? getDefaultPqqWorksheet(pqqTemplates);
+    const account = createForm.customerId
+      ? accountById.get(createForm.customerId)
+      : undefined;
+    const contact = createForm.contactId
+      ? contactById.get(createForm.contactId)
+      : undefined;
+
+    return {
+      ...base,
+      opportunityName: createForm.name.trim() || base.opportunityName,
+      clientName: account?.name ?? base.clientName,
+      industry: account?.industry ?? base.industry,
+      contactPerson: contact ? contactDisplayName(contact) : base.contactPerson,
+    };
+  };
+
+  const openFillPqq = () => {
+    if (usesCustomPqqForm) {
+      setPqqFormDraft(
+        createPqqFormValues
+          ? clonePqqFormValues(createPqqFormValues)
+          : createEmptyPqqFormValues(defaultPqqFormDefinition),
+      );
+    } else {
+      setPqqDraft(buildPqqDraftFromCreateForm());
+    }
+    setPqqDialogOpen(true);
+  };
+
+  const saveCreatePqq = () => {
+    if (usesCustomPqqForm) {
+      setCreatePqqFormValues(clonePqqFormValues(pqqFormDraft));
+    } else {
+      setCreatePqq(pqqDraft);
+    }
+    setPqqDialogOpen(false);
+  };
 
   const agingLabel = (lead: CrmLead) => {
     const st = stageById.get(lead.stageId);
@@ -775,6 +881,17 @@ export function LeadsManagementPage() {
                     {columnLeads.map((lead) => {
                       const customer = accountById.get(lead.customerId);
                       const stuck = agingLabel(lead);
+                      const pqqQualification = isLeadPqqQualified(
+                        lead.pqq,
+                        pqqSettings.bantDecisionThreshold,
+                        {
+                          formDefinition: defaultPqqFormDefinition,
+                          formValues: lead.pqqFormValues,
+                        },
+                      );
+                      const hasSavedPqq = usesCustomPqqForm
+                        ? Boolean(lead.pqqFormValues)
+                        : Boolean(lead.pqq);
                       return (
                         <Card
                           key={lead.id}
@@ -788,15 +905,33 @@ export function LeadsManagementPage() {
                               <p className="text-sm font-medium leading-snug text-[#1c1e21]">
                                 {lead.name}
                               </p>
-                              {stuck && (
-                                <Badge
-                                  variant="outline"
-                                  className="shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-900"
-                                >
-                                  <AlertTriangle className="mr-0.5 size-3" />
-                                  {stuck}
-                                </Badge>
-                              )}
+                              <div className="flex shrink-0 flex-col items-end gap-1">
+                                {!hasSavedPqq && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#fdba74] bg-[#fff7ed] text-[10px] text-[#9a3412]"
+                                  >
+                                    PQQ missing
+                                  </Badge>
+                                )}
+                                {pqqQualification === false && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-rose-200 bg-rose-50 text-[10px] text-rose-900"
+                                  >
+                                    Non-qualified
+                                  </Badge>
+                                )}
+                                {stuck && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-900"
+                                  >
+                                    <AlertTriangle className="mr-0.5 size-3" />
+                                    {stuck}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -992,7 +1127,14 @@ export function LeadsManagementPage() {
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
-          if (!open) setAddCustomerOpen(false);
+          if (!open) {
+            setAddCustomerOpen(false);
+            setCreatePqq(null);
+            setCreatePqqFormValues(null);
+            setPqqDialogOpen(false);
+            setPqqDraft(getDefaultPqqWorksheet(pqqTemplates));
+            setPqqFormDraft(createEmptyPqqFormValues(defaultPqqFormDefinition));
+          }
         }}
       >
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[800px]">
@@ -1059,6 +1201,23 @@ export function LeadsManagementPage() {
                         + New Customer
                       </Button>
                     </div>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Lead source *">
+                <Select
+                  value={createForm.sourceId}
+                  onValueChange={(v) => setCreateForm((p) => ({ ...p, sourceId: v }))}
+                >
+                  <SelectTrigger className="h-9 border-[#e5e7eb]">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sortedLeadSources.map((source) => (
+                      <SelectItem key={source.id} value={source.id}>
+                        {source.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>
@@ -1184,25 +1343,13 @@ export function LeadsManagementPage() {
                 </FormField>
               </div>
 
-              {!quickCapture && (
-                <FormField label="Pipeline stage">
-                  <Select
-                    value={createForm.stageId}
-                    onValueChange={(v) => setCreateForm((p) => ({ ...p, stageId: v }))}
-                  >
-                    <SelectTrigger className="h-9 border-[#e5e7eb]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortedStages.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              )}
+              <FormField label="Pipeline stage">
+                <Input
+                  readOnly
+                  value={sortedStages[0]?.name ?? "New"}
+                  className="h-9 border-[#e5e7eb] bg-[#fafbff] text-[#374151]"
+                />
+              </FormField>
             </div>
 
             {!quickCapture && (
@@ -1273,17 +1420,72 @@ export function LeadsManagementPage() {
             <p className="text-xs text-red-600">{formErrors.manual}</p>
           )}
 
+          <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={openFillPqq}
+              >
+                Fill PQQ
+              </Button>
+              {(usesCustomPqqForm ? createPqqFormValues : createPqq) && (
+                <span className="text-xs text-[#6b7280]">PQQ attached</span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                onClick={saveNewLead}
+                disabled={isSavingLead}
+              >
+                {isSavingLead ? "Saving..." : "Create lead"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pqqDialogOpen} onOpenChange={setPqqDialogOpen}>
+        <DialogContent className="flex max-h-[min(90vh,860px)] max-w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Fill PQQ</DialogTitle>
+            <DialogDescription>
+              Optional lead discovery and qualification worksheet. You can save this now or skip and
+              create the lead without it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {usesCustomPqqForm ? (
+              <DynamicPqqForm
+                definition={defaultPqqFormDefinition}
+                value={pqqFormDraft}
+                onChange={setPqqFormDraft}
+              />
+            ) : (
+              <DealPqqSection
+                compact
+                value={pqqDraft}
+                onChange={setPqqDraft}
+                decisionThreshold={pqqSettings.bantDecisionThreshold}
+              />
+            )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
-              Cancel
+            <Button variant="outline" size="sm" onClick={() => setPqqDialogOpen(false)}>
+              Skip for now
             </Button>
             <Button
               size="sm"
               className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-              onClick={saveNewLead}
-              disabled={isSavingLead}
+              onClick={saveCreatePqq}
             >
-              {isSavingLead ? "Saving..." : "Create lead"}
+              Save PQQ
             </Button>
           </DialogFooter>
         </DialogContent>

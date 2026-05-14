@@ -145,20 +145,26 @@ export function LeadScoringSettingsSection() {
 
   return (
     <div className="mx-auto max-w-[1400px] space-y-6 pb-4">
-      <div className="flex flex-col gap-4 border-b border-[#e5e7eb] bg-white px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+      <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[#1c1e21]">Lead Scoring Configuration</h2>
-          <p className="mt-1 max-w-2xl text-sm text-[#6b7280]">
+          <h2 className="text-base font-semibold text-[#1c1e21]">Lead Scoring Configuration</h2>
+          <p className="mt-1 max-w-2xl text-xs text-[#6b7280]">
             Define automated rules to evaluate and prioritize leads based on firmographic data,
             behavioral patterns, and engagement levels to optimize your sales funnel.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="border-[#e5e7eb]" onClick={saveChanges}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-[#e5e7eb]"
+            onClick={saveChanges}
+          >
             Save Changes
           </Button>
           <Button
-            className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+            size="sm"
+            className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
             onClick={() => {
               setDraft(EMPTY_DRAFT);
               setNewRuleOpen(true);

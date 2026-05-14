@@ -6,8 +6,6 @@ import {
   AlertTriangle,
   Briefcase,
   Calendar,
-  ChevronDown,
-  ChevronUp,
   Headphones,
   Kanban,
   LineChart,
@@ -426,7 +424,7 @@ export function DealsManagementPage() {
       channel: quickCapture ? AUTOMATION_DEFAULT_ROLES.channel : createForm.channel,
       activities: [],
     };
-    setDeals((prev) => [newDeal, ...prev]);
+    mockDealStore.deals = [newDeal, ...mockDealStore.deals];
     setCreateOpen(false);
     setCreateForm({
       name: "",
@@ -496,7 +494,7 @@ export function DealsManagementPage() {
       ],
     };
 
-    setDeals((prev) => [newDeal, ...prev]);
+    mockDealStore.deals = [newDeal, ...mockDealStore.deals];
     setCreateOpen(false);
     setSelectedLeadId(null);
     setConvertForm({
@@ -960,8 +958,11 @@ export function DealsManagementPage() {
         )}
       </div>
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-[800px]">
+      <Dialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      >
+        <DialogContent className="max-h-[min(92vh,900px)] max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-[880px]">
           <DialogHeader>
             <DialogTitle>
               {creationMode === "fromLead" ? "Add deal from leads" : "Create new deal"}

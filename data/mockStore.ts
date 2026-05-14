@@ -3,8 +3,18 @@ import {
   initialLeads,
   type CrmLead,
   DEFAULT_LEAD_PIPELINE_STAGES,
+  DEFAULT_LEAD_SOURCES,
+  type LeadSource,
 } from "./leadsManagementData";
 import { initialTargets, type SalesTarget } from "./salesTargetsData";
+import {
+  DEFAULT_PQQ_TEMPLATES,
+  DEFAULT_LEAD_PQQ_SETTINGS,
+  cloneDealPqq,
+  clonePqqFormDefinition,
+  type DealPqqTemplate,
+  type LeadPqqSettings,
+} from "./pqqTemplateData";
 
 // Simple in-memory store for mock persistence within the session
 class MockDealStore {
@@ -152,6 +162,17 @@ class MockLeadStore {
   private _leadsSubscribers: ((leads: CrmLead[]) => void)[] = [];
   private _stagesSubscribers: ((stages: PipelineStage[]) => void)[] = [];
   private _activityTypesSubscribers: ((types: ActivityType[]) => void)[] = [];
+  private _leadSourcesSubscribers: ((sources: LeadSource[]) => void)[] = [];
+  private _pqqTemplatesSubscribers: ((templates: DealPqqTemplate[]) => void)[] = [];
+  private _pqqSettingsSubscribers: ((settings: LeadPqqSettings) => void)[] = [];
+
+  private _leadSources: LeadSource[] = [...DEFAULT_LEAD_SOURCES];
+  private _pqqTemplates: DealPqqTemplate[] = DEFAULT_PQQ_TEMPLATES.map((template) => ({
+    ...template,
+    worksheet: cloneDealPqq(template.worksheet),
+    formDefinition: clonePqqFormDefinition(template.formDefinition),
+  }));
+  private _pqqSettings: LeadPqqSettings = { ...DEFAULT_LEAD_PQQ_SETTINGS };
 
   private _activityTypes: ActivityType[] = [
     {
@@ -214,6 +235,37 @@ class MockLeadStore {
     this._notifyActivityTypes();
   }
 
+  public get leadSources(): LeadSource[] {
+    return this._leadSources;
+  }
+
+  public set leadSources(newSources: LeadSource[]) {
+    this._leadSources = newSources;
+    this._notifyLeadSources();
+  }
+
+  public get pqqTemplates(): DealPqqTemplate[] {
+    return this._pqqTemplates;
+  }
+
+  public set pqqTemplates(newTemplates: DealPqqTemplate[]) {
+    this._pqqTemplates = newTemplates.map((template) => ({
+      ...template,
+      worksheet: cloneDealPqq(template.worksheet),
+      formDefinition: clonePqqFormDefinition(template.formDefinition),
+    }));
+    this._notifyPqqTemplates();
+  }
+
+  public get pqqSettings(): LeadPqqSettings {
+    return this._pqqSettings;
+  }
+
+  public set pqqSettings(newSettings: LeadPqqSettings) {
+    this._pqqSettings = { ...newSettings };
+    this._notifyPqqSettings();
+  }
+
   public getLead(id: string): CrmLead | undefined {
     return this._leads.find((l) => l.id === id);
   }
@@ -241,6 +293,33 @@ class MockLeadStore {
     };
   }
 
+  public subscribeLeadSources(callback: (sources: LeadSource[]) => void) {
+    this._leadSourcesSubscribers.push(callback);
+    return () => {
+      this._leadSourcesSubscribers = this._leadSourcesSubscribers.filter(
+        (s) => s !== callback,
+      );
+    };
+  }
+
+  public subscribePqqTemplates(callback: (templates: DealPqqTemplate[]) => void) {
+    this._pqqTemplatesSubscribers.push(callback);
+    return () => {
+      this._pqqTemplatesSubscribers = this._pqqTemplatesSubscribers.filter(
+        (s) => s !== callback,
+      );
+    };
+  }
+
+  public subscribePqqSettings(callback: (settings: LeadPqqSettings) => void) {
+    this._pqqSettingsSubscribers.push(callback);
+    return () => {
+      this._pqqSettingsSubscribers = this._pqqSettingsSubscribers.filter(
+        (s) => s !== callback,
+      );
+    };
+  }
+
   private _notifyLeads() {
     this._leadsSubscribers.forEach((s) => s(this._leads));
   }
@@ -251,6 +330,18 @@ class MockLeadStore {
 
   private _notifyActivityTypes() {
     this._activityTypesSubscribers.forEach((s) => s(this._activityTypes));
+  }
+
+  private _notifyLeadSources() {
+    this._leadSourcesSubscribers.forEach((s) => s(this._leadSources));
+  }
+
+  private _notifyPqqTemplates() {
+    this._pqqTemplatesSubscribers.forEach((s) => s(this._pqqTemplates));
+  }
+
+  private _notifyPqqSettings() {
+    this._pqqSettingsSubscribers.forEach((s) => s(this._pqqSettings));
   }
 }
 

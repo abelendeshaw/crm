@@ -13,8 +13,8 @@ export {
   type ActivityType,
 } from "@/data/dealsManagementData";
 
-import type { PipelineStage } from "@/data/dealsManagementData";
-import type { DealCurrency } from "@/data/dealsManagementData";
+import type { DealCurrency, DealPqq, PipelineStage } from "@/data/dealsManagementData";
+import type { PqqFormValues } from "@/data/pqqTemplateData";
 import { computeBaseValue } from "@/data/dealsManagementData";
 
 export type LeadActivityKind = string;
@@ -27,11 +27,20 @@ export type LeadActivity = {
   note?: string;
 };
 
+export type LeadSource = {
+  id: string;
+  name: string;
+  description?: string;
+  order: number;
+  isDefault?: boolean;
+};
+
 export type CrmLead = {
   id: string;
   name: string;
   customerId: string;
   contactId?: string;
+  sourceId: string;
   value: number;
   currency: DealCurrency;
   baseValue: number;
@@ -43,6 +52,10 @@ export type CrmLead = {
   presales: string;
   channel: string;
   description?: string;
+  /** Optional Lead Discovery & PQQ worksheet captured at creation or on the lead record */
+  pqq?: DealPqq;
+  /** Values for template-driven PQQ fields when the active template uses a custom form definition */
+  pqqFormValues?: PqqFormValues;
   activities: LeadActivity[];
 };
 
@@ -97,6 +110,40 @@ export const DEFAULT_LEAD_PIPELINE_STAGES: PipelineStage[] = [
   },
 ];
 
+export const DEFAULT_LEAD_SOURCES: LeadSource[] = [
+  {
+    id: "lead-source-website",
+    name: "Website",
+    description: "Inbound from website or digital properties.",
+    order: 0,
+    isDefault: true,
+  },
+  {
+    id: "lead-source-referral",
+    name: "Referral",
+    description: "Referred by a customer, partner, or employee.",
+    order: 1,
+  },
+  {
+    id: "lead-source-partner",
+    name: "Partner",
+    description: "Channel or partner-sourced lead.",
+    order: 2,
+  },
+  {
+    id: "lead-source-outbound",
+    name: "Outbound",
+    description: "Prospected directly by sales.",
+    order: 3,
+  },
+  {
+    id: "lead-source-event",
+    name: "Event",
+    description: "Trade show, conference, or field marketing.",
+    order: 4,
+  },
+];
+
 const ownersPool = [
   "Sara Tesfaye",
   "Biruk Mekonnen",
@@ -119,6 +166,7 @@ function seedLeads(): CrmLead[] {
 
   return accounts.map((acc, i) => {
     const stage = stages[i % 6]!;
+    const source = DEFAULT_LEAD_SOURCES[i % DEFAULT_LEAD_SOURCES.length]!;
     const currency: DealCurrency = i % 3 === 0 ? "USD" : i % 3 === 1 ? "ETB" : "EUR";
     const value = 12000 + i * 6200;
     const probability = [20, 35, 45, 55, 70, 85, 40][i % 7]!;
@@ -127,6 +175,7 @@ function seedLeads(): CrmLead[] {
       id: `lead-seed-${acc.id}`,
       name: `${acc.name.split(" ")[0] ?? "Account"} prospect`,
       customerId: acc.id,
+      sourceId: source.id,
       value,
       currency,
       baseValue: computeBaseValue(value, currency),
@@ -159,6 +208,7 @@ function seedLeads(): CrmLead[] {
 export const initialLeads: CrmLead[] = seedLeads();
 
 export const AUTOMATION_DEFAULT_LEAD_STAGE_ID = DEFAULT_LEAD_PIPELINE_STAGES[0]!.id;
+export const AUTOMATION_DEFAULT_LEAD_SOURCE_ID = DEFAULT_LEAD_SOURCES[0]!.id;
 export const AUTOMATION_DEFAULT_LEAD_ROLES = {
   primarySales: ownersPool[0]!,
   presales: ownersPool[1]!,

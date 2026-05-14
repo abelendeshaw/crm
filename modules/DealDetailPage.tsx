@@ -61,9 +61,12 @@ import {
   FX_TO_ETB,
   initialDeals,
   computeBaseValue,
+  createEmptyDealPqq,
   type ActivityType,
+  type DealPqq,
 } from "@/data/dealsManagementData";
 import { mockDealStore } from "@/data/mockStore";
+import { DealPqqSection } from "@/modules/DealPqqSection";
 
 function initials(name: string) {
   return name
@@ -212,6 +215,13 @@ export function DealDetailPage({ id }: { id: string }) {
     console.log("Saving deal changes...", detailDraft);
   };
 
+  const updateDealPqq = (pqq: DealPqq) => {
+    if (!detailDraft) return;
+    const next = { ...detailDraft, pqq };
+    setDetailDraft(next);
+    setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
+  };
+
   const addActivity = () => {
     if (!detailDraft || !activityForm.title.trim()) return;
     const act: DealActivity = {
@@ -308,6 +318,7 @@ export function DealDetailPage({ id }: { id: string }) {
             </div>
 
               <TabsContent value="overview" className="mt-0 outline-none">
+                <div className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
                   <div className="space-y-4 lg:col-span-8">
                 <Card className="border-[#e5e7eb] shadow-none">
@@ -746,6 +757,12 @@ export function DealDetailPage({ id }: { id: string }) {
                   </CardContent>
                 </Card>
                   </div>
+                </div>
+
+                <DealPqqSection
+                  value={detailDraft.pqq ?? createEmptyDealPqq()}
+                  onChange={updateDealPqq}
+                />
                 </div>
               </TabsContent>
 

@@ -25,6 +25,8 @@ import {
   MessageSquare,
   Search,
   ChevronRight,
+  Tag,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -60,9 +62,11 @@ import {
   PipelineStage,
   ActivityType,
   type CrmLead,
+  type LeadSource,
   leadCustomerAccounts,
 } from "@/data/leadsManagementData";
 import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
+import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -110,12 +114,22 @@ const EMPTY_ACTIVITY_DRAFT: ActivityDraft = {
   icon: "Activity",
 };
 
+type LeadSourceDraft = {
+  name: string;
+  description: string;
+};
+
+const EMPTY_SOURCE_DRAFT: LeadSourceDraft = {
+  name: "",
+  description: "",
+};
+
 function IconRenderer({ name, className }: { name: string; className?: string }) {
   const Icon = AVAILABLE_ICONS.find((i) => i.name === name)?.icon || ActivityIcon;
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities" | "scoring";
+type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -127,6 +141,16 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: "activities",
     label: "Activity Types",
     icon: <ActivityIcon size={15} />,
+  },
+  {
+    id: "sources",
+    label: "Lead Sources",
+    icon: <Tag size={15} />,
+  },
+  {
+    id: "pqqTemplates",
+    label: "PQQ Templates",
+    icon: <FileText size={15} />,
   },
   {
     id: "scoring",
@@ -172,6 +196,14 @@ export function LeadsSettingsPage() {
   const [activityDraft, setActivityDraft] = useState<ActivityDraft>(EMPTY_ACTIVITY_DRAFT);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
+  const [leadSources, setLeadSources] = useState<LeadSource[]>(() => [...mockLeadStore.leadSources]);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+  const [addSourceDialogOpen, setAddSourceDialogOpen] = useState(false);
+  const [editSourceDialogOpen, setEditSourceDialogOpen] = useState(false);
+  const [deleteSourceDialogOpen, setDeleteSourceDialogOpen] = useState(false);
+  const [sourceDraft, setSourceDraft] = useState<LeadSourceDraft>(EMPTY_SOURCE_DRAFT);
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubLeads = mockLeadStore.subscribeLeads((newLeads) => {
@@ -186,10 +218,15 @@ export function LeadsSettingsPage() {
       setActivityTypes([...newTypes]);
     });
 
+    const unsubSources = mockLeadStore.subscribeLeadSources((newSources) => {
+      setLeadSources([...newSources]);
+    });
+
     return () => {
       unsubLeads();
       unsubStages();
       unsubActivities();
+      unsubSources();
     };
   }, []);
 
@@ -261,6 +298,12 @@ export function LeadsSettingsPage() {
   const saveActivityTypes = (newTypes: ActivityType[]) => {
     setActivityTypes([...newTypes]);
     mockLeadStore.activityTypes = newTypes;
+  };
+
+  const saveLeadSources = (newSources: LeadSource[]) => {
+    const sorted = [...newSources].sort((a, b) => a.order - b.order);
+    setLeadSources(sorted);
+    mockLeadStore.leadSources = sorted;
   };
 
   // Stage Helpers
@@ -450,6 +493,80 @@ export function LeadsSettingsPage() {
     setDeletingActivityId(null);
   };
 
+  const openAddSourceDialog = () => {
+    setSourceDraft(EMPTY_SOURCE_DRAFT);
+    setAddSourceDialogOpen(true);
+  };
+
+  const confirmAddSource = () => {
+    const trimmedName = sourceDraft.name.trim() || "New Source";
+    const trimmedDescription = sourceDraft.description.trim();
+    const newSource: LeadSource = {
+      id: `lead-source-${crypto.randomUUID()}`,
+      name: trimmedName,
+      description: trimmedDescription || undefined,
+      order: leadSources.length,
+    };
+    saveLeadSources([...leadSources, newSource]);
+    setAddSourceDialogOpen(false);
+  };
+
+  const openEditSourceDialog = (id: string) => {
+    const target = leadSources.find((source) => source.id === id);
+    if (!target) return;
+    setEditingSourceId(id);
+    setSourceDraft({
+      name: target.name,
+      description: target.description ?? "",
+    });
+    setEditSourceDialogOpen(true);
+  };
+
+  const confirmEditSource = () => {
+    if (!editingSourceId) return;
+    const trimmedName = sourceDraft.name.trim() || "Untitled";
+    const trimmedDescription = sourceDraft.description.trim();
+    const next = leadSources.map((source) =>
+      source.id === editingSourceId
+        ? {
+            ...source,
+            name: trimmedName,
+            description: trimmedDescription || undefined,
+          }
+        : source,
+    );
+    saveLeadSources(next);
+    setEditSourceDialogOpen(false);
+    setEditingSourceId(null);
+  };
+
+  const requestDeleteSource = (id: string) => {
+    if (leadSources.length <= 1) return;
+    setDeletingSourceId(id);
+    setDeleteSourceDialogOpen(true);
+  };
+
+  const confirmDeleteSource = () => {
+    if (!deletingSourceId) {
+      setDeleteSourceDialogOpen(false);
+      return;
+    }
+    if (leadSources.length <= 1) {
+      setDeleteSourceDialogOpen(false);
+      setDeletingSourceId(null);
+      return;
+    }
+    if (leads.some((lead) => lead.sourceId === deletingSourceId)) {
+      setDeleteSourceDialogOpen(false);
+      setDeletingSourceId(null);
+      return;
+    }
+    const next = leadSources.filter((source) => source.id !== deletingSourceId);
+    saveLeadSources(next.map((source, index) => ({ ...source, order: index })));
+    setDeleteSourceDialogOpen(false);
+    setDeletingSourceId(null);
+  };
+
   const orderedStages = [...stages].sort((a, b) => a.order - b.order);
   const orderedActivityTypes = [...activityTypes].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
@@ -462,9 +579,24 @@ export function LeadsSettingsPage() {
           (t.description?.toLowerCase().includes(normalizedActivitySearch) ?? false),
       )
     : orderedActivityTypes;
+  const orderedLeadSources = [...leadSources].sort((a, b) => a.order - b.order);
+  const normalizedSourceSearch = sourceSearchQuery.trim().toLowerCase();
+  const filteredLeadSources = normalizedSourceSearch
+    ? orderedLeadSources.filter(
+        (source) =>
+          source.name.toLowerCase().includes(normalizedSourceSearch) ||
+          (source.description?.toLowerCase().includes(normalizedSourceSearch) ?? false),
+      )
+    : orderedLeadSources;
   const deletingActivityType = deletingActivityId
     ? activityTypes.find((t) => t.id === deletingActivityId) ?? null
     : null;
+  const deletingLeadSource = deletingSourceId
+    ? leadSources.find((source) => source.id === deletingSourceId) ?? null
+    : null;
+  const deletingSourceInUse = deletingSourceId
+    ? leads.some((lead) => lead.sourceId === deletingSourceId)
+    : false;
   const draggedStageIndex = draggedStageId
     ? orderedStages.findIndex((s) => s.id === draggedStageId)
     : -1;
@@ -512,7 +644,11 @@ export function LeadsSettingsPage() {
         <p className="mt-0.5 text-xs text-[#6b7280]">
           {activeSection === "scoring"
             ? "Define rules to prioritize and qualify leads automatically."
-            : "Configure lead pipeline stages and interaction types"}
+            : activeSection === "sources"
+              ? "Define the sources your team can assign when creating and qualifying leads."
+              : activeSection === "pqqTemplates"
+                ? "Configure the Lead Discovery and PQQ worksheet templates used during qualification."
+                : "Configure lead pipeline stages and interaction types"}
         </p>
 
         {/* Tab Bar - same pattern as UserManagement */}
@@ -1313,9 +1449,255 @@ export function LeadsSettingsPage() {
                 </Dialog>
               </div>
             )}
+            {activeSection === "sources" && (
+              <div className="space-y-6">
+                <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-[#1c1e21]">Lead Sources</h2>
+                    <p className="mt-1 max-w-2xl text-xs text-[#6b7280]">
+                      Define the channels and origins your team can assign when creating leads.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={openAddSourceDialog}
+                    size="sm"
+                    className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
+                  >
+                    <Plus size={16} className="mr-1.5" />
+                    Add Source
+                  </Button>
+                </div>
+
+                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[#1c1e21]">Configured Sources</h3>
+                    <span className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eef2fd] px-2.5 py-0.5 text-xs font-semibold text-[#4080f0]">
+                      {leadSources.length} source{leadSources.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="relative w-full max-w-sm">
+                      <Search
+                        size={14}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                      />
+                      <Input
+                        value={sourceSearchQuery}
+                        onChange={(event) => setSourceSearchQuery(event.target.value)}
+                        placeholder="Filter sources..."
+                        className="h-9 border-[#e5e7eb] bg-white pl-9 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="-mx-4 -mb-4 divide-y divide-[#e5e7eb] border-t border-[#e5e7eb] [&>*:last-child]:rounded-b-lg [&>*:last-child]:overflow-hidden">
+                    {filteredLeadSources.length > 0 ? (
+                      filteredLeadSources.map((source) => (
+                        <div
+                          key={source.id}
+                          className="group flex items-center gap-4 bg-white px-4 py-3 transition-colors hover:bg-[#fafbff]"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef2fd]">
+                            <Tag className="size-5 text-[#4080f0]" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="truncate text-sm font-semibold text-[#1c1e21]">
+                                {source.name}
+                              </h4>
+                              {source.isDefault && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-[#bfdbfe] bg-[#eef2fd] text-[10px] text-[#4080f0]"
+                                >
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                            {source.description ? (
+                              <p className="mt-0.5 line-clamp-1 text-xs text-[#6b7280]">
+                                {source.description}
+                              </p>
+                            ) : (
+                              <p className="mt-0.5 text-xs italic text-[#9ca3af]">No description</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]"
+                              onClick={() => openEditSourceDialog(source.id)}
+                              title="Edit source"
+                              aria-label={`Edit ${source.name}`}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#6b7280] hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                              disabled={leadSources.length <= 1}
+                              onClick={() => requestDeleteSource(source.id)}
+                              title={
+                                leadSources.length <= 1
+                                  ? "At least one lead source is required"
+                                  : "Delete source"
+                              }
+                              aria-label={`Delete ${source.name}`}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
+                        <Search size={20} className="text-[#c4c7d4]" />
+                        <p className="text-sm font-medium text-[#1c1e21]">No sources match your filter</p>
+                        <p className="text-xs text-[#6b7280]">
+                          Try a different keyword or clear the search.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <Dialog
+                  open={addSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setAddSourceDialogOpen(open);
+                    if (!open) setSourceDraft(EMPTY_SOURCE_DRAFT);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Lead Source</DialogTitle>
+                      <DialogDescription>
+                        Define a new source your team can assign when creating leads.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <LeadSourceDraftForm draft={sourceDraft} onChange={setSourceDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmAddSource}
+                      >
+                        Add Source
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={editSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setEditSourceDialogOpen(open);
+                    if (!open) setEditingSourceId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Lead Source</DialogTitle>
+                      <DialogDescription>
+                        Update the source name and description shown during lead creation.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <LeadSourceDraftForm draft={sourceDraft} onChange={setSourceDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setEditSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmEditSource}
+                      >
+                        Save Changes
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={deleteSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setDeleteSourceDialogOpen(open);
+                    if (!open) setDeletingSourceId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete lead source?</DialogTitle>
+                      <DialogDescription>
+                        {deletingSourceInUse
+                          ? "This source is still assigned to one or more leads and cannot be removed."
+                          : `This will permanently remove${
+                              deletingLeadSource ? ` "${deletingLeadSource.name}"` : " this source"
+                            } from the CRM.`}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDeleteSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        onClick={confirmDeleteSource}
+                        disabled={deletingSourceInUse}
+                      >
+                        Delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+            {activeSection === "pqqTemplates" && <LeadPqqTemplateSettingsSection />}
             {activeSection === "scoring" && <LeadScoringSettingsSection />}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadSourceDraftForm({
+  draft,
+  onChange,
+}: {
+  draft: LeadSourceDraft;
+  onChange: (next: LeadSourceDraft) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Source Name
+        </label>
+        <Input
+          value={draft.name}
+          onChange={(event) => onChange({ ...draft, name: event.target.value })}
+          placeholder="e.g. Website, Referral, Partner"
+          className="h-9 border-[#e5e7eb] bg-white text-sm"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Description
+        </label>
+        <Textarea
+          value={draft.description}
+          onChange={(event) => onChange({ ...draft, description: event.target.value })}
+          placeholder="Briefly describe when this source is used"
+          rows={3}
+          className="resize-none border-[#e5e7eb] bg-white text-sm"
+        />
       </div>
     </div>
   );

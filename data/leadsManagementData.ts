@@ -52,6 +52,19 @@ export type CrmLead = {
   presales: string;
   channel: string;
   description?: string;
+  department?: string;
+  solutionCategory?: string;
+  fiscalYear?: string;
+  quarter?: string;
+  currentState?: string;
+  nextStep?: string;
+  quarterStartDate?: string;
+  quarterEndDate?: string;
+  pqqTotalScore?: number;
+  pqqStatus?: string;
+  exceptionJustification?: string;
+  exceptionApprovedBy?: string;
+  checklistValidationStatus?: string;
   /** Optional Lead Discovery & PQQ worksheet captured at creation or on the lead record */
   pqq?: DealPqq;
   /** Values for template-driven PQQ fields when the active template uses a custom form definition */
@@ -171,6 +184,7 @@ function seedLeads(): CrmLead[] {
     const value = 12000 + i * 6200;
     const probability = [20, 35, 45, 55, 70, 85, 40][i % 7]!;
     const stuckDays = i === 2 ? 5 : i === 5 ? 12 : 1;
+    const isFirst = i === 0;
     return {
       id: `lead-seed-${acc.id}`,
       name: `${acc.name.split(" ")[0] ?? "Account"} prospect`,
@@ -186,6 +200,19 @@ function seedLeads(): CrmLead[] {
       primarySales: ownersPool[i % ownersPool.length]!,
       presales: ownersPool[(i + 1) % ownersPool.length]!,
       channel: ownersPool[(i + 2) % ownersPool.length]!,
+      department: isFirst ? "" : undefined,
+      solutionCategory: isFirst ? "ERP" : undefined,
+      fiscalYear: isFirst ? "2018" : undefined,
+      quarter: isFirst ? "Q4" : undefined,
+      currentState: isFirst ? "LEAD" : undefined,
+      nextStep: isFirst ? "Nurturing" : undefined,
+      quarterStartDate: isFirst ? "Q4" : undefined,
+      quarterEndDate: isFirst ? "Q2" : undefined,
+      pqqTotalScore: isFirst ? 37 : undefined,
+      pqqStatus: isFirst ? "Qualified" : undefined,
+      exceptionJustification: isFirst ? "N/A" : undefined,
+      exceptionApprovedBy: isFirst ? "Nahom Wendessen" : undefined,
+      checklistValidationStatus: isFirst ? "Approved" : undefined,
       activities: [
         {
           id: `lead-act-${acc.id}-1`,

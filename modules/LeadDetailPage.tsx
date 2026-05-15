@@ -19,6 +19,7 @@ import {
   Video,
   MessageSquare,
   X,
+  ArrowUpRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -395,6 +396,19 @@ export function LeadDetailPage({ id }: { id: string }) {
             {customer?.industry ? ` · ${customer.industry}` : ""}
           </p>
         </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+            onClick={() => {
+              // Placeholder for conversion logic
+              console.log("Converting lead to deal...");
+            }}
+          >
+            <ArrowUpRight size={14} className="mr-1.5" />
+            Convert to Deal
+          </Button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto bg-[#f8f9fb] p-3 sm:p-5">
@@ -625,6 +639,225 @@ export function LeadDetailPage({ id }: { id: string }) {
                           </SelectContent>
                         </Select>
                       </ProfileField>
+                      <ProfileField
+                        label="Department"
+                        value={detailDraft.department ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.department ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, department: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="field is empty"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Solution Category"
+                        value={detailDraft.solutionCategory ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.solutionCategory ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, solutionCategory: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. ERP"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Fiscal Year"
+                        value={detailDraft.fiscalYear ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.fiscalYear ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, fiscalYear: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. 2018"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Quarter"
+                        value={detailDraft.quarter ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Select
+                          value={detailDraft.quarter ?? ""}
+                          onValueChange={(v) =>
+                            setDetailDraft((d) => (d ? { ...d, quarter: v } : d))
+                          }
+                        >
+                          <SelectTrigger className="h-9 border-[#e5e7eb]">
+                            <SelectValue placeholder="Select quarter" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["Q1", "Q2", "Q3", "Q4"].map((q) => (
+                              <SelectItem key={q} value={q}>
+                                {q}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </ProfileField>
+                      <ProfileField
+                        label="Current state"
+                        value={detailDraft.currentState ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.currentState ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, currentState: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. LEAD"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Next step"
+                        value={detailDraft.nextStep ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.nextStep ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, nextStep: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. Nurturing"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Quarter start date"
+                        value={detailDraft.quarterStartDate ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.quarterStartDate ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, quarterStartDate: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. Q4"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Quarter End date"
+                        value={detailDraft.quarterEndDate ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.quarterEndDate ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, quarterEndDate: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. Q2"
+                        />
+                      </ProfileField>
+
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[#e5e7eb] shadow-none">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
+                      Qualification & Validation
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <ProfileField
+                        label="PQQ Total Score"
+                        value={detailDraft.pqqTotalScore?.toString() ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          type="number"
+                          value={detailDraft.pqqTotalScore?.toString() ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, pqqTotalScore: Number(e.target.value) || 0 } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="PQQ Status"
+                        value={detailDraft.pqqStatus ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Select
+                          value={detailDraft.pqqStatus ?? ""}
+                          onValueChange={(v) =>
+                            setDetailDraft((d) => (d ? { ...d, pqqStatus: v } : d))
+                          }
+                        >
+                          <SelectTrigger className="h-9 border-[#e5e7eb]">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Qualified">Qualified</SelectItem>
+                            <SelectItem value="Unqualified">Unqualified</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ProfileField>
+                      <ProfileField
+                        label="Exception Justification"
+                        value={detailDraft.exceptionJustification ?? "—"}
+                        isEditing={isEditingDealInfo}
+                        className="md:col-span-2"
+                      >
+                        <Input
+                          value={detailDraft.exceptionJustification ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, exceptionJustification: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. N/A"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Exception Approved by"
+                        value={detailDraft.exceptionApprovedBy ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Input
+                          value={detailDraft.exceptionApprovedBy ?? ""}
+                          onChange={(e) =>
+                            setDetailDraft((d) => (d ? { ...d, exceptionApprovedBy: e.target.value } : d))
+                          }
+                          className="h-9 border-[#e5e7eb]"
+                          placeholder="e.g. Nahom Wendessen"
+                        />
+                      </ProfileField>
+                      <ProfileField
+                        label="Checklist Validation Status"
+                        value={detailDraft.checklistValidationStatus ?? "—"}
+                        isEditing={isEditingDealInfo}
+                      >
+                        <Select
+                          value={detailDraft.checklistValidationStatus ?? ""}
+                          onValueChange={(v) =>
+                            setDetailDraft((d) => (d ? { ...d, checklistValidationStatus: v } : d))
+                          }
+                        >
+                          <SelectTrigger className="h-9 border-[#e5e7eb]">
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Approved">Approved</SelectItem>
+                            <SelectItem value="Rejected">Rejected</SelectItem>
+                            <SelectItem value="Pending">Pending</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </ProfileField>
                     </div>
                   </CardContent>
                 </Card>
@@ -637,6 +870,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+
                       <RoleRow
                         label="Primary sales"
                         name={detailDraft.primarySales}

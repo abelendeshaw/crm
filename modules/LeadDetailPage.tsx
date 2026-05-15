@@ -84,6 +84,7 @@ import {
   createEmptyPqqFormValues,
   getBantScoreFromFormValues,
   getDefaultPqqFormDefinition,
+  getDefaultPqqTemplate,
   hasCustomPqqFormFields,
   isLeadPqqQualified,
   type LeadPqqSettings,
@@ -162,6 +163,11 @@ export function LeadDetailPage({ id }: { id: string }) {
     () => getDefaultPqqFormDefinition(pqqTemplates),
     [pqqTemplates],
   );
+  const activeTemplateName = useMemo(() => {
+    const template = getDefaultPqqTemplate(pqqTemplates);
+    return template?.name ?? "Lead Discovery & PQQ";
+  }, [pqqTemplates]);
+
   const usesCustomPqqForm = hasCustomPqqFormFields(defaultPqqFormDefinition);
 
   useEffect(() => {
@@ -1184,6 +1190,17 @@ export function LeadDetailPage({ id }: { id: string }) {
               </TabsContent>
 
               <TabsContent value="discovery" className="mt-0 outline-none">
+                <div className="mb-4 flex items-center justify-between border-b border-[#e5e7eb] pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={16} className="text-[#4080f0]" />
+                    <h3 className="text-sm font-semibold text-[#1c1e21]">
+                      {activeTemplateName}
+                    </h3>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-[#6b7280]">
+                    Active Template
+                  </Badge>
+                </div>
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <div className="space-y-4">
                     {usesCustomPqqForm ? (

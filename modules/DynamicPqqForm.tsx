@@ -26,17 +26,24 @@ export function DynamicPqqForm({
   definition,
   value,
   onChange,
+  hideNavigation,
+  showOnlyStepId,
   className,
 }: {
   definition: PqqTemplateFormDefinition;
   value: PqqFormValues;
   onChange: (next: PqqFormValues) => void;
+  hideNavigation?: boolean;
+  showOnlyStepId?: string;
   className?: string;
 }) {
-  const [activeStepId, setActiveStepId] = useState(() => definition.steps[0]?.id ?? "discovery");
+  const [activeStepId, setActiveStepId] = useState(() => showOnlyStepId ?? definition.steps[0]?.id ?? "discovery");
 
   const orderedSteps = useMemo(() => sortByOrder(definition.steps), [definition.steps]);
-  const activeStep = orderedSteps.find((step) => step.id === activeStepId) ?? orderedSteps[0];
+  const activeStep = useMemo(() => 
+    orderedSteps.find((step) => step.id === activeStepId) ?? orderedSteps[0],
+    [orderedSteps, activeStepId]
+  );
   const stepSections = useMemo(
     () =>
       sortByOrder(definition.sections.filter((section) => section.stepId === activeStep?.id)),
@@ -49,29 +56,31 @@ export function DynamicPqqForm({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <div className="flex flex-wrap gap-2 border-b border-[#e5e7eb] pb-3">
-        {orderedSteps.map((step, index) => {
-          const isActive = step.id === activeStep?.id;
-          return (
-            <button
-              key={step.id}
-              type="button"
-              onClick={() => setActiveStepId(step.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                isActive
-                  ? "border-[#4080f0] bg-[#eef2fd] text-[#245fcb]"
-                  : "border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#cbd5e1] hover:text-[#1c1e21]",
-              )}
-            >
-              <span className="inline-flex size-5 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#4080f0]">
-                {index + 1}
-              </span>
-              {step.title}
-            </button>
-          );
-        })}
-      </div>
+      {!hideNavigation && (
+        <div className="flex flex-wrap gap-2 border-b border-[#e5e7eb] pb-3">
+          {orderedSteps.map((step, index) => {
+            const isActive = step.id === activeStep?.id;
+            return (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => setActiveStepId(step.id)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  isActive
+                    ? "border-[#4080f0] bg-[#eef2fd] text-[#245fcb]"
+                    : "border-[#e5e7eb] bg-white text-[#6b7280] hover:border-[#cbd5e1] hover:text-[#1c1e21]",
+                )}
+              >
+                <span className="inline-flex size-5 items-center justify-center rounded-full bg-white text-[10px] font-semibold text-[#4080f0]">
+                  {index + 1}
+                </span>
+                {step.title}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {stepSections.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[#d1d5db] bg-white px-4 py-10 text-center">

@@ -202,7 +202,7 @@ export function LeadDetailPage({ id }: { id: string }) {
     note: "",
   });
 
-  const [activeTab, setActiveTab] = useState<"overview" | "activities" | "timeline">(
+  const [activeTab, setActiveTab] = useState<"overview" | "activities" | "timeline" | "discovery">(
     "overview",
   );
   const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
@@ -366,7 +366,7 @@ export function LeadDetailPage({ id }: { id: string }) {
       formValues: detailDraft.pqqFormValues,
     },
   );
-  const expectedRevenue = Math.round((detailDraft.value * detailDraft.probability) / 100);
+
   const leadAgeDays = (() => {
     const start = new Date(detailDraft.stageEnteredAt);
     if (Number.isNaN(start.getTime())) return null;
@@ -431,7 +431,7 @@ export function LeadDetailPage({ id }: { id: string }) {
           <Tabs
             value={activeTab}
             onValueChange={(value) =>
-              setActiveTab(value as "overview" | "activities" | "timeline")
+              setActiveTab(value as "overview" | "activities" | "timeline" | "discovery")
             }
             className="w-full"
           >
@@ -440,6 +440,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="activities">Activities</TabsTrigger>
                 <TabsTrigger value="timeline">Timeline</TabsTrigger>
+                <TabsTrigger value="discovery">Discovery & BANT</TabsTrigger>
               </TabsList>
             </div>
 
@@ -535,7 +536,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                         </Select>
                       </ProfileField>
                       <ProfileField
-                        label="Value"
+                        label="Estimated value"
                         value={formatMoney(detailDraft.value, detailDraft.currency)}
                         isEditing={isEditingDealInfo}
                       >
@@ -884,31 +885,14 @@ export function LeadDetailPage({ id }: { id: string }) {
                     </div>
                   </CardContent>
                 </Card>
-
-                {usesCustomPqqForm ? (
-                  <DynamicPqqForm
-                    definition={defaultPqqFormDefinition}
-                    value={
-                      detailDraft.pqqFormValues ??
-                      createEmptyPqqFormValues(defaultPqqFormDefinition)
-                    }
-                    onChange={updateLeadPqqFormValues}
-                  />
-                ) : (
-                  <DealPqqSection
-                    value={detailDraft.pqq ?? createEmptyDealPqq()}
-                    onChange={updateLeadPqq}
-                    decisionThreshold={pqqSettings.bantDecisionThreshold}
-                  />
-                )}
                   </div>
 
                   <div className="space-y-4 lg:col-span-4">
-                <div className="rounded-xl border border-[#e5e7eb] bg-white p-5 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between gap-2">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
+                <Card className="border-[#e5e7eb] shadow-none">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
                       Value Summary
-                    </h2>
+                    </CardTitle>
                     {isEditingDealInfo ? (
                       <div className="flex items-center gap-1">
                         <Button
@@ -943,10 +927,10 @@ export function LeadDetailPage({ id }: { id: string }) {
                         <Edit2 size={14} />
                       </Button>
                     )}
-                  </div>
-                  <div className="space-y-5">
+                  </CardHeader>
+                  <CardContent className="space-y-5">
                     <div>
-                      <p className="text-sm text-[#6b7280]">TOTAL VALUE</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">ESTIMATED VALUE</p>
                       {isEditingDealInfo ? (
                         <div className="mt-1 flex items-stretch gap-2">
                           <Select
@@ -1012,45 +996,6 @@ export function LeadDetailPage({ id }: { id: string }) {
                     <div className="grid grid-cols-2 gap-4 border-t border-[#e5e7eb] pt-4">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
-                          Expected Revenue
-                        </p>
-                        {isEditingDealInfo ? (
-                          <div className="mt-1 flex items-center gap-2">
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={String(detailDraft.probability)}
-                              onChange={(e) =>
-                                setDetailDraft((d) =>
-                                  d
-                                    ? {
-                                        ...d,
-                                        probability: Math.min(
-                                          100,
-                                          Math.max(0, Number(e.target.value) || 0),
-                                        ),
-                                      }
-                                    : d,
-                                )
-                              }
-                              className="h-9 w-16 border-[#e5e7eb] text-sm font-semibold"
-                            />
-                            <span className="text-xs text-[#6b7280]">
-                              % ={" "}
-                              <span className="font-semibold text-[#1c1e21]">
-                                {formatMoney(expectedRevenue, detailDraft.currency)}
-                              </span>
-                            </span>
-                          </div>
-                        ) : (
-                          <p className="text-xl font-semibold text-[#1c1e21]">
-                            {formatMoney(expectedRevenue, detailDraft.currency)}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
                           Stage age
                         </p>
                         <p className="text-xl font-semibold text-[#1c1e21]">
@@ -1098,10 +1043,9 @@ export function LeadDetailPage({ id }: { id: string }) {
                           )}
                         </div>
                       </div>
-
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 <Card className="gap-2 border-[#e5e7eb] shadow-none">
                   <CardHeader className="pb-0">
@@ -1237,6 +1181,41 @@ export function LeadDetailPage({ id }: { id: string }) {
                   stageName={stageById.get(detailDraft.stageId)?.name}
                   activityTypes={activityTypes}
                 />
+              </TabsContent>
+
+              <TabsContent value="discovery" className="mt-0 outline-none">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="space-y-4">
+                    {usesCustomPqqForm ? (
+                      <DynamicPqqForm
+                        definition={defaultPqqFormDefinition}
+                        value={
+                          detailDraft.pqqFormValues ??
+                          createEmptyPqqFormValues(defaultPqqFormDefinition)
+                        }
+                        onChange={updateLeadPqqFormValues}
+                        hideNavigation
+                      />
+                    ) : (
+                      <DealPqqSection
+                        value={detailDraft.pqq ?? createEmptyDealPqq()}
+                        onChange={updateLeadPqq}
+                        decisionThreshold={pqqSettings.bantDecisionThreshold}
+                        showOnly="discovery"
+                        hideHeader
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-4">
+                    <DealPqqSection
+                      value={detailDraft.pqq ?? createEmptyDealPqq()}
+                      onChange={updateLeadPqq}
+                      decisionThreshold={pqqSettings.bantDecisionThreshold}
+                      showOnly="bant"
+                      hideHeader
+                    />
+                  </div>
+                </div>
               </TabsContent>
             </Tabs>
           </div>

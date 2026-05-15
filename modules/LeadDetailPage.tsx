@@ -20,6 +20,9 @@ import {
   MessageSquare,
   X,
   ArrowUpRight,
+  Star,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -73,6 +76,7 @@ import {
   createEmptyDealPqq,
   computeDealPqqTotal,
   PQQ_MAX_TOTAL,
+  DEFAULT_PIPELINE_STAGES as DEFAULT_DEAL_PIPELINE_STAGES,
   type DealPqq,
 } from "@/data/dealsManagementData";
 import {
@@ -204,6 +208,10 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
   const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmLead | null>(null);
 
+  const [isConversionOpen, setIsConversionOpen] = useState(false);
+  const [selectedDealStageId, setSelectedDealStageId] = useState(DEFAULT_DEAL_PIPELINE_STAGES[0]?.id ?? "");
+
+
   const startEditDealInfo = () => {
     if (!detailDraft) return;
     setDealInfoSnapshot({ ...detailDraft });
@@ -328,6 +336,16 @@ export function LeadDetailPage({ id }: { id: string }) {
     setActivityOpen(false);
   };
 
+  const convertToDeal = () => {
+    if (!detailDraft) return;
+    console.log("Converting lead to deal with stage:", selectedDealStageId);
+    // In a real app, this would create a Deal and potentially update the Lead status
+    setIsConversionOpen(false);
+    // Maybe show a toast or redirect
+    router.push("/deals");
+  };
+
+
   const stage = stageById.get(detailDraft.stageId);
   const customer = accountById.get(detailDraft.customerId);
   const leadSource = sourceById.get(detailDraft.sourceId);
@@ -400,10 +418,7 @@ export function LeadDetailPage({ id }: { id: string }) {
         <div className="flex items-center gap-3">
           <Button
             className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-            onClick={() => {
-              // Placeholder for conversion logic
-              console.log("Converting lead to deal...");
-            }}
+            onClick={() => setIsConversionOpen(true)}
           >
             <ArrowUpRight size={14} className="mr-1.5" />
             Convert to Deal
@@ -774,41 +789,6 @@ export function LeadDetailPage({ id }: { id: string }) {
                   <CardContent>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <ProfileField
-                        label="PQQ Total Score"
-                        value={detailDraft.pqqTotalScore?.toString() ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          type="number"
-                          value={detailDraft.pqqTotalScore?.toString() ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, pqqTotalScore: Number(e.target.value) || 0 } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="PQQ Status"
-                        value={detailDraft.pqqStatus ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Select
-                          value={detailDraft.pqqStatus ?? ""}
-                          onValueChange={(v) =>
-                            setDetailDraft((d) => (d ? { ...d, pqqStatus: v } : d))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Qualified">Qualified</SelectItem>
-                            <SelectItem value="Unqualified">Unqualified</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </ProfileField>
-                      <ProfileField
                         label="Exception Justification"
                         value={detailDraft.exceptionJustification ?? "—"}
                         isEditing={isEditingDealInfo}
@@ -1081,31 +1061,44 @@ export function LeadDetailPage({ id }: { id: string }) {
                       </div>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
-                          PQQ score
+                          PQQ Assessment
                         </p>
-                        {pqqTotal !== null ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <p className="text-xl font-semibold text-[#1c1e21]">
-                              {usesCustomPqqForm
-                                ? pqqTotal
-                                : `${pqqTotal} / ${PQQ_MAX_TOTAL}`}
-                            </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {detailDraft.pqqTotalScore !== undefined && (
+                            <Badge
+                              variant="outline"
+                              className="flex items-center gap-1.5 border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 shadow-sm"
+                            >
+                              <Star size={12} className="fill-blue-500 text-blue-500" />
+                              Score: {detailDraft.pqqTotalScore}
+                            </Badge>
+                          )}
+                          {detailDraft.pqqStatus && (
                             <Badge
                               variant="outline"
                               className={cn(
-                                "text-[11px] font-medium",
-                                pqqQualification
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                                  : "border-rose-200 bg-rose-50 text-rose-900",
+                                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold shadow-sm",
+                                detailDraft.pqqStatus === "Qualified"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : detailDraft.pqqStatus === "Unqualified"
+                                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700"
                               )}
                             >
-                              {pqqQualification ? "Qualified" : "Non-qualified"}
+                              {detailDraft.pqqStatus === "Qualified" ? (
+                                <ShieldCheck size={12} />
+                              ) : (
+                                <AlertCircle size={12} />
+                              )}
+                              {detailDraft.pqqStatus}
                             </Badge>
-                          </div>
-                        ) : (
-                          <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
-                        )}
+                          )}
+                          {!detailDraft.pqqTotalScore && !detailDraft.pqqStatus && (
+                            <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
+                          )}
+                        </div>
                       </div>
+
                     </div>
                   </div>
                 </div>
@@ -1316,6 +1309,53 @@ export function LeadDetailPage({ id }: { id: string }) {
               disabled={!activityForm.title.trim()}
             >
               Save activity
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConversionOpen} onOpenChange={setIsConversionOpen}>
+        <DialogContent className="sm:max-w-md border-[#e5e7eb]">
+          <DialogHeader>
+            <DialogTitle>Convert to Deal</DialogTitle>
+          </DialogHeader>
+          <div className="py-6">
+            <p className="mb-4 text-sm text-[#6b7280]">
+              Select the initial pipeline stage for this new deal.
+            </p>
+            <FormField label="Deal Pipeline Stage">
+              <Select
+                value={selectedDealStageId}
+                onValueChange={setSelectedDealStageId}
+              >
+                <SelectTrigger className="h-10 border-[#e5e7eb]">
+                  <SelectValue placeholder="Select stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEFAULT_DEAL_PIPELINE_STAGES.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-[#e5e7eb]"
+              onClick={() => setIsConversionOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={convertToDeal}
+            >
+              Convert
             </Button>
           </DialogFooter>
         </DialogContent>

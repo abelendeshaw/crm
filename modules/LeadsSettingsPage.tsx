@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   Kanban,
+  Gauge,
   Phone,
   Users,
   Globe,
@@ -24,6 +25,8 @@ import {
   MessageSquare,
   Search,
   ChevronRight,
+  Tag,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -54,8 +57,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { mockDealStore } from "@/data/mockStore";
-import { PipelineStage, ActivityType, CrmDeal, dealCustomerAccounts } from "@/data/dealsManagementData";
+import { mockLeadStore } from "@/data/mockStore";
+import {
+  PipelineStage,
+  ActivityType,
+  type CrmLead,
+  type LeadSource,
+  leadCustomerAccounts,
+} from "@/data/leadsManagementData";
+import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
+import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -103,12 +114,22 @@ const EMPTY_ACTIVITY_DRAFT: ActivityDraft = {
   icon: "Activity",
 };
 
+type LeadSourceDraft = {
+  name: string;
+  description: string;
+};
+
+const EMPTY_SOURCE_DRAFT: LeadSourceDraft = {
+  name: "",
+  description: "",
+};
+
 function IconRenderer({ name, className }: { name: string; className?: string }) {
   const Icon = AVAILABLE_ICONS.find((i) => i.name === name)?.icon || ActivityIcon;
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities";
+type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -121,9 +142,24 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     label: "Activity Types",
     icon: <ActivityIcon size={15} />,
   },
+  {
+    id: "sources",
+    label: "Lead Sources",
+    icon: <Tag size={15} />,
+  },
+  {
+    id: "pqqTemplates",
+    label: "PQQ Templates",
+    icon: <FileText size={15} />,
+  },
+  {
+    id: "scoring",
+    label: "Lead Scoring",
+    icon: <Gauge size={15} />,
+  },
 ];
 
-export function DealsSettingsPage() {
+export function LeadsSettingsPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<Tab>("stages");
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -137,21 +173,24 @@ export function DealsSettingsPage() {
   const [stageDetailsFeedback, setStageDetailsFeedback] = useState<string | null>(null);
   const [isStageConfigEditing, setIsStageConfigEditing] = useState(false);
   const [deleteStageDialogOpen, setDeleteStageDialogOpen] = useState(false);
-  const [deleteStageHasDeals, setDeleteStageHasDeals] = useState(false);
+  const [deleteStageHasLeads, setDeleteStageHasLeads] = useState(false);
   const [addStageDialogOpen, setAddStageDialogOpen] = useState(false);
   const [newStageName, setNewStageName] = useState("");
   const [newStagePresetIndex, setNewStagePresetIndex] = useState("1");
   const [newStagePlacement, setNewStagePlacement] = useState("end");
-  const [stageConfigDraft, setStageConfigDraft] = useState<{ name: string; presetIndex: number } | null>(
-    null,
-  );
+  const [stageConfigDraft, setStageConfigDraft] = useState<{
+    name: string;
+    presetIndex: number;
+    customColor: string;
+    placementAfterStageId: string;
+  } | null>(null);
   const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
-    [...mockDealStore.stages].sort((a, b) => a.order - b.order),
+    [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
   );
-  const [deals, setDeals] = useState<CrmDeal[]>(() => [...mockDealStore.deals]);
+  const [leads, setLeads] = useState<CrmLead[]>(() => [...mockLeadStore.leads]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>(() => [
-    ...mockDealStore.activityTypes,
+    ...mockLeadStore.activityTypes,
   ]);
   const [activitySearchQuery, setActivitySearchQuery] = useState("");
   const [addActivityDialogOpen, setAddActivityDialogOpen] = useState(false);
@@ -160,24 +199,37 @@ export function DealsSettingsPage() {
   const [activityDraft, setActivityDraft] = useState<ActivityDraft>(EMPTY_ACTIVITY_DRAFT);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [deletingActivityId, setDeletingActivityId] = useState<string | null>(null);
+  const [leadSources, setLeadSources] = useState<LeadSource[]>(() => [...mockLeadStore.leadSources]);
+  const [sourceSearchQuery, setSourceSearchQuery] = useState("");
+  const [addSourceDialogOpen, setAddSourceDialogOpen] = useState(false);
+  const [editSourceDialogOpen, setEditSourceDialogOpen] = useState(false);
+  const [deleteSourceDialogOpen, setDeleteSourceDialogOpen] = useState(false);
+  const [sourceDraft, setSourceDraft] = useState<LeadSourceDraft>(EMPTY_SOURCE_DRAFT);
+  const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
+  const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
-      setDeals([...newDeals]);
+    const unsubLeads = mockLeadStore.subscribeLeads((newLeads) => {
+      setLeads([...newLeads]);
     });
 
-    const unsubStages = mockDealStore.subscribeStages((newStages) => {
+    const unsubStages = mockLeadStore.subscribeStages((newStages) => {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
 
-    const unsubActivities = mockDealStore.subscribeActivityTypes((newTypes) => {
+    const unsubActivities = mockLeadStore.subscribeActivityTypes((newTypes) => {
       setActivityTypes([...newTypes]);
     });
 
+    const unsubSources = mockLeadStore.subscribeLeadSources((newSources) => {
+      setLeadSources([...newSources]);
+    });
+
     return () => {
-      unsubDeals();
+      unsubLeads();
       unsubStages();
       unsubActivities();
+      unsubSources();
     };
   }, []);
 
@@ -241,11 +293,20 @@ export function DealsSettingsPage() {
   }, [draggedStageId]);
 
   const saveStages = (newStages: PipelineStage[]) => {
-    setStages([...newStages].sort((a, b) => a.order - b.order));
+    const sorted = [...newStages].sort((a, b) => a.order - b.order);
+    setStages(sorted);
+    mockLeadStore.stages = sorted;
   };
 
   const saveActivityTypes = (newTypes: ActivityType[]) => {
     setActivityTypes([...newTypes]);
+    mockLeadStore.activityTypes = newTypes;
+  };
+
+  const saveLeadSources = (newSources: LeadSource[]) => {
+    const sorted = [...newSources].sort((a, b) => a.order - b.order);
+    setLeadSources(sorted);
+    mockLeadStore.leadSources = sorted;
   };
 
   // Stage Helpers
@@ -304,7 +365,12 @@ export function DealsSettingsPage() {
     updateStage(stageId, {
       columnClass: preset.columnClass,
       borderClass: preset.borderClass,
+      customColor: undefined,
     });
+  };
+
+  const setCustomStageColor = (stageId: string, hex: string) => {
+    updateStage(stageId, { columnClass: "", borderClass: "", customColor: hex });
   };
 
   const openAddStageDialog = () => {
@@ -318,7 +384,7 @@ export function DealsSettingsPage() {
     const preset = STAGE_COLOR_PRESETS[Number(newStagePresetIndex)] ?? STAGE_COLOR_PRESETS[1]!;
     const stageName = newStageName.trim() || "New Stage";
     const newStage: PipelineStage = {
-      id: `stage-custom-${crypto.randomUUID()}`,
+      id: `lead-stage-custom-${crypto.randomUUID()}`,
       name: stageName,
       category: "open",
       order: 0,
@@ -347,8 +413,8 @@ export function DealsSettingsPage() {
 
   const deleteStage = (stageId: string) => {
     if (stages.length <= 1) return;
-    if (deals.some((deal) => deal.stageId === stageId)) {
-      setStageDetailsFeedback("Cannot delete this stage while it still contains deals.");
+    if (leads.some((lead) => lead.stageId === stageId)) {
+      setStageDetailsFeedback("Cannot delete this stage while it still contains leads.");
       return;
     }
     const updated = stages.filter((s) => s.id !== stageId);
@@ -356,10 +422,10 @@ export function DealsSettingsPage() {
     setStageDetailsFeedback(null);
   };
 
-  const updateDeal = (dealId: string, updates: Partial<CrmDeal>) => {
-    const updated = deals.map((deal) => (deal.id === dealId ? { ...deal, ...updates } : deal));
-    setDeals(updated);
-    mockDealStore.deals = updated;
+  const updateLead = (leadId: string, updates: Partial<CrmLead>) => {
+    const updated = leads.map((lead) => (lead.id === leadId ? { ...lead, ...updates } : lead));
+    setLeads(updated);
+    mockLeadStore.leads = updated;
   };
 
   // Activity Helpers
@@ -372,7 +438,7 @@ export function DealsSettingsPage() {
     const trimmedName = activityDraft.name.trim() || "New Activity";
     const trimmedDescription = activityDraft.description.trim();
     const newType: ActivityType = {
-      id: `act-type-${crypto.randomUUID()}`,
+      id: `lead-act-type-${crypto.randomUUID()}`,
       name: trimmedName,
       icon: activityDraft.icon || "Activity",
       description: trimmedDescription || undefined,
@@ -435,6 +501,80 @@ export function DealsSettingsPage() {
     setDeletingActivityId(null);
   };
 
+  const openAddSourceDialog = () => {
+    setSourceDraft(EMPTY_SOURCE_DRAFT);
+    setAddSourceDialogOpen(true);
+  };
+
+  const confirmAddSource = () => {
+    const trimmedName = sourceDraft.name.trim() || "New Source";
+    const trimmedDescription = sourceDraft.description.trim();
+    const newSource: LeadSource = {
+      id: `lead-source-${crypto.randomUUID()}`,
+      name: trimmedName,
+      description: trimmedDescription || undefined,
+      order: leadSources.length,
+    };
+    saveLeadSources([...leadSources, newSource]);
+    setAddSourceDialogOpen(false);
+  };
+
+  const openEditSourceDialog = (id: string) => {
+    const target = leadSources.find((source) => source.id === id);
+    if (!target) return;
+    setEditingSourceId(id);
+    setSourceDraft({
+      name: target.name,
+      description: target.description ?? "",
+    });
+    setEditSourceDialogOpen(true);
+  };
+
+  const confirmEditSource = () => {
+    if (!editingSourceId) return;
+    const trimmedName = sourceDraft.name.trim() || "Untitled";
+    const trimmedDescription = sourceDraft.description.trim();
+    const next = leadSources.map((source) =>
+      source.id === editingSourceId
+        ? {
+            ...source,
+            name: trimmedName,
+            description: trimmedDescription || undefined,
+          }
+        : source,
+    );
+    saveLeadSources(next);
+    setEditSourceDialogOpen(false);
+    setEditingSourceId(null);
+  };
+
+  const requestDeleteSource = (id: string) => {
+    if (leadSources.length <= 1) return;
+    setDeletingSourceId(id);
+    setDeleteSourceDialogOpen(true);
+  };
+
+  const confirmDeleteSource = () => {
+    if (!deletingSourceId) {
+      setDeleteSourceDialogOpen(false);
+      return;
+    }
+    if (leadSources.length <= 1) {
+      setDeleteSourceDialogOpen(false);
+      setDeletingSourceId(null);
+      return;
+    }
+    if (leads.some((lead) => lead.sourceId === deletingSourceId)) {
+      setDeleteSourceDialogOpen(false);
+      setDeletingSourceId(null);
+      return;
+    }
+    const next = leadSources.filter((source) => source.id !== deletingSourceId);
+    saveLeadSources(next.map((source, index) => ({ ...source, order: index })));
+    setDeleteSourceDialogOpen(false);
+    setDeletingSourceId(null);
+  };
+
   const orderedStages = [...stages].sort((a, b) => a.order - b.order);
   const orderedActivityTypes = [...activityTypes].sort(
     (a, b) => (a.order ?? 0) - (b.order ?? 0),
@@ -447,9 +587,24 @@ export function DealsSettingsPage() {
           (t.description?.toLowerCase().includes(normalizedActivitySearch) ?? false),
       )
     : orderedActivityTypes;
+  const orderedLeadSources = [...leadSources].sort((a, b) => a.order - b.order);
+  const normalizedSourceSearch = sourceSearchQuery.trim().toLowerCase();
+  const filteredLeadSources = normalizedSourceSearch
+    ? orderedLeadSources.filter(
+        (source) =>
+          source.name.toLowerCase().includes(normalizedSourceSearch) ||
+          (source.description?.toLowerCase().includes(normalizedSourceSearch) ?? false),
+      )
+    : orderedLeadSources;
   const deletingActivityType = deletingActivityId
     ? activityTypes.find((t) => t.id === deletingActivityId) ?? null
     : null;
+  const deletingLeadSource = deletingSourceId
+    ? leadSources.find((source) => source.id === deletingSourceId) ?? null
+    : null;
+  const deletingSourceInUse = deletingSourceId
+    ? leads.some((lead) => lead.sourceId === deletingSourceId)
+    : false;
   const draggedStageIndex = draggedStageId
     ? orderedStages.findIndex((s) => s.id === draggedStageId)
     : -1;
@@ -458,10 +613,10 @@ export function DealsSettingsPage() {
     : -1;
   const selectedStage = orderedStages.find((s) => s.id === selectedStageId) ?? orderedStages[0];
   const draggedStage = orderedStages.find((s) => s.id === draggedStageId) ?? null;
-  const selectedStageDeals = selectedStage
-    ? deals.filter((deal) => deal.stageId === selectedStage.id)
+  const selectedStageLeads = selectedStage
+    ? leads.filter((lead) => lead.stageId === selectedStage.id)
     : [];
-  const selectedStageHasDeals = selectedStageDeals.length > 0;
+  const selectedStageHasLeads = selectedStageLeads.length > 0;
   const selectedStagePresetIndex = selectedStage
     ? Math.max(
         0,
@@ -477,11 +632,21 @@ export function DealsSettingsPage() {
     orderedStages.findIndex((s) => s.id === selectedStage?.id),
   );
   const selectedStageProbability = Math.max(5, Math.min(95, (selectedStageIndex + 1) * 15));
-  const stageDealCountById = new Map<string, number>();
-  for (const deal of deals) {
-    stageDealCountById.set(deal.stageId, (stageDealCountById.get(deal.stageId) ?? 0) + 1);
+  const currentColorHex = (() => {
+    if (stageConfigDraft) {
+      if (stageConfigDraft.customColor) return stageConfigDraft.customColor;
+      const preset = STAGE_COLOR_PRESETS[stageConfigDraft.presetIndex];
+      return preset?.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+    }
+    if (selectedStage?.customColor) return selectedStage.customColor;
+    const preset = STAGE_COLOR_PRESETS[selectedStagePresetIndex];
+    return preset?.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+  })();
+  const stageLeadCountById = new Map<string, number>();
+  for (const lead of leads) {
+    stageLeadCountById.set(lead.stageId, (stageLeadCountById.get(lead.stageId) ?? 0) + 1);
   }
-  const customerNameById = new Map(dealCustomerAccounts.map((account) => [account.id, account.name]));
+  const customerNameById = new Map(leadCustomerAccounts.map((account) => [account.id, account.name]));
   const getStageInitials = (name: string) =>
     name
       .split(/\s+/)
@@ -493,9 +658,15 @@ export function DealsSettingsPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
-        <h1 className="font-semibold text-[#1c1e21]">Deals Settings</h1>
+        <h1 className="font-semibold text-[#1c1e21]">Leads Settings</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
-          Configure sales pipeline stages and interaction types
+          {activeSection === "scoring"
+            ? "Define rules to prioritize and qualify leads automatically."
+            : activeSection === "sources"
+              ? "Define the sources your team can assign when creating and qualifying leads."
+              : activeSection === "pqqTemplates"
+                ? "Configure the Lead Discovery and PQQ worksheet templates used during qualification."
+                : "Configure lead pipeline stages and interaction types"}
         </p>
 
         {/* Tab Bar - same pattern as UserManagement */}
@@ -523,13 +694,13 @@ export function DealsSettingsPage() {
       <div className="flex-1 overflow-hidden bg-[#f8f9fb] p-3 sm:p-5">
         <div className="h-full overflow-y-auto no-scrollbar">
           <div className="w-full pb-4">
-            {activeSection === "stages" ? (
+            {activeSection === "stages" && (
               <div className="space-y-4">
                 <div className="flex flex-col gap-4 rounded-lg border border-[#e5e7eb] bg-white p-4 md:flex-row md:items-end md:justify-between">
                   <div>
-                    <h2 className="font-semibold text-[#1c1e21]">Deals Settings</h2>
+                    <h2 className="font-semibold text-[#1c1e21]">Leads Settings</h2>
                     <p className="mt-1 text-xs text-[#6b7280]">
-                      Design and manage your sales flow architecture.
+                      Design and manage your lead qualification flow.
                     </p>
                   </div>
                   <div className="flex items-start gap-2">
@@ -589,8 +760,7 @@ export function DealsSettingsPage() {
                               transform: shiftX !== 0 ? `translateX(${shiftX}px)` : undefined,
                             }}
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <span />
+                            <div className="flex items-center gap-2 mb-2">
                               <span
                                 role="button"
                                 tabIndex={-1}
@@ -605,7 +775,7 @@ export function DealsSettingsPage() {
                                 }}
                                 onClick={(event) => event.stopPropagation()}
                                 className={cn(
-                                  "inline-flex h-6 w-6 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
+                                  "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
                                   isDraggedCard && "cursor-grabbing",
                                 )}
                               >
@@ -616,8 +786,8 @@ export function DealsSettingsPage() {
                                   )}
                                 />
                               </span>
+                              <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
                             </div>
-                            <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
                             <p className="text-sm text-[#6b7280] mb-4">
                               {stage.category === "won"
                                 ? "Successful closure stage"
@@ -637,7 +807,7 @@ export function DealsSettingsPage() {
                                 <span className="text-xs text-[#6b7280]">Stage color</span>
                               </div>
                               <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                                {stageDealCountById.get(stage.id) ?? 0} Deals
+                                {stageLeadCountById.get(stage.id) ?? 0} Leads
                               </span>
                             </div>
                           </button>
@@ -661,11 +831,10 @@ export function DealsSettingsPage() {
                         top: dragPointer.y - 44,
                       }}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span />
+                      <div className="flex items-center gap-2 mb-2">
                         <GripVertical size={16} className="text-[#4080f0]" />
+                        <h4 className="font-semibold text-[#1c1e21]">{draggedStage.name}</h4>
                       </div>
-                      <h4 className="font-semibold text-[#1c1e21]">{draggedStage.name}</h4>
                       <p className="mb-4 text-sm text-[#6b7280]">
                         {draggedStage.category === "won"
                           ? "Successful closure stage"
@@ -685,7 +854,7 @@ export function DealsSettingsPage() {
                           <span className="text-xs text-[#6b7280]">Stage color</span>
                         </div>
                         <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                          {stageDealCountById.get(draggedStage.id) ?? 0} Deals
+                          {stageLeadCountById.get(draggedStage.id) ?? 0} Leads
                         </span>
                       </div>
                     </div>
@@ -694,206 +863,218 @@ export function DealsSettingsPage() {
 
                 <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
                   <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-2 pb-1.5 pt-1.5 sm:px-3">
-                      <div className="flex items-center justify-between">
+                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-4 py-3 sm:px-6">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
                           <CardTitle className="font-semibold text-[#1c1e21]">
-                            Stage Settings: {selectedStage?.name ?? "N/A"}
+                            Stage Settings{selectedStage ? `: ${selectedStage.name}` : ""}
                           </CardTitle>
                           <CardDescription className="mt-0 text-xs text-[#6b7280]">
-                            Manage properties and requirements for this phase
+                            Configure name, color, and position for this stage
                           </CardDescription>
                         </div>
                         {selectedStage && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => {
-                              setDeleteStageHasDeals(selectedStageHasDeals);
-                              setDeleteStageDialogOpen(true);
-                            }}
-                            title="Delete stage"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-8 gap-1.5",
+                                isStageConfigEditing
+                                  ? "border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                  : "border-[#e5e7eb] text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
+                              )}
+                              onClick={() => {
+                                if (!selectedStage) return;
+                                if (!isStageConfigEditing) {
+                                  const currentIdx = orderedStages.findIndex((s) => s.id === selectedStage.id);
+                                  setStageConfigDraft({
+                                    name: selectedStage.name,
+                                    presetIndex: selectedStagePresetIndex,
+                                    customColor: selectedStage.customColor ?? "",
+                                    placementAfterStageId:
+                                      currentIdx === 0
+                                        ? ""
+                                        : orderedStages[currentIdx - 1]?.id ?? "",
+                                  });
+                                  setIsStageConfigEditing(true);
+                                  return;
+                                }
+                                if (!stageConfigDraft) return;
+                                const nextName = stageConfigDraft.name.trim() || selectedStage.name;
+                                updateStage(selectedStage.id, { name: nextName });
+                                if (stageConfigDraft.customColor) {
+                                  setCustomStageColor(selectedStage.id, stageConfigDraft.customColor);
+                                } else {
+                                  setPreset(selectedStage.id, stageConfigDraft.presetIndex);
+                                }
+                                const currentIds = orderedStages.map((s) => s.id);
+                                const withoutCurrent = currentIds.filter((id) => id !== selectedStage.id);
+                                const insertAt =
+                                  stageConfigDraft.placementAfterStageId === ""
+                                    ? 0
+                                    : withoutCurrent.indexOf(stageConfigDraft.placementAfterStageId) + 1;
+                                const newOrder = [...withoutCurrent];
+                                newOrder.splice(insertAt, 0, selectedStage.id);
+                                if (currentIds.join(",") !== newOrder.join(",")) {
+                                  reorderStagesByIds(newOrder);
+                                }
+                                setIsStageConfigEditing(false);
+                                setStageDetailsFeedback("Stage updated.");
+                              }}
+                            >
+                              {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
+                              {isStageConfigEditing ? "Confirm" : "Edit"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => {
+                                setDeleteStageHasLeads(selectedStageHasLeads);
+                                setDeleteStageDialogOpen(true);
+                              }}
+                              title="Delete stage"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+                    <CardContent className="px-4 pb-5 pt-4 sm:px-6">
                       {selectedStage ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <CardTitle className="text-sm font-semibold">Stage Configuration</CardTitle>
-                                  <CardDescription className="text-xs">
-                                    Update name and color, then confirm.
-                                  </CardDescription>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "h-8 w-8",
-                                    isStageConfigEditing
-                                      ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
-                                  )}
-                                  onClick={() => {
-                                    if (!selectedStage) return;
-                                    if (!isStageConfigEditing) {
-                                      setStageConfigDraft({
-                                        name: selectedStage.name,
-                                        presetIndex: selectedStagePresetIndex,
-                                      });
-                                      setIsStageConfigEditing(true);
-                                      return;
-                                    }
-                                    if (!stageConfigDraft) return;
-                                    const nextName = stageConfigDraft.name.trim() || selectedStage.name;
-                                    updateStage(selectedStage.id, { name: nextName });
-                                    setPreset(selectedStage.id, stageConfigDraft.presetIndex);
-                                    setIsStageConfigEditing(false);
-                                    setStageDetailsFeedback("Stage configuration updated.");
-                                  }}
-                                  title={isStageConfigEditing ? "Confirm changes" : "Edit stage configuration"}
-                                  aria-label={
-                                    isStageConfigEditing
-                                      ? "Confirm stage configuration changes"
-                                      : "Edit stage configuration"
-                                  }
-                                >
-                                  {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
-                                </Button>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-0">
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Stage Name
-                                </label>
-                                <Input
-                                  value={stageConfigDraft?.name ?? selectedStage.name}
-                                  onChange={(event) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, name: event.target.value } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                  className="h-9 border-[#e5e7eb] bg-white text-sm"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Color
-                                </label>
-                                <Select
-                                  value={String(stageConfigDraft?.presetIndex ?? selectedStagePresetIndex)}
-                                  onValueChange={(value) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, presetIndex: Number(value) } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                >
-                                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white">
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={cn(
-                                          "h-3 w-3 rounded-full border",
-                                          selectedStage.columnClass,
-                                          selectedStage.borderClass,
-                                        )}
-                                      />
-                                      <SelectValue />
-                                    </div>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STAGE_COLOR_PRESETS.map((preset, index) => (
-                                      <SelectItem key={preset.label} value={String(index)}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <span
-                                            className={cn(
-                                              "h-3 w-3 rounded-full border",
-                                              preset.columnClass,
-                                              preset.borderClass,
-                                            )}
-                                          />
-                                          {preset.label}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              {stageDetailsFeedback && (
-                                <p className="text-xs text-[#245fcb]">{stageDetailsFeedback}</p>
-                              )}
-                            </CardContent>
-                          </Card>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Stage Name
+                              </label>
+                              <Input
+                                value={stageConfigDraft?.name ?? selectedStage.name}
+                                onChange={(event) =>
+                                  setStageConfigDraft((prev) =>
+                                    prev ? { ...prev, name: event.target.value } : prev,
+                                  )
+                                }
+                                disabled={!isStageConfigEditing}
+                                className="h-9 border-[#e5e7eb] bg-white text-sm"
+                              />
+                            </div>
 
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-sm font-semibold">Deals in Stage</CardTitle>
-                              <CardDescription className="text-xs">
-                                {selectedStageDeals.length} deal(s) currently mapped to this stage.
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <div className="overflow-hidden rounded-md border border-[#e5e7eb]">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Deal
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Customer
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {selectedStageDeals.length > 0 ? (
-                                      selectedStageDeals.map((deal) => (
-                                        <tr
-                                          key={deal.id}
-                                          className="border-b border-[#f0f2f7] transition-colors hover:bg-[#fafbff]"
-                                        >
-                                          <td className="px-4 py-3">
-                                            <p className="text-sm font-medium text-[#1c1e21]">{deal.name}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <p className="text-sm text-[#1c1e21]">
-                                                {customerNameById.get(deal.customerId) ?? "Unknown customer"}
-                                              </p>
-                                              <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-7 bg-[#4080f0] px-2 text-xs text-white hover:bg-[#3070e0]"
-                                                onClick={() => router.push(`/deals/${deal.id}`)}
-                                              >
-                                                View Deal
-                                              </Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))
-                                    ) : (
-                                      <tr>
-                                        <td colSpan={2} className="px-4 py-8 text-center text-sm text-[#6b7280]">
-                                          No deals currently in this stage.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </CardContent>
-                          </Card>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Color
+                              </label>
+                              <label
+                                className={cn(
+                                  "flex h-9 w-full items-center gap-2.5 rounded-md border border-[#e5e7eb] bg-white px-3 text-sm",
+                                  isStageConfigEditing ? "cursor-pointer" : "cursor-default opacity-70",
+                                )}
+                              >
+                                <div
+                                  className="h-4 w-4 shrink-0 rounded-full border"
+                                  style={{
+                                    backgroundColor: currentColorHex + "20",
+                                    borderColor: currentColorHex,
+                                  }}
+                                />
+                                <span className="font-mono text-xs text-[#1c1e21]">{currentColorHex}</span>
+                                <input
+                                  type="color"
+                                  value={currentColorHex}
+                                  onChange={(e) =>
+                                    setStageConfigDraft((prev) =>
+                                      prev ? { ...prev, customColor: e.target.value, presetIndex: -1 } : prev,
+                                    )
+                                  }
+                                  disabled={!isStageConfigEditing}
+                                  className="sr-only"
+                                />
+                              </label>
+                              {isStageConfigEditing && (
+                                <div className="flex gap-1.5 pt-0.5">
+                                  {STAGE_COLOR_PRESETS.map((preset, index) => {
+                                    const hex =
+                                      preset.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+                                    const isActive =
+                                      stageConfigDraft?.presetIndex === index &&
+                                      !stageConfigDraft?.customColor;
+                                    return (
+                                      <button
+                                        key={index}
+                                        type="button"
+                                        title={preset.label}
+                                        className={cn(
+                                          "h-5 w-5 rounded-full border-2 transition-transform hover:scale-110",
+                                          isActive
+                                            ? "border-[#1c1e21] scale-110"
+                                            : "border-transparent",
+                                        )}
+                                        style={{ backgroundColor: hex }}
+                                        onClick={() =>
+                                          setStageConfigDraft((prev) =>
+                                            prev
+                                              ? { ...prev, presetIndex: index, customColor: "" }
+                                              : prev,
+                                          )
+                                        }
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Position
+                              </label>
+                              <Select
+                                value={
+                                  stageConfigDraft
+                                    ? (stageConfigDraft.placementAfterStageId || "__first__")
+                                    : (orderedStages.findIndex((s) => s.id === selectedStage.id) === 0
+                                        ? "__first__"
+                                        : orderedStages[
+                                            orderedStages.findIndex((s) => s.id === selectedStage.id) - 1
+                                          ]?.id ?? "__first__")
+                                }
+                                onValueChange={(value) =>
+                                  setStageConfigDraft((prev) =>
+                                    prev
+                                      ? { ...prev, placementAfterStageId: value === "__first__" ? "" : value }
+                                      : prev,
+                                  )
+                                }
+                                disabled={!isStageConfigEditing}
+                              >
+                                <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__first__">1st — Beginning</SelectItem>
+                                  {orderedStages
+                                    .filter((s) => s.id !== selectedStage.id)
+                                    .map((stage, idx) => {
+                                      const pos = idx + 2;
+                                      const suffix =
+                                        pos === 2 ? "nd" : pos === 3 ? "rd" : "th";
+                                      return (
+                                        <SelectItem key={stage.id} value={stage.id}>
+                                          {pos}{suffix} — After &quot;{stage.name}&quot;
+                                        </SelectItem>
+                                      );
+                                    })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {stageDetailsFeedback && (
+                            <p className="text-xs text-[#245fcb]">{stageDetailsFeedback}</p>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm text-[#6b7280]">Select a stage to view details.</p>
@@ -904,12 +1085,12 @@ export function DealsSettingsPage() {
 
                 <Dialog open={deleteStageDialogOpen} onOpenChange={setDeleteStageDialogOpen}>
                   <DialogContent>
-                    {deleteStageHasDeals ? (
+                    {deleteStageHasLeads ? (
                       <>
                         <DialogHeader>
                           <DialogTitle>Cannot delete stage</DialogTitle>
                           <DialogDescription>
-                            This stage has deals assigned to it. Move or remove those deals first, then try deleting
+                            This stage has leads assigned to it. Move or remove those leads first, then try deleting
                             the stage again.
                           </DialogDescription>
                         </DialogHeader>
@@ -1074,7 +1255,8 @@ export function DealsSettingsPage() {
                   </DialogContent>
                 </Dialog>
               </div>
-            ) : (
+            )}
+            {activeSection === "activities" && (
               <div className="space-y-6">
                 <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
@@ -1214,7 +1396,7 @@ export function DealsSettingsPage() {
                     <DialogHeader>
                       <DialogTitle>Add Activity Type</DialogTitle>
                       <DialogDescription>
-                        Define a new activity your team can log against deals.
+                        Define a new activity your team can log against leads.
                       </DialogDescription>
                     </DialogHeader>
                     <ActivityDraftForm draft={activityDraft} onChange={setActivityDraft} />
@@ -1295,8 +1477,255 @@ export function DealsSettingsPage() {
                 </Dialog>
               </div>
             )}
+            {activeSection === "sources" && (
+              <div className="space-y-6">
+                <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold text-[#1c1e21]">Lead Sources</h2>
+                    <p className="mt-1 max-w-2xl text-xs text-[#6b7280]">
+                      Define the channels and origins your team can assign when creating leads.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={openAddSourceDialog}
+                    size="sm"
+                    className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
+                  >
+                    <Plus size={16} className="mr-1.5" />
+                    Add Source
+                  </Button>
+                </div>
+
+                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="text-sm font-semibold text-[#1c1e21]">Configured Sources</h3>
+                    <span className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eef2fd] px-2.5 py-0.5 text-xs font-semibold text-[#4080f0]">
+                      {leadSources.length} source{leadSources.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  <div className="mb-3">
+                    <div className="relative w-full max-w-sm">
+                      <Search
+                        size={14}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                      />
+                      <Input
+                        value={sourceSearchQuery}
+                        onChange={(event) => setSourceSearchQuery(event.target.value)}
+                        placeholder="Filter sources..."
+                        className="h-9 border-[#e5e7eb] bg-white pl-9 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="-mx-4 -mb-4 divide-y divide-[#e5e7eb] border-t border-[#e5e7eb] [&>*:last-child]:rounded-b-lg [&>*:last-child]:overflow-hidden">
+                    {filteredLeadSources.length > 0 ? (
+                      filteredLeadSources.map((source) => (
+                        <div
+                          key={source.id}
+                          className="group flex items-center gap-4 bg-white px-4 py-3 transition-colors hover:bg-[#fafbff]"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef2fd]">
+                            <Tag className="size-5 text-[#4080f0]" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="truncate text-sm font-semibold text-[#1c1e21]">
+                                {source.name}
+                              </h4>
+                              {source.isDefault && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-[#bfdbfe] bg-[#eef2fd] text-[10px] text-[#4080f0]"
+                                >
+                                  Default
+                                </Badge>
+                              )}
+                            </div>
+                            {source.description ? (
+                              <p className="mt-0.5 line-clamp-1 text-xs text-[#6b7280]">
+                                {source.description}
+                              </p>
+                            ) : (
+                              <p className="mt-0.5 text-xs italic text-[#9ca3af]">No description</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]"
+                              onClick={() => openEditSourceDialog(source.id)}
+                              title="Edit source"
+                              aria-label={`Edit ${source.name}`}
+                            >
+                              <Pencil size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-[#6b7280] hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                              disabled={leadSources.length <= 1}
+                              onClick={() => requestDeleteSource(source.id)}
+                              title={
+                                leadSources.length <= 1
+                                  ? "At least one lead source is required"
+                                  : "Delete source"
+                              }
+                              aria-label={`Delete ${source.name}`}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-1 px-6 py-12 text-center">
+                        <Search size={20} className="text-[#c4c7d4]" />
+                        <p className="text-sm font-medium text-[#1c1e21]">No sources match your filter</p>
+                        <p className="text-xs text-[#6b7280]">
+                          Try a different keyword or clear the search.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <Dialog
+                  open={addSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setAddSourceDialogOpen(open);
+                    if (!open) setSourceDraft(EMPTY_SOURCE_DRAFT);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Lead Source</DialogTitle>
+                      <DialogDescription>
+                        Define a new source your team can assign when creating leads.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <LeadSourceDraftForm draft={sourceDraft} onChange={setSourceDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setAddSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmAddSource}
+                      >
+                        Add Source
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={editSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setEditSourceDialogOpen(open);
+                    if (!open) setEditingSourceId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit Lead Source</DialogTitle>
+                      <DialogDescription>
+                        Update the source name and description shown during lead creation.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <LeadSourceDraftForm draft={sourceDraft} onChange={setSourceDraft} />
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setEditSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                        onClick={confirmEditSource}
+                      >
+                        Save Changes
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog
+                  open={deleteSourceDialogOpen}
+                  onOpenChange={(open) => {
+                    setDeleteSourceDialogOpen(open);
+                    if (!open) setDeletingSourceId(null);
+                  }}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Delete lead source?</DialogTitle>
+                      <DialogDescription>
+                        {deletingSourceInUse
+                          ? "This source is still assigned to one or more leads and cannot be removed."
+                          : `This will permanently remove${
+                              deletingLeadSource ? ` "${deletingLeadSource.name}"` : " this source"
+                            } from the CRM.`}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setDeleteSourceDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        onClick={confirmDeleteSource}
+                        disabled={deletingSourceInUse}
+                      >
+                        Delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
+            {activeSection === "pqqTemplates" && <LeadPqqTemplateSettingsSection />}
+            {activeSection === "scoring" && <LeadScoringSettingsSection />}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function LeadSourceDraftForm({
+  draft,
+  onChange,
+}: {
+  draft: LeadSourceDraft;
+  onChange: (next: LeadSourceDraft) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Source Name
+        </label>
+        <Input
+          value={draft.name}
+          onChange={(event) => onChange({ ...draft, name: event.target.value })}
+          placeholder="e.g. Website, Referral, Partner"
+          className="h-9 border-[#e5e7eb] bg-white text-sm"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+          Description
+        </label>
+        <Textarea
+          value={draft.description}
+          onChange={(event) => onChange({ ...draft, description: event.target.value })}
+          placeholder="Briefly describe when this source is used"
+          rows={3}
+          className="resize-none border-[#e5e7eb] bg-white text-sm"
+        />
       </div>
     </div>
   );

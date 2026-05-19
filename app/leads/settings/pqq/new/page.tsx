@@ -1,10 +1,10 @@
 import { CRMLayout } from "@/components/layout/CRMLayout";
-import { LeadsManagementPage } from "@/modules/LeadsManagementPage";
+import { PqqFormBuilderPage } from "@/modules/PqqFormBuilderPage";
 
 export default function Page() {
   return (
     <CRMLayout>
-      <LeadsManagementPage />
+      <PqqFormBuilderPage />
     </CRMLayout>
   );
 }

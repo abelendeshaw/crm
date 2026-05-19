@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FileText, Pencil, Plus, Search, Star, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,40 +15,23 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   PQQ_MAX_TOTAL,
 } from "@/data/dealsManagementData";
 import {
   clampPqqDecisionThreshold,
-  cloneDealPqq,
-  clonePqqFormDefinition,
-  createEmptyPqqFormDefinition,
-  createPqqTemplateWorksheet,
   getBantScoreFromFormValues,
   getTemplateFieldCount,
-  getTemplateFormDefinition,
   getTemplateSectionCount,
   hasCustomPqqFormFields,
   type DealPqqTemplate,
   type LeadPqqSettings,
-  type PqqTemplateFormDefinition,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
-import { PqqTemplateFormBuilder } from "@/modules/PqqTemplateFormBuilder";
 import { cn } from "@/lib/utils";
 
-type TemplateMetaDraft = {
-  name: string;
-  description: string;
-};
-
-const EMPTY_META_DRAFT: TemplateMetaDraft = {
-  name: "",
-  description: "",
-};
-
 export function LeadPqqTemplateSettingsSection() {
+  const router = useRouter();
   const [templates, setTemplates] = useState<DealPqqTemplate[]>(() => [
     ...mockLeadStore.pqqTemplates,
   ]);
@@ -59,15 +43,8 @@ export function LeadPqqTemplateSettingsSection() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
-  const [metaDraft, setMetaDraft] = useState<TemplateMetaDraft>(EMPTY_META_DRAFT);
-  const [formDefinitionDraft, setFormDefinitionDraft] = useState<PqqTemplateFormDefinition>(() =>
-    createEmptyPqqFormDefinition(),
-  );
-  const [editorSessionKey, setEditorSessionKey] = useState("new");
 
   useEffect(() => {
     const unsubTemplates = mockLeadStore.subscribePqqTemplates((nextTemplates) => {
@@ -126,73 +103,10 @@ export function LeadPqqTemplateSettingsSection() {
     setSaveFeedback("BANT decision threshold saved.");
   };
 
-  useEffect(() => {
-    if (!editorOpen || !editingTemplateId) return;
-    const template = mockLeadStore.pqqTemplates.find((item) => item.id === editingTemplateId);
-    if (!template) return;
-    setFormDefinitionDraft(getTemplateFormDefinition(template));
-    setEditorSessionKey(`${editingTemplateId}-${crypto.randomUUID()}`);
-  }, [editorOpen, editingTemplateId]);
+  const openCreateTemplate = () => router.push("/leads/settings/pqq/new");
 
-  const openCreateTemplate = () => {
-    setEditingTemplateId(null);
-    setMetaDraft({
-      name: "New PQQ Template",
-      description: "",
-    });
-    setFormDefinitionDraft(createEmptyPqqFormDefinition());
-    setEditorSessionKey(`new-${crypto.randomUUID()}`);
-    setEditorOpen(true);
-  };
-
-  const openEditTemplate = (templateId: string) => {
-    const template =
-      mockLeadStore.pqqTemplates.find((item) => item.id === templateId) ??
-      templates.find((item) => item.id === templateId);
-    if (!template) return;
-    setEditingTemplateId(templateId);
-    setMetaDraft({
-      name: template.name,
-      description: template.description ?? "",
-    });
-    setEditorOpen(true);
-  };
-
-  const confirmSaveTemplate = () => {
-    const trimmedName = metaDraft.name.trim() || "Untitled template";
-    const trimmedDescription = metaDraft.description.trim();
-    const storedTemplates = mockLeadStore.pqqTemplates;
-
-    if (editingTemplateId) {
-      const next = storedTemplates.map((template) =>
-        template.id === editingTemplateId
-          ? {
-              ...template,
-              name: trimmedName,
-              description: trimmedDescription || undefined,
-              worksheet: cloneDealPqq(template.worksheet),
-              formDefinition: clonePqqFormDefinition(formDefinitionDraft),
-            }
-          : template,
-      );
-      saveTemplates(next);
-      setSaveFeedback("PQQ template updated.");
-    } else {
-      const nextTemplate: DealPqqTemplate = {
-        id: `pqq-template-${crypto.randomUUID()}`,
-        name: trimmedName,
-        description: trimmedDescription || undefined,
-        order: templates.length,
-        worksheet: createPqqTemplateWorksheet(),
-        formDefinition: clonePqqFormDefinition(formDefinitionDraft),
-      };
-      saveTemplates([...storedTemplates, nextTemplate]);
-      setSaveFeedback("PQQ template created.");
-    }
-
-    setEditorOpen(false);
-    setEditingTemplateId(null);
-  };
+  const openEditTemplate = (templateId: string) =>
+    router.push(`/leads/settings/pqq/${templateId}`);
 
   const setDefaultTemplate = (templateId: string) => {
     const next = templates.map((template) => ({
@@ -443,78 +357,6 @@ export function LeadPqqTemplateSettingsSection() {
           )}
         </div>
       </section>
-
-      <Dialog
-        open={editorOpen}
-        onOpenChange={(open) => {
-          setEditorOpen(open);
-          if (!open) setEditingTemplateId(null);
-        }}
-      >
-        <DialogContent className="flex max-h-[min(92vh,900px)] max-w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplateId ? "Edit PQQ Template" : "Create PQQ Template"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure the worksheet sections and field layout that should prefill when reps fill
-              PQQ on a lead. Leave values blank in the template; reps enter opportunity details on
-              each lead.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6b7280]">Template name</Label>
-                <Input
-                  value={metaDraft.name}
-                  onChange={(event) =>
-                    setMetaDraft((current) => ({ ...current, name: event.target.value }))
-                  }
-                  className="h-9 border-[#e5e7eb]"
-                />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs text-[#6b7280]">Description</Label>
-                <Textarea
-                  value={metaDraft.description}
-                  onChange={(event) =>
-                    setMetaDraft((current) => ({ ...current, description: event.target.value }))
-                  }
-                  rows={2}
-                  className="resize-none border-[#e5e7eb] text-sm"
-                  placeholder="Optional summary for admins"
-                />
-              </div>
-            </div>
-
-            {editorOpen ? (
-              <PqqTemplateFormBuilder
-                key={editorSessionKey}
-                value={formDefinitionDraft}
-                onChange={(next) =>
-                  setFormDefinitionDraft((current) =>
-                    typeof next === "function" ? next(current) : next,
-                  )
-                }
-              />
-            ) : null}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditorOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-              onClick={confirmSaveTemplate}
-            >
-              {editingTemplateId ? "Save Template" : "Create Template"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog
         open={deleteDialogOpen}

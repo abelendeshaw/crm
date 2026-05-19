@@ -24,6 +24,8 @@ export type PipelineStage = {
   columnClass: string;
   /** Column border */
   borderClass: string;
+  /** Custom hex color — when set, overrides columnClass/borderClass */
+  customColor?: string;
 };
 
 export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [

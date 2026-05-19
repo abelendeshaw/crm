@@ -178,9 +178,12 @@ export function LeadsSettingsPage() {
   const [newStageName, setNewStageName] = useState("");
   const [newStagePresetIndex, setNewStagePresetIndex] = useState("1");
   const [newStagePlacement, setNewStagePlacement] = useState("end");
-  const [stageConfigDraft, setStageConfigDraft] = useState<{ name: string; presetIndex: number } | null>(
-    null,
-  );
+  const [stageConfigDraft, setStageConfigDraft] = useState<{
+    name: string;
+    presetIndex: number;
+    customColor: string;
+    placementAfterStageId: string;
+  } | null>(null);
   const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
@@ -362,7 +365,12 @@ export function LeadsSettingsPage() {
     updateStage(stageId, {
       columnClass: preset.columnClass,
       borderClass: preset.borderClass,
+      customColor: undefined,
     });
+  };
+
+  const setCustomStageColor = (stageId: string, hex: string) => {
+    updateStage(stageId, { columnClass: "", borderClass: "", customColor: hex });
   };
 
   const openAddStageDialog = () => {
@@ -624,6 +632,16 @@ export function LeadsSettingsPage() {
     orderedStages.findIndex((s) => s.id === selectedStage?.id),
   );
   const selectedStageProbability = Math.max(5, Math.min(95, (selectedStageIndex + 1) * 15));
+  const currentColorHex = (() => {
+    if (stageConfigDraft) {
+      if (stageConfigDraft.customColor) return stageConfigDraft.customColor;
+      const preset = STAGE_COLOR_PRESETS[stageConfigDraft.presetIndex];
+      return preset?.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+    }
+    if (selectedStage?.customColor) return selectedStage.customColor;
+    const preset = STAGE_COLOR_PRESETS[selectedStagePresetIndex];
+    return preset?.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+  })();
   const stageLeadCountById = new Map<string, number>();
   for (const lead of leads) {
     stageLeadCountById.set(lead.stageId, (stageLeadCountById.get(lead.stageId) ?? 0) + 1);
@@ -742,8 +760,7 @@ export function LeadsSettingsPage() {
                               transform: shiftX !== 0 ? `translateX(${shiftX}px)` : undefined,
                             }}
                           >
-                            <div className="flex justify-between items-start mb-2">
-                              <span />
+                            <div className="flex items-center gap-2 mb-2">
                               <span
                                 role="button"
                                 tabIndex={-1}
@@ -758,7 +775,7 @@ export function LeadsSettingsPage() {
                                 }}
                                 onClick={(event) => event.stopPropagation()}
                                 className={cn(
-                                  "inline-flex h-6 w-6 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
+                                  "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
                                   isDraggedCard && "cursor-grabbing",
                                 )}
                               >
@@ -769,8 +786,8 @@ export function LeadsSettingsPage() {
                                   )}
                                 />
                               </span>
+                              <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
                             </div>
-                            <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
                             <p className="text-sm text-[#6b7280] mb-4">
                               {stage.category === "won"
                                 ? "Successful closure stage"
@@ -814,11 +831,10 @@ export function LeadsSettingsPage() {
                         top: dragPointer.y - 44,
                       }}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span />
+                      <div className="flex items-center gap-2 mb-2">
                         <GripVertical size={16} className="text-[#4080f0]" />
+                        <h4 className="font-semibold text-[#1c1e21]">{draggedStage.name}</h4>
                       </div>
-                      <h4 className="font-semibold text-[#1c1e21]">{draggedStage.name}</h4>
                       <p className="mb-4 text-sm text-[#6b7280]">
                         {draggedStage.category === "won"
                           ? "Successful closure stage"
@@ -847,206 +863,218 @@ export function LeadsSettingsPage() {
 
                 <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
                   <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-2 pb-1.5 pt-1.5 sm:px-3">
-                      <div className="flex items-center justify-between">
+                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-4 py-3 sm:px-6">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
                           <CardTitle className="font-semibold text-[#1c1e21]">
-                            Stage Settings: {selectedStage?.name ?? "N/A"}
+                            Stage Settings{selectedStage ? `: ${selectedStage.name}` : ""}
                           </CardTitle>
                           <CardDescription className="mt-0 text-xs text-[#6b7280]">
-                            Manage properties and requirements for this phase
+                            Configure name, color, and position for this stage
                           </CardDescription>
                         </div>
                         {selectedStage && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:bg-red-50 hover:text-red-600"
-                            onClick={() => {
-                              setDeleteStageHasLeads(selectedStageHasLeads);
-                              setDeleteStageDialogOpen(true);
-                            }}
-                            title="Delete stage"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className={cn(
+                                "h-8 gap-1.5",
+                                isStageConfigEditing
+                                  ? "border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                  : "border-[#e5e7eb] text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
+                              )}
+                              onClick={() => {
+                                if (!selectedStage) return;
+                                if (!isStageConfigEditing) {
+                                  const currentIdx = orderedStages.findIndex((s) => s.id === selectedStage.id);
+                                  setStageConfigDraft({
+                                    name: selectedStage.name,
+                                    presetIndex: selectedStagePresetIndex,
+                                    customColor: selectedStage.customColor ?? "",
+                                    placementAfterStageId:
+                                      currentIdx === 0
+                                        ? ""
+                                        : orderedStages[currentIdx - 1]?.id ?? "",
+                                  });
+                                  setIsStageConfigEditing(true);
+                                  return;
+                                }
+                                if (!stageConfigDraft) return;
+                                const nextName = stageConfigDraft.name.trim() || selectedStage.name;
+                                updateStage(selectedStage.id, { name: nextName });
+                                if (stageConfigDraft.customColor) {
+                                  setCustomStageColor(selectedStage.id, stageConfigDraft.customColor);
+                                } else {
+                                  setPreset(selectedStage.id, stageConfigDraft.presetIndex);
+                                }
+                                const currentIds = orderedStages.map((s) => s.id);
+                                const withoutCurrent = currentIds.filter((id) => id !== selectedStage.id);
+                                const insertAt =
+                                  stageConfigDraft.placementAfterStageId === ""
+                                    ? 0
+                                    : withoutCurrent.indexOf(stageConfigDraft.placementAfterStageId) + 1;
+                                const newOrder = [...withoutCurrent];
+                                newOrder.splice(insertAt, 0, selectedStage.id);
+                                if (currentIds.join(",") !== newOrder.join(",")) {
+                                  reorderStagesByIds(newOrder);
+                                }
+                                setIsStageConfigEditing(false);
+                                setStageDetailsFeedback("Stage updated.");
+                              }}
+                            >
+                              {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
+                              {isStageConfigEditing ? "Confirm" : "Edit"}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => {
+                                setDeleteStageHasLeads(selectedStageHasLeads);
+                                setDeleteStageDialogOpen(true);
+                              }}
+                              title="Delete stage"
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
+                    <CardContent className="px-4 pb-5 pt-4 sm:px-6">
                       {selectedStage ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <CardTitle className="text-sm font-semibold">Stage Configuration</CardTitle>
-                                  <CardDescription className="text-xs">
-                                    Update name and color, then confirm.
-                                  </CardDescription>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "h-8 w-8",
-                                    isStageConfigEditing
-                                      ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
-                                  )}
-                                  onClick={() => {
-                                    if (!selectedStage) return;
-                                    if (!isStageConfigEditing) {
-                                      setStageConfigDraft({
-                                        name: selectedStage.name,
-                                        presetIndex: selectedStagePresetIndex,
-                                      });
-                                      setIsStageConfigEditing(true);
-                                      return;
-                                    }
-                                    if (!stageConfigDraft) return;
-                                    const nextName = stageConfigDraft.name.trim() || selectedStage.name;
-                                    updateStage(selectedStage.id, { name: nextName });
-                                    setPreset(selectedStage.id, stageConfigDraft.presetIndex);
-                                    setIsStageConfigEditing(false);
-                                    setStageDetailsFeedback("Stage configuration updated.");
-                                  }}
-                                  title={isStageConfigEditing ? "Confirm changes" : "Edit stage configuration"}
-                                  aria-label={
-                                    isStageConfigEditing
-                                      ? "Confirm stage configuration changes"
-                                      : "Edit stage configuration"
-                                  }
-                                >
-                                  {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
-                                </Button>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-0">
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Stage Name
-                                </label>
-                                <Input
-                                  value={stageConfigDraft?.name ?? selectedStage.name}
-                                  onChange={(event) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, name: event.target.value } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                  className="h-9 border-[#e5e7eb] bg-white text-sm"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Color
-                                </label>
-                                <Select
-                                  value={String(stageConfigDraft?.presetIndex ?? selectedStagePresetIndex)}
-                                  onValueChange={(value) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, presetIndex: Number(value) } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                >
-                                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white">
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={cn(
-                                          "h-3 w-3 rounded-full border",
-                                          selectedStage.columnClass,
-                                          selectedStage.borderClass,
-                                        )}
-                                      />
-                                      <SelectValue />
-                                    </div>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STAGE_COLOR_PRESETS.map((preset, index) => (
-                                      <SelectItem key={preset.label} value={String(index)}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <span
-                                            className={cn(
-                                              "h-3 w-3 rounded-full border",
-                                              preset.columnClass,
-                                              preset.borderClass,
-                                            )}
-                                          />
-                                          {preset.label}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              {stageDetailsFeedback && (
-                                <p className="text-xs text-[#245fcb]">{stageDetailsFeedback}</p>
-                              )}
-                            </CardContent>
-                          </Card>
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Stage Name
+                              </label>
+                              <Input
+                                value={stageConfigDraft?.name ?? selectedStage.name}
+                                onChange={(event) =>
+                                  setStageConfigDraft((prev) =>
+                                    prev ? { ...prev, name: event.target.value } : prev,
+                                  )
+                                }
+                                disabled={!isStageConfigEditing}
+                                className="h-9 border-[#e5e7eb] bg-white text-sm"
+                              />
+                            </div>
 
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-sm font-semibold">Leads in Stage</CardTitle>
-                              <CardDescription className="text-xs">
-                                {selectedStageLeads.length} lead(s) currently mapped to this stage.
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <div className="overflow-hidden rounded-md border border-[#e5e7eb]">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Lead
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Customer
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {selectedStageLeads.length > 0 ? (
-                                      selectedStageLeads.map((lead) => (
-                                        <tr
-                                          key={lead.id}
-                                          className="border-b border-[#f0f2f7] transition-colors hover:bg-[#fafbff]"
-                                        >
-                                          <td className="px-4 py-3">
-                                            <p className="text-sm font-medium text-[#1c1e21]">{lead.name}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <p className="text-sm text-[#1c1e21]">
-                                                {customerNameById.get(lead.customerId) ?? "Unknown customer"}
-                                              </p>
-                                              <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-7 bg-[#4080f0] px-2 text-xs text-white hover:bg-[#3070e0]"
-                                                onClick={() => router.push(`/leads/${lead.id}`)}
-                                              >
-                                                View Lead
-                                              </Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))
-                                    ) : (
-                                      <tr>
-                                        <td colSpan={2} className="px-4 py-8 text-center text-sm text-[#6b7280]">
-                                          No leads currently in this stage.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </CardContent>
-                          </Card>
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Color
+                              </label>
+                              <label
+                                className={cn(
+                                  "flex h-9 w-full items-center gap-2.5 rounded-md border border-[#e5e7eb] bg-white px-3 text-sm",
+                                  isStageConfigEditing ? "cursor-pointer" : "cursor-default opacity-70",
+                                )}
+                              >
+                                <div
+                                  className="h-4 w-4 shrink-0 rounded-full border"
+                                  style={{
+                                    backgroundColor: currentColorHex + "20",
+                                    borderColor: currentColorHex,
+                                  }}
+                                />
+                                <span className="font-mono text-xs text-[#1c1e21]">{currentColorHex}</span>
+                                <input
+                                  type="color"
+                                  value={currentColorHex}
+                                  onChange={(e) =>
+                                    setStageConfigDraft((prev) =>
+                                      prev ? { ...prev, customColor: e.target.value, presetIndex: -1 } : prev,
+                                    )
+                                  }
+                                  disabled={!isStageConfigEditing}
+                                  className="sr-only"
+                                />
+                              </label>
+                              {isStageConfigEditing && (
+                                <div className="flex gap-1.5 pt-0.5">
+                                  {STAGE_COLOR_PRESETS.map((preset, index) => {
+                                    const hex =
+                                      preset.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+                                    const isActive =
+                                      stageConfigDraft?.presetIndex === index &&
+                                      !stageConfigDraft?.customColor;
+                                    return (
+                                      <button
+                                        key={index}
+                                        type="button"
+                                        title={preset.label}
+                                        className={cn(
+                                          "h-5 w-5 rounded-full border-2 transition-transform hover:scale-110",
+                                          isActive
+                                            ? "border-[#1c1e21] scale-110"
+                                            : "border-transparent",
+                                        )}
+                                        style={{ backgroundColor: hex }}
+                                        onClick={() =>
+                                          setStageConfigDraft((prev) =>
+                                            prev
+                                              ? { ...prev, presetIndex: index, customColor: "" }
+                                              : prev,
+                                          )
+                                        }
+                                      />
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                                Position
+                              </label>
+                              <Select
+                                value={
+                                  stageConfigDraft
+                                    ? (stageConfigDraft.placementAfterStageId || "__first__")
+                                    : (orderedStages.findIndex((s) => s.id === selectedStage.id) === 0
+                                        ? "__first__"
+                                        : orderedStages[
+                                            orderedStages.findIndex((s) => s.id === selectedStage.id) - 1
+                                          ]?.id ?? "__first__")
+                                }
+                                onValueChange={(value) =>
+                                  setStageConfigDraft((prev) =>
+                                    prev
+                                      ? { ...prev, placementAfterStageId: value === "__first__" ? "" : value }
+                                      : prev,
+                                  )
+                                }
+                                disabled={!isStageConfigEditing}
+                              >
+                                <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__first__">1st — Beginning</SelectItem>
+                                  {orderedStages
+                                    .filter((s) => s.id !== selectedStage.id)
+                                    .map((stage, idx) => {
+                                      const pos = idx + 2;
+                                      const suffix =
+                                        pos === 2 ? "nd" : pos === 3 ? "rd" : "th";
+                                      return (
+                                        <SelectItem key={stage.id} value={stage.id}>
+                                          {pos}{suffix} — After &quot;{stage.name}&quot;
+                                        </SelectItem>
+                                      );
+                                    })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {stageDetailsFeedback && (
+                            <p className="text-xs text-[#245fcb]">{stageDetailsFeedback}</p>
+                          )}
                         </div>
                       ) : (
                         <p className="text-sm text-[#6b7280]">Select a stage to view details.</p>

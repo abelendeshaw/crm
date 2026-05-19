@@ -1190,49 +1190,190 @@ export function LeadDetailPage({ id }: { id: string }) {
               </TabsContent>
 
               <TabsContent value="discovery" className="mt-0 outline-none">
-                <div className="mb-4 flex items-center justify-between border-b border-[#e5e7eb] pb-3">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck size={16} className="text-[#4080f0]" />
-                    <h3 className="text-sm font-semibold text-[#1c1e21]">
-                      {activeTemplateName}
-                    </h3>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider font-medium text-[#6b7280]">
-                    Active Template
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <div className="space-y-4">
-                    {usesCustomPqqForm ? (
-                      <DynamicPqqForm
-                        definition={defaultPqqFormDefinition}
-                        value={
-                          detailDraft.pqqFormValues ??
-                          createEmptyPqqFormValues(defaultPqqFormDefinition)
-                        }
-                        onChange={updateLeadPqqFormValues}
-                        hideNavigation
-                      />
-                    ) : (
-                      <DealPqqSection
-                        value={detailDraft.pqq ?? createEmptyDealPqq()}
-                        onChange={updateLeadPqq}
-                        decisionThreshold={pqqSettings.bantDecisionThreshold}
-                        showOnly="discovery"
-                        hideHeader
-                      />
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    <DealPqqSection
-                      value={detailDraft.pqq ?? createEmptyDealPqq()}
-                      onChange={updateLeadPqq}
-                      decisionThreshold={pqqSettings.bantDecisionThreshold}
-                      showOnly="bant"
-                      hideHeader
-                    />
-                  </div>
-                </div>
+                {(() => {
+                  const formDef = defaultPqqFormDefinition;
+                  const formVals = detailDraft.pqqFormValues ?? createEmptyPqqFormValues(formDef);
+                  const totalFields = formDef.fields.length;
+                  const filledFields = formDef.fields.filter((f) => {
+                    const v = formVals[f.id];
+                    return v !== undefined && v !== "" && v !== false;
+                  }).length;
+                  const completionPct = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
+                  const isAssessed = filledFields > 0;
+                  const totalSections = formDef.sections.length;
+                  const filledSections = formDef.sections.filter((sec) =>
+                    formDef.fields
+                      .filter((f) => f.sectionId === sec.id)
+                      .some((f) => {
+                        const v = formVals[f.id];
+                        return v !== undefined && v !== "" && v !== false;
+                      }),
+                  ).length;
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Status hero card */}
+                      <div className={cn(
+                        "rounded-xl border p-5",
+                        pqqQualification === true
+                          ? "border-emerald-200 bg-emerald-50"
+                          : pqqQualification === false
+                            ? "border-amber-200 bg-amber-50"
+                            : "border-[#e5e7eb] bg-[#f9fafb]",
+                      )}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-3">
+                            <div className={cn(
+                              "mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                              pqqQualification === true
+                                ? "bg-emerald-100"
+                                : pqqQualification === false
+                                  ? "bg-amber-100"
+                                  : "bg-[#eef2fd]",
+                            )}>
+                              <ShieldCheck size={20} className={cn(
+                                pqqQualification === true
+                                  ? "text-emerald-600"
+                                  : pqqQualification === false
+                                    ? "text-amber-600"
+                                    : "text-[#4080f0]",
+                              )} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-[#1c1e21]">
+                                {activeTemplateName}
+                              </p>
+                              <p className={cn(
+                                "mt-0.5 text-xs font-medium",
+                                pqqQualification === true
+                                  ? "text-emerald-700"
+                                  : pqqQualification === false
+                                    ? "text-amber-700"
+                                    : "text-[#6b7280]",
+                              )}>
+                                {pqqQualification === true
+                                  ? "Qualified — BANT threshold met"
+                                  : pqqQualification === false
+                                    ? "Not qualified — below threshold"
+                                    : isAssessed
+                                      ? "In progress"
+                                      : "Not started yet"}
+                              </p>
+                              {isAssessed && (
+                                <p className="mt-1 text-[11px] text-[#9ca3af]">
+                                  {filledSections} of {totalSections} sections · {completionPct}% complete
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="shrink-0 bg-[#4080f0] text-white shadow-sm hover:bg-[#3070e0]"
+                            onClick={() => router.push(`/leads/${detailDraft.id}/pqq`)}
+                          >
+                            <ShieldCheck size={14} className="mr-1.5" />
+                            {isAssessed ? "Continue PQQ" : "Fill PQQ"}
+                          </Button>
+                        </div>
+
+                        {/* Progress bar */}
+                        {totalFields > 0 && (
+                          <div className="mt-4">
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="text-[11px] text-[#9ca3af]">
+                                {filledFields} of {totalFields} fields filled
+                              </span>
+                              <span className={cn(
+                                "text-[11px] font-semibold",
+                                completionPct === 100
+                                  ? "text-emerald-600"
+                                  : "text-[#4080f0]",
+                              )}>
+                                {completionPct}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/60">
+                              <div
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  completionPct === 100
+                                    ? "bg-emerald-500"
+                                    : "bg-[#4080f0]",
+                                )}
+                                style={{ width: `${completionPct}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Section status grid */}
+                      {totalSections > 0 && (
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                          {[...formDef.sections]
+                            .sort((a, b) => a.order - b.order)
+                            .map((sec) => {
+                              const secFields = formDef.fields.filter(
+                                (f) => f.sectionId === sec.id,
+                              );
+                              const secFilled = secFields.filter((f) => {
+                                const v = formVals[f.id];
+                                return v !== undefined && v !== "" && v !== false;
+                              }).length;
+                              const secDone =
+                                secFields.length > 0 &&
+                                secFilled === secFields.length;
+                              const secStarted = secFilled > 0;
+                              return (
+                                <button
+                                  key={sec.id}
+                                  type="button"
+                                  onClick={() =>
+                                    router.push(`/leads/${detailDraft.id}/pqq`)
+                                  }
+                                  className={cn(
+                                    "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors hover:border-[#4080f0]",
+                                    secDone
+                                      ? "border-emerald-200 bg-emerald-50"
+                                      : secStarted
+                                        ? "border-[#bfdbfe] bg-[#f0f7ff]"
+                                        : "border-[#e5e7eb] bg-white",
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                                      secDone
+                                        ? "bg-emerald-500"
+                                        : secStarted
+                                          ? "bg-[#4080f0]"
+                                          : "bg-[#e5e7eb]",
+                                    )}
+                                  >
+                                    {secDone ? (
+                                      <Check size={10} className="text-white" />
+                                    ) : (
+                                      <span className="text-[8px] font-bold text-white">
+                                        {secFilled}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-xs font-medium text-[#1c1e21]">
+                                      {sec.title}
+                                    </p>
+                                    <p className="text-[10px] text-[#9ca3af]">
+                                      {secFilled}/{secFields.length} fields
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </TabsContent>
             </Tabs>
           </div>

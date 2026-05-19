@@ -4,8 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   Briefcase,
   Calendar,
+  Check,
+  CheckCircle2,
   Headphones,
   Kanban,
   List as ListIcon,
@@ -13,7 +17,11 @@ import {
   Plus,
   Search,
   Share2,
+  ShieldCheck,
+  SkipForward,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -259,6 +267,9 @@ export function LeadsManagementPage() {
   const [createPqq, setCreatePqq] = useState<DealPqq | null>(null);
   const [createPqqFormValues, setCreatePqqFormValues] = useState<PqqFormValues | null>(null);
   const [pqqDialogOpen, setPqqDialogOpen] = useState(false);
+  const [pqqActiveTab, setPqqActiveTab] = useState<"discovery" | "bant">("discovery");
+  const [discoveryStep, setDiscoveryStep] = useState(0);
+  const [bantStep, setBantStep] = useState(0);
   const [pqqDraft, setPqqDraft] = useState<DealPqq>(() =>
     getDefaultPqqWorksheet(mockLeadStore.pqqTemplates),
   );
@@ -271,6 +282,28 @@ export function LeadsManagementPage() {
     [pqqTemplates],
   );
   const usesCustomPqqForm = hasCustomPqqFormFields(defaultPqqFormDefinition);
+
+  const pqqWizardSections = useMemo(() => {
+    const def = defaultPqqFormDefinition;
+    const orderedSteps = [...def.steps].sort((a, b) => a.order - b.order);
+    const result: Array<{
+      section: typeof def.sections[0];
+      step: typeof def.steps[0];
+      fields: typeof def.fields;
+    }> = [];
+    for (const step of orderedSteps) {
+      const stepSections = [...def.sections]
+        .filter((s) => s.stepId === step.id)
+        .sort((a, b) => a.order - b.order);
+      for (const section of stepSections) {
+        const fields = [...def.fields]
+          .filter((f) => f.sectionId === section.id)
+          .sort((a, b) => a.order - b.order);
+        result.push({ section, step, fields });
+      }
+    }
+    return result;
+  }, [defaultPqqFormDefinition]);
 
 
   const stageById = useMemo(
@@ -661,6 +694,9 @@ export function LeadsManagementPage() {
     } else {
       setPqqDraft(buildPqqDraftFromCreateForm());
     }
+    setPqqActiveTab("discovery");
+    setDiscoveryStep(0);
+    setBantStep(0);
     setPqqDialogOpen(true);
   };
 
@@ -1452,42 +1488,371 @@ export function LeadsManagementPage() {
       </Dialog>
 
       <Dialog open={pqqDialogOpen} onOpenChange={setPqqDialogOpen}>
-        <DialogContent className="flex max-h-[min(90vh,860px)] max-w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Fill PQQ</DialogTitle>
-            <DialogDescription>
-              Optional lead discovery and qualification worksheet. You can save this now or skip and
-              create the lead without it.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            {usesCustomPqqForm ? (
-              <DynamicPqqForm
-                definition={defaultPqqFormDefinition}
-                value={pqqFormDraft}
-                onChange={setPqqFormDraft}
-              />
-            ) : (
-              <DealPqqSection
-                compact
-                value={pqqDraft}
-                onChange={setPqqDraft}
-                decisionThreshold={pqqSettings.bantDecisionThreshold}
-              />
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setPqqDialogOpen(false)}>
-              Skip for now
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-              onClick={saveCreatePqq}
-            >
-              Save PQQ
-            </Button>
-          </DialogFooter>
+        <DialogContent className="flex max-h-[min(88vh,660px)] max-w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-lg">
+          {usesCustomPqqForm && pqqWizardSections.length > 0 ? (() => {
+            const discoverySections = pqqWizardSections.filter((ws) => ws.step.id === "discovery");
+            const bantSections = pqqWizardSections.filter((ws) => ws.step.id === "bant");
+            const activeTabSections = pqqActiveTab === "discovery" ? discoverySections : bantSections;
+            const activeStep = pqqActiveTab === "discovery" ? discoveryStep : bantStep;
+            const setActiveStep = pqqActiveTab === "discovery" ? setDiscoveryStep : setBantStep;
+
+            const current = activeTabSections[activeStep];
+            const total = activeTabSections.length;
+            const isLast = activeStep === total - 1;
+            const isFirst = activeStep === 0;
+            const pct = total > 0 ? Math.round(((activeStep + 1) / total) * 100) : 0;
+            const allOptional = current?.fields.every((f) => !f.required) ?? true;
+            const discoveryDone = discoverySections.length > 0 && discoveryStep >= discoverySections.length - 1;
+            const bantDone = bantSections.length > 0 && bantStep >= bantSections.length - 1;
+
+            return (
+              <>
+                {/* Header */}
+                <DialogHeader className="shrink-0 pb-0">
+                  <div className="flex items-center justify-between gap-2 pr-7">
+                    <DialogTitle className="text-sm">PQQ Assessment</DialogTitle>
+                    <button
+                      type="button"
+                      className="rounded-full bg-[#eef2fd] px-2.5 py-1 text-[11px] font-semibold text-[#4080f0]"
+                      onClick={saveCreatePqq}
+                    >
+                      Save &amp; close
+                    </button>
+                  </div>
+
+                  {/* Tab bar */}
+                  <div className="mt-3 flex gap-1 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-1">
+                    {(
+                      [
+                        { key: "discovery" as const, label: "Discovery", done: discoveryDone, step: discoveryStep, sections: discoverySections },
+                        { key: "bant" as const, label: "BANT Scoring", done: bantDone, step: bantStep, sections: bantSections },
+                      ] as const
+                    ).map((tab) => {
+                      const isActive = pqqActiveTab === tab.key;
+                      return (
+                        <button
+                          key={tab.key}
+                          type="button"
+                          onClick={() => setPqqActiveTab(tab.key)}
+                          className={cn(
+                            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold transition-all",
+                            isActive
+                              ? "bg-white shadow-sm text-[#1c1e21]"
+                              : "text-[#6b7280] hover:text-[#374151]",
+                          )}
+                        >
+                          {tab.done ? (
+                            <CheckCircle2
+                              size={13}
+                              className={isActive ? "text-emerald-500" : "text-emerald-400"}
+                            />
+                          ) : tab.key === "bant" ? (
+                            <ShieldCheck size={13} className={isActive ? "text-[#4080f0]" : "text-[#9ca3af]"} />
+                          ) : null}
+                          {tab.label}
+                          {tab.sections.length > 0 && (
+                            <span
+                              className={cn(
+                                "rounded-full px-1.5 py-0.5 text-[9px] font-bold",
+                                isActive
+                                  ? "bg-[#eef2fd] text-[#4080f0]"
+                                  : "bg-[#e5e7eb] text-[#9ca3af]",
+                              )}
+                            >
+                              {tab.step + 1}/{tab.sections.length}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Section progress within active tab */}
+                  {total > 0 && (
+                    <div className="mt-2">
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <p className="text-xs font-medium text-[#1c1e21]">{current?.section.title}</p>
+                        <span className="text-[11px] font-semibold text-[#4080f0]">
+                          {activeStep + 1}/{total}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#f0f2f7]">
+                        <div
+                          className="h-full rounded-full bg-[#4080f0] transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="mt-2 flex gap-1">
+                        {activeTabSections.map((_, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setActiveStep(i)}
+                            className={cn(
+                              "shrink-0 rounded-full transition-all",
+                              i === activeStep
+                                ? "h-1.5 w-4 bg-[#4080f0]"
+                                : i < activeStep
+                                  ? "h-1.5 w-1.5 bg-[#4080f0]/40"
+                                  : "h-1.5 w-1.5 bg-[#e5e7eb]",
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </DialogHeader>
+
+                {/* Section fields */}
+                <div className="min-h-0 flex-1 overflow-y-auto py-2">
+                  {total === 0 ? (
+                    <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
+                      <p className="text-sm font-medium text-[#374151]">No sections here</p>
+                      <p className="text-xs text-[#9ca3af]">
+                        Switch to the other tab or configure sections in template settings.
+                      </p>
+                    </div>
+                  ) : current ? (
+                    <div className="space-y-4 px-1">
+                      {current.section.description && (
+                        <p className="text-xs text-[#6b7280]">{current.section.description}</p>
+                      )}
+                      {current.fields.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-[#9ca3af]">No fields in this section.</p>
+                      ) : (
+                        current.fields.map((field) => (
+                          <div key={field.id} className="space-y-1.5">
+                            {field.type !== "checkbox" && (
+                              <label className="text-xs font-medium text-[#374151]">
+                                {field.label}
+                                {field.required && <span className="ml-0.5 text-red-400">*</span>}
+                              </label>
+                            )}
+
+                            {field.type === "checkbox" ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPqqFormDraft((prev) => ({
+                                    ...prev,
+                                    [field.id]: !(prev[field.id] === true),
+                                  }))
+                                }
+                                className={cn(
+                                  "flex w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors",
+                                  pqqFormDraft[field.id] === true
+                                    ? "border-[#4080f0] bg-[#eef2fd] text-[#245fcb]"
+                                    : "border-[#e5e7eb] bg-white text-[#4b5563] hover:border-[#cbd5e1]",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                                    pqqFormDraft[field.id] === true
+                                      ? "border-[#4080f0] bg-[#4080f0]"
+                                      : "border-[#d1d5db]",
+                                  )}
+                                >
+                                  {pqqFormDraft[field.id] === true && (
+                                    <Check size={11} className="text-white" />
+                                  )}
+                                </span>
+                                <span className="text-sm font-medium">{field.label}</span>
+                              </button>
+                            ) : field.type === "textarea" ? (
+                              <Textarea
+                                value={String(pqqFormDraft[field.id] ?? "")}
+                                onChange={(e) =>
+                                  setPqqFormDraft((prev) => ({ ...prev, [field.id]: e.target.value }))
+                                }
+                                placeholder={field.placeholder}
+                                className="min-h-[80px] resize-none border-[#e5e7eb] text-sm"
+                              />
+                            ) : field.type === "select" ? (
+                              <Select
+                                value={String(pqqFormDraft[field.id] ?? "")}
+                                onValueChange={(v) =>
+                                  setPqqFormDraft((prev) => ({ ...prev, [field.id]: v }))
+                                }
+                              >
+                                <SelectTrigger className="h-9 border-[#e5e7eb] text-sm">
+                                  <SelectValue placeholder={field.placeholder ?? "Select"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(field.options ?? []).map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                      {opt}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : field.type === "slider" ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#f0f2f7]">
+                                    <div
+                                      className="h-full rounded-full bg-[#4080f0] transition-all"
+                                      style={{
+                                        width: `${((Number(pqqFormDraft[field.id] ?? field.min ?? 0) - (field.min ?? 0)) / ((field.max ?? 12) - (field.min ?? 0))) * 100}%`,
+                                      }}
+                                    />
+                                  </div>
+                                  <span className="ml-3 w-10 text-right text-sm font-bold tabular-nums text-[#1c1e21]">
+                                    {Number(pqqFormDraft[field.id] ?? field.min ?? 0)}/{field.max ?? 12}
+                                  </span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min={field.min ?? 0}
+                                  max={field.max ?? 12}
+                                  value={Number(pqqFormDraft[field.id] ?? field.min ?? 0)}
+                                  onChange={(e) =>
+                                    setPqqFormDraft((prev) => ({
+                                      ...prev,
+                                      [field.id]: Number(e.target.value),
+                                    }))
+                                  }
+                                  className="w-full accent-[#4080f0]"
+                                />
+                              </div>
+                            ) : (
+                              <Input
+                                type={field.type === "number" ? "number" : "text"}
+                                value={String(pqqFormDraft[field.id] ?? "")}
+                                onChange={(e) =>
+                                  setPqqFormDraft((prev) => ({
+                                    ...prev,
+                                    [field.id]:
+                                      field.type === "number"
+                                        ? Number(e.target.value) || 0
+                                        : e.target.value,
+                                  }))
+                                }
+                                placeholder={field.placeholder}
+                                className="h-9 border-[#e5e7eb] text-sm"
+                              />
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Footer nav */}
+                <div className="shrink-0 border-t border-[#e5e7eb] pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-[#6b7280]"
+                      onClick={() => {
+                        if (isFirst) {
+                          if (pqqActiveTab === "bant") {
+                            setPqqActiveTab("discovery");
+                          } else {
+                            setPqqDialogOpen(false);
+                          }
+                        } else {
+                          setActiveStep((s) => s - 1);
+                        }
+                      }}
+                    >
+                      <ArrowLeft size={13} />
+                      {isFirst && pqqActiveTab === "bant"
+                        ? "Discovery"
+                        : isFirst
+                          ? "Cancel"
+                          : "Back"}
+                    </Button>
+
+                    <div className="flex items-center gap-2">
+                      {allOptional && !isLast && total > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1 text-[#9ca3af] hover:text-[#6b7280]"
+                          onClick={() => setActiveStep((s) => s + 1)}
+                        >
+                          <SkipForward size={12} />
+                          Skip
+                        </Button>
+                      )}
+                      {total > 0 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className={cn(
+                            "gap-1.5",
+                            isLast && pqqActiveTab === "bant"
+                              ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                              : "bg-[#4080f0] text-white hover:bg-[#3070e0]",
+                          )}
+                          onClick={() => {
+                            if (isLast) {
+                              if (pqqActiveTab === "discovery") {
+                                setPqqActiveTab("bant");
+                                setBantStep(0);
+                              } else {
+                                saveCreatePqq();
+                              }
+                            } else {
+                              setActiveStep((s) => s + 1);
+                            }
+                          }}
+                        >
+                          {isLast && pqqActiveTab === "bant" ? (
+                            <>
+                              <Check size={13} /> Save PQQ
+                            </>
+                          ) : isLast && pqqActiveTab === "discovery" ? (
+                            <>
+                              BANT <ArrowRight size={13} />
+                            </>
+                          ) : (
+                            <>
+                              Next <ArrowRight size={13} />
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })() : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Fill PQQ</DialogTitle>
+                <DialogDescription>
+                  Optional qualification worksheet. Skip and fill it later on the lead record.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+                <DealPqqSection
+                  compact
+                  value={pqqDraft}
+                  onChange={setPqqDraft}
+                  decisionThreshold={pqqSettings.bantDecisionThreshold}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setPqqDialogOpen(false)}>
+                  Skip for now
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                  onClick={saveCreatePqq}
+                >
+                  Save PQQ
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

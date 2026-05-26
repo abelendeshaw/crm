@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Tag,
   FileText,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -67,6 +68,7 @@ import {
 } from "@/data/leadsManagementData";
 import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
 import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
+import { OpportunityChecklistTemplateSettingsSection } from "@/modules/OpportunityChecklistTemplateSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -129,7 +131,7 @@ function IconRenderer({ name, className }: { name: string; className?: string })
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring";
+type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "checklistTemplates" | "scoring";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -151,6 +153,11 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: "pqqTemplates",
     label: "PQQ Templates",
     icon: <FileText size={15} />,
+  },
+  {
+    id: "checklistTemplates",
+    label: "Checklist Templates",
+    icon: <ClipboardList size={15} />,
   },
   {
     id: "scoring",
@@ -1687,6 +1694,7 @@ export function LeadsSettingsPage() {
               </div>
             )}
             {activeSection === "pqqTemplates" && <LeadPqqTemplateSettingsSection />}
+            {activeSection === "checklistTemplates" && <OpportunityChecklistTemplateSettingsSection />}
             {activeSection === "scoring" && <LeadScoringSettingsSection />}
           </div>
         </div>

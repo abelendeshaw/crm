@@ -16,6 +16,7 @@ export {
 import type { DealCurrency, DealPqq, PipelineStage } from "@/data/dealsManagementData";
 import type { PqqFormValues } from "@/data/pqqTemplateData";
 import { computeBaseValue } from "@/data/dealsManagementData";
+import type { OpportunityChecklist, ChecklistStatus } from "@/data/opportunityChecklistData";
 
 export type LeadActivityKind = string;
 
@@ -34,6 +35,8 @@ export type LeadSource = {
   order: number;
   isDefault?: boolean;
 };
+
+export const RENEWAL_WARNING_DAYS = 14;
 
 export type CrmLead = {
   id: string;
@@ -62,13 +65,18 @@ export type CrmLead = {
   quarterEndDate?: string;
   pqqTotalScore?: number;
   pqqStatus?: string;
+  pqqApprovalStatus?: "Pending Approval" | "Approved" | "Rejected";
   exceptionJustification?: string;
   exceptionApprovedBy?: string;
   checklistValidationStatus?: string;
+  renewalDate?: string;
   /** Optional Lead Discovery & PQQ worksheet captured at creation or on the lead record */
   pqq?: DealPqq;
   /** Values for template-driven PQQ fields when the active template uses a custom form definition */
   pqqFormValues?: PqqFormValues;
+  /** Opportunity checklist filled after PQQ approval */
+  opportunityChecklist?: OpportunityChecklist;
+  checklistStatus?: ChecklistStatus;
   activities: LeadActivity[];
 };
 
@@ -232,7 +240,64 @@ function seedLeads(): CrmLead[] {
   });
 }
 
-export const initialLeads: CrmLead[] = seedLeads();
+export const initialLeads: CrmLead[] = [
+  ...seedLeads(),
+  {
+    id: "lead-pqq-approval-demo",
+    name: "Ethio Telecom — CRM Platform",
+    customerId: "acc-5",
+    sourceId: "lead-source-outbound",
+    value: 72000,
+    currency: "USD",
+    baseValue: computeBaseValue(72000, "USD"),
+    probability: 60,
+    expectedClose: "2026-07-20",
+    stageId: "lead-stage-qualified",
+    stageEnteredAt: isoDaysAgo(3),
+    primarySales: "Nahom Esrael",
+    presales: "Hana Worku",
+    channel: "Sara Tesfaye",
+    pqqTotalScore: 41,
+    pqqStatus: "Qualified",
+    pqqApprovalStatus: "Pending Approval",
+    activities: [
+      {
+        id: "lead-pqq-approval-demo-act-1",
+        kind: "Meeting",
+        title: "PQQ review session",
+        date: isoDaysAgo(2),
+        note: "Completed PQQ assessment — sent for manager approval.",
+      },
+    ],
+  },
+  {
+    id: "lead-renewal-demo",
+    name: "Abay Retail — Cloud ERP Renewal",
+    customerId: "acc-3",
+    contactId: "con-3",
+    sourceId: "lead-source-referral",
+    value: 48000,
+    currency: "USD",
+    baseValue: computeBaseValue(48000, "USD"),
+    probability: 65,
+    expectedClose: "2026-06-15",
+    stageId: "lead-stage-qualified",
+    stageEnteredAt: isoDaysAgo(4),
+    primarySales: "Sara Tesfaye",
+    presales: "Biruk Mekonnen",
+    channel: "Daniel Bekele",
+    renewalDate: "2026-05-31",
+    activities: [
+      {
+        id: "lead-renewal-demo-act-1",
+        kind: "Call",
+        title: "Renewal discussion call",
+        date: isoDaysAgo(6),
+        note: "Customer confirmed interest in renewing — waiting on budget approval.",
+      },
+    ],
+  },
+];
 
 export const AUTOMATION_DEFAULT_LEAD_STAGE_ID = DEFAULT_LEAD_PIPELINE_STAGES[0]!.id;
 export const AUTOMATION_DEFAULT_LEAD_SOURCE_ID = DEFAULT_LEAD_SOURCES[0]!.id;

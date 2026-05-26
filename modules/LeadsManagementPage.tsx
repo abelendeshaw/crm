@@ -10,15 +10,19 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  Clock,
   Headphones,
   Kanban,
   List as ListIcon,
   Percent,
   Plus,
+  RefreshCw,
   Search,
+  SendHorizonal,
   Share2,
   ShieldCheck,
   SkipForward,
+  X,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,6 +78,7 @@ import {
   type CrmLead,
   type DealCurrency,
   type LeadSource,
+  RENEWAL_WARNING_DAYS,
   STAGE_AGING_WARNING_DAYS,
   computeBaseValue,
   leadCustomerAccounts,
@@ -139,6 +144,27 @@ function daysBetween(fromIso: string, toDate = new Date()) {
     12,
   ).getTime();
   return Math.max(0, Math.floor((b - a) / 86400000));
+}
+
+function daysUntilRenewal(renewalDate: string): number {
+  const now = new Date();
+  const renewal = new Date(renewalDate + "T12:00:00").getTime();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).getTime();
+  return Math.floor((renewal - today) / 86400000);
+}
+
+function getRenewalStatus(renewalDate?: string): "expired" | "warning" | null {
+  if (!renewalDate) return null;
+  const days = daysUntilRenewal(renewalDate);
+  if (days < 0) return "expired";
+  if (days <= RENEWAL_WARNING_DAYS) return "warning";
+  return null;
+}
+
+function advanceRenewalDate(renewalDate: string): string {
+  const d = new Date(renewalDate + "T12:00:00");
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().split("T")[0]!;
 }
 
 function FormField({
@@ -263,7 +289,9 @@ export function LeadsManagementPage() {
     primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
     presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
     channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
+    renewalDate: "",
   });
+
   const [createPqq, setCreatePqq] = useState<DealPqq | null>(null);
   const [createPqqFormValues, setCreatePqqFormValues] = useState<PqqFormValues | null>(null);
   const [pqqDialogOpen, setPqqDialogOpen] = useState(false);
@@ -421,6 +449,42 @@ export function LeadsManagementPage() {
     });
   };
 
+  const eolLeads = useMemo(() => {
+    return leads
+      .filter((l) => {
+        const s = getRenewalStatus(l.renewalDate);
+        return s === "expired" || s === "warning";
+      })
+      .sort((a, b) => (a.renewalDate ?? "").localeCompare(b.renewalDate ?? ""));
+  }, [leads]);
+
+  const eolCount = eolLeads.length;
+
+  // Auto-recreate expired leads: reset to first stage with a new renewal date advanced by 1 year
+  useEffect(() => {
+    if (isPageLoading) return;
+    const today = new Date().toISOString().split("T")[0]!;
+    const firstStageId = sortedStages[0]?.id ?? AUTOMATION_DEFAULT_LEAD_STAGE_ID;
+    const hasExpired = leads.some(
+      (l) => l.renewalDate && daysUntilRenewal(l.renewalDate) < 0,
+    );
+    if (!hasExpired) return;
+    setLeads((prev) =>
+      prev.map((l) => {
+        if (!l.renewalDate || daysUntilRenewal(l.renewalDate) >= 0) return l;
+        return {
+          ...l,
+          id: `lead-${crypto.randomUUID()}`,
+          stageId: firstStageId,
+          stageEnteredAt: today,
+          renewalDate: advanceRenewalDate(l.renewalDate),
+          activities: [],
+        };
+      }),
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPageLoading]);
+
   const router = useRouter();
 
   const openLeadDetail = (lead: CrmLead) => {
@@ -483,7 +547,7 @@ export function LeadsManagementPage() {
 
     const today = new Date().toISOString().split("T")[0]!;
     const currency = createForm.currency;
-    const probability = quickCapture ? 40 : 50;
+    const probability = 50;
     const initialStageId = sortedStages[0]?.id ?? AUTOMATION_DEFAULT_LEAD_STAGE_ID;
     const newLeadId = `lead-${crypto.randomUUID()}`;
     const newLead: CrmLead = {
@@ -499,11 +563,12 @@ export function LeadsManagementPage() {
       expectedClose: today,
       stageId: initialStageId,
       stageEnteredAt: today,
-      primarySales: quickCapture
-        ? AUTOMATION_DEFAULT_LEAD_ROLES.primarySales
-        : createForm.primarySales,
-      presales: quickCapture ? AUTOMATION_DEFAULT_LEAD_ROLES.presales : createForm.presales,
-      channel: quickCapture ? AUTOMATION_DEFAULT_LEAD_ROLES.channel : createForm.channel,
+      primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
+      presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
+      channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
+      renewalDate: createForm.renewalDate || undefined,
+      pqqApprovalStatus:
+        createPqq || createPqqFormValues ? "Pending Approval" : undefined,
       pqq: usesCustomPqqForm ? undefined : createPqq ?? undefined,
       pqqFormValues: usesCustomPqqForm
         ? createPqqFormValues
@@ -527,6 +592,7 @@ export function LeadsManagementPage() {
       primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
       presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
       channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
+      renewalDate: "",
     });
     setCreatePqq(null);
     setCreatePqqFormValues(null);
@@ -700,6 +766,8 @@ export function LeadsManagementPage() {
     setPqqDialogOpen(true);
   };
 
+  const [pqqApprovalOpen, setPqqApprovalOpen] = useState(false);
+
   const saveCreatePqq = () => {
     if (usesCustomPqqForm) {
       setCreatePqqFormValues(clonePqqFormValues(pqqFormDraft));
@@ -707,6 +775,7 @@ export function LeadsManagementPage() {
       setCreatePqq(pqqDraft);
     }
     setPqqDialogOpen(false);
+    setPqqApprovalOpen(true);
   };
 
   const agingLabel = (lead: CrmLead) => {
@@ -855,6 +924,35 @@ export function LeadsManagementPage() {
                   List
                 </button>
               </div>
+
+              {eolCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/leads/eol")}
+                  className={cn(
+                    "relative inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors",
+                    eolLeads.some((l) => getRenewalStatus(l.renewalDate) === "expired")
+                      ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+                      : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                  )}
+                >
+                  <Clock size={14} />
+                  <span>
+                    {eolCount} lead{eolCount !== 1 ? "s" : ""} at risk
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold text-white",
+                      eolLeads.some((l) => getRenewalStatus(l.renewalDate) === "expired")
+                        ? "bg-rose-500"
+                        : "bg-amber-500",
+                    )}
+                  >
+                    {eolCount}
+                  </span>
+                </button>
+              )}
+
               <Button
                 type="button"
                 size="sm"
@@ -967,6 +1065,48 @@ export function LeadsManagementPage() {
                                     {stuck}
                                   </Badge>
                                 )}
+                                {getRenewalStatus(lead.renewalDate) === "expired" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-rose-300 bg-rose-50 text-[10px] text-rose-700"
+                                  >
+                                    <X className="mr-0.5 size-3" />
+                                    EOL — Expired
+                                  </Badge>
+                                )}
+                                {getRenewalStatus(lead.renewalDate) === "warning" && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-orange-200 bg-orange-50 text-[10px] text-orange-700"
+                                  >
+                                    <Clock className="mr-0.5 size-3" />
+                                    {daysUntilRenewal(lead.renewalDate!) === 0
+                                      ? "Renews today"
+                                      : `${daysUntilRenewal(lead.renewalDate!)}d to EOL`}
+                                  </Badge>
+                                )}
+                                {lead.pqqApprovalStatus && (
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-[10px]",
+                                      lead.pqqApprovalStatus === "Approved"
+                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                        : lead.pqqApprovalStatus === "Rejected"
+                                          ? "border-rose-200 bg-rose-50 text-rose-700"
+                                          : "border-amber-200 bg-amber-50 text-amber-700",
+                                    )}
+                                  >
+                                    {lead.pqqApprovalStatus === "Approved" ? (
+                                      <CheckCircle2 className="mr-0.5 size-3" />
+                                    ) : lead.pqqApprovalStatus === "Rejected" ? (
+                                      <X className="mr-0.5 size-3" />
+                                    ) : (
+                                      <Clock className="mr-0.5 size-3" />
+                                    )}
+                                    {lead.pqqApprovalStatus}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
@@ -1053,6 +1193,9 @@ export function LeadsManagementPage() {
                     Expected close
                   </TableHead>
                   <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                    Renewal
+                  </TableHead>
+                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Owner
                   </TableHead>
                 </TableRow>
@@ -1061,7 +1204,7 @@ export function LeadsManagementPage() {
                 {filteredPipelineLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-10 text-center text-sm text-[#6b7280]"
                     >
                       No leads match the current filters.
@@ -1135,6 +1278,28 @@ export function LeadsManagementPage() {
                           </span>
                         </TableCell>
                         <TableCell>
+                          {lead.renewalDate ? (
+                            getRenewalStatus(lead.renewalDate) === "expired" ? (
+                              <Badge variant="outline" className="border-rose-200 bg-rose-50 text-[10px] text-rose-700">
+                                <X className="mr-0.5 size-3" />
+                                Expired
+                              </Badge>
+                            ) : getRenewalStatus(lead.renewalDate) === "warning" ? (
+                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">
+                                <Clock className="mr-0.5 size-3" />
+                                {daysUntilRenewal(lead.renewalDate) === 0 ? "Today" : `${daysUntilRenewal(lead.renewalDate)}d`}
+                              </Badge>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
+                                <RefreshCw size={11} />
+                                {lead.renewalDate}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-xs text-[#d1d5db]">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="size-6">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
@@ -1159,6 +1324,7 @@ export function LeadsManagementPage() {
         )}
       </div>
 
+
       <Dialog
         open={createOpen}
         onOpenChange={(open) => {
@@ -1177,14 +1343,6 @@ export function LeadsManagementPage() {
           <DialogHeader>
             <DialogTitle>Create new lead</DialogTitle>
           </DialogHeader>
-
-          <div className="mb-4 flex items-center justify-between rounded-lg border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
-            <div>
-              <p className="text-sm font-medium text-[#1c1e21]">Quick capture</p>
-              <p className="text-xs text-[#6b7280]">Minimal fields for direct sales</p>
-            </div>
-            <Switch checked={quickCapture} onCheckedChange={setQuickCapture} />
-          </div>
 
           <div className="grid gap-4 py-1">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -1256,6 +1414,26 @@ export function LeadsManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </FormField>
+              <FormField label="Renewal date (optional)">
+                <div className="space-y-1">
+                  <Input
+                    type="date"
+                    value={createForm.renewalDate}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, renewalDate: e.target.value }))}
+                    className="h-9 border-[#e5e7eb] text-sm"
+                    min={new Date().toISOString().split("T")[0]}
+                  />
+                  {createForm.renewalDate && (
+                    <button
+                      type="button"
+                      onClick={() => setCreateForm((p) => ({ ...p, renewalDate: "" }))}
+                      className="text-[11px] text-[#9ca3af] hover:text-rose-500"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
               </FormField>
             </div>
 
@@ -1388,69 +1566,6 @@ export function LeadsManagementPage() {
               </FormField>
             </div>
 
-            {!quickCapture && (
-              <>
-                <Separator className="my-2" />
-                <div className="space-y-3">
-                  <p className="text-xs font-medium text-[#6b7280]">Assign roles</p>
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                    <FormField label="Primary sales">
-                      <Select
-                        value={createForm.primarySales}
-                        onValueChange={(v) =>
-                          setCreateForm((p) => ({ ...p, primarySales: v }))
-                        }
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                    <FormField label="Pre-sales">
-                      <Select
-                        value={createForm.presales}
-                        onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                    <FormField label="Channel">
-                      <Select
-                        value={createForm.channel}
-                        onValueChange={(v) => setCreateForm((p) => ({ ...p, channel: v }))}
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormField>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
           {formErrors.manual && (
             <p className="text-xs text-red-600">{formErrors.manual}</p>
@@ -2214,6 +2329,32 @@ export function LeadsManagementPage() {
               </DialogFooter>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pqqApprovalOpen} onOpenChange={setPqqApprovalOpen}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader className="items-center gap-0">
+            <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-[#eef2fd]">
+              <SendHorizonal size={24} className="text-[#4080f0]" />
+            </div>
+            <DialogTitle className="text-base font-semibold text-[#1c1e21]">
+              PQQ sent for approval
+            </DialogTitle>
+            <DialogDescription className="mt-1.5 text-xs text-[#6b7280]">
+              This assessment has been submitted and is now pending manager review. You&apos;ll be notified once it&apos;s approved or returned with feedback.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <Clock size={12} />
+            Awaiting approval
+          </div>
+          <Button
+            className="mt-1 w-full bg-[#4080f0] text-white hover:bg-[#3070e0]"
+            onClick={() => setPqqApprovalOpen(false)}
+          >
+            Got it
+          </Button>
         </DialogContent>
       </Dialog>
     </div>

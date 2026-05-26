@@ -42,6 +42,7 @@ const roleColorMap: Record<string, string> = {
   "Super Admin": "bg-[#4080f0] text-white",
   Admin: "bg-[#5b5bd6] text-white",
   "Sales Manager": "bg-[#f97316] text-white",
+  "Account Executive": "bg-[#0d9488] text-white",
   "Sales Rep": "bg-[#10b981] text-white",
   Viewer: "bg-[#6b7280] text-white",
   "Support Agent": "bg-[#8b5cf6] text-white",

@@ -36,6 +36,7 @@ const navItems: NavItem[] = [
     path: "/leads",
     children: [
       { label: "Pipeline", path: "/leads" },
+      { label: "EOL Leads", path: "/leads/eol" },
       { label: "Settings", path: "/leads/settings" },
     ],
   },

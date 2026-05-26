@@ -15,6 +15,10 @@ import {
   type DealPqqTemplate,
   type LeadPqqSettings,
 } from "./pqqTemplateData";
+import {
+  DEFAULT_CHECKLIST_TEMPLATES,
+  type OpportunityChecklistTemplate,
+} from "./opportunityChecklistData";
 
 // Simple in-memory store for mock persistence within the session
 class MockDealStore {
@@ -165,6 +169,7 @@ class MockLeadStore {
   private _leadSourcesSubscribers: ((sources: LeadSource[]) => void)[] = [];
   private _pqqTemplatesSubscribers: ((templates: DealPqqTemplate[]) => void)[] = [];
   private _pqqSettingsSubscribers: ((settings: LeadPqqSettings) => void)[] = [];
+  private _checklistTemplatesSubscribers: ((templates: OpportunityChecklistTemplate[]) => void)[] = [];
 
   private _leadSources: LeadSource[] = [...DEFAULT_LEAD_SOURCES];
   private _pqqTemplates: DealPqqTemplate[] = DEFAULT_PQQ_TEMPLATES.map((template) => ({
@@ -173,6 +178,13 @@ class MockLeadStore {
     formDefinition: clonePqqFormDefinition(template.formDefinition),
   }));
   private _pqqSettings: LeadPqqSettings = { ...DEFAULT_LEAD_PQQ_SETTINGS };
+  private _checklistTemplates: OpportunityChecklistTemplate[] = DEFAULT_CHECKLIST_TEMPLATES.map((t) => ({
+    ...t,
+    config: {
+      requiredDocTypes: [...t.config.requiredDocTypes],
+      customDocs: t.config.customDocs.map((d) => ({ ...d })),
+    },
+  }));
 
   private _activityTypes: ActivityType[] = [
     {
@@ -266,6 +278,21 @@ class MockLeadStore {
     this._notifyPqqSettings();
   }
 
+  public get checklistTemplates(): OpportunityChecklistTemplate[] {
+    return this._checklistTemplates;
+  }
+
+  public set checklistTemplates(newTemplates: OpportunityChecklistTemplate[]) {
+    this._checklistTemplates = newTemplates.map((t) => ({
+      ...t,
+      config: {
+        requiredDocTypes: [...t.config.requiredDocTypes],
+        customDocs: t.config.customDocs.map((d) => ({ ...d })),
+      },
+    }));
+    this._notifyChecklistTemplates();
+  }
+
   public getLead(id: string): CrmLead | undefined {
     return this._leads.find((l) => l.id === id);
   }
@@ -320,6 +347,15 @@ class MockLeadStore {
     };
   }
 
+  public subscribeChecklistTemplates(callback: (templates: OpportunityChecklistTemplate[]) => void) {
+    this._checklistTemplatesSubscribers.push(callback);
+    return () => {
+      this._checklistTemplatesSubscribers = this._checklistTemplatesSubscribers.filter(
+        (s) => s !== callback,
+      );
+    };
+  }
+
   private _notifyLeads() {
     this._leadsSubscribers.forEach((s) => s(this._leads));
   }
@@ -342,6 +378,10 @@ class MockLeadStore {
 
   private _notifyPqqSettings() {
     this._pqqSettingsSubscribers.forEach((s) => s(this._pqqSettings));
+  }
+
+  private _notifyChecklistTemplates() {
+    this._checklistTemplatesSubscribers.forEach((s) => s(this._checklistTemplates));
   }
 }
 

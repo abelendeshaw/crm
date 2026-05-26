@@ -3,6 +3,7 @@ export type UserRole =
   | "Super Admin"
   | "Admin"
   | "Sales Manager"
+  | "Account Executive"
   | "Sales Rep"
   | "Viewer"
   | "Support Agent";
@@ -401,6 +402,23 @@ export const roles: Role[] = [
       Contacts: { View: true, Create: true, Edit: true, Delete: false, Export: false },
       Activities: { View: true, Create: true, Edit: true, Delete: false, Export: false },
       Reports: { View: false, Create: false, Edit: false, Delete: false, Export: false },
+      Settings: { View: false, Create: false, Edit: false, Delete: false, Export: false },
+      Users: { View: false, Create: false, Edit: false, Delete: false, Export: false },
+    },
+  },
+  {
+    id: "r7",
+    name: "Account Executive",
+    description: "Own the full deal cycle — manage leads and deals end-to-end",
+    usersCount: 0,
+    isSystem: false,
+    createdAt: "2024-04-01",
+    permissions: {
+      Leads: { View: true, Create: true, Edit: true, Delete: true, Export: true },
+      Deals: { View: true, Create: true, Edit: true, Delete: true, Export: true },
+      Contacts: { View: true, Create: true, Edit: true, Delete: false, Export: false },
+      Activities: { View: true, Create: true, Edit: true, Delete: false, Export: false },
+      Reports: { View: true, Create: false, Edit: false, Delete: false, Export: true },
       Settings: { View: false, Create: false, Edit: false, Delete: false, Export: false },
       Users: { View: false, Create: false, Edit: false, Delete: false, Export: false },
     },

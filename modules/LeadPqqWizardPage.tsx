@@ -8,12 +8,21 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  Clock,
   Save,
+  SendHorizonal,
   ShieldCheck,
   SkipForward,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -256,6 +265,7 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
       : createEmptyPqqFormValues(definition),
   );
   const [saved, setSaved] = useState(false);
+  const [approvalOpen, setApprovalOpen] = useState(false);
 
   // Build ordered flat list of sections across all steps
   const wizardSections = useMemo<WizardSection[]>(() => {
@@ -310,11 +320,33 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
     [lead, leadId],
   );
 
+  const submitForApproval = useCallback(
+    (finalValues: PqqFormValues) => {
+      if (!lead) return;
+      const updated = mockLeadStore.leads.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              pqqFormValues: clonePqqFormValues(finalValues),
+              pqqApprovalStatus: "Pending Approval" as const,
+            }
+          : l,
+      );
+      mockLeadStore.leads = updated;
+      setSaved(true);
+    },
+    [lead, leadId],
+  );
+
   // Auto-save when navigating between sections
   const goNext = () => {
-    persist(values);
-    if (!isLast) setCurrentIndex((i) => i + 1);
-    else router.push(`/leads/${leadId}`);
+    if (!isLast) {
+      persist(values);
+      setCurrentIndex((i) => i + 1);
+    } else {
+      submitForApproval(values);
+      setApprovalOpen(true);
+    }
   };
 
   const goBack = () => {
@@ -324,8 +356,8 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
   };
 
   const saveAndExit = () => {
-    persist(values);
-    router.push(`/leads/${leadId}`);
+    submitForApproval(values);
+    setApprovalOpen(true);
   };
 
   if (!lead) {
@@ -611,6 +643,35 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
           </div>
         </div>
       </footer>
+
+      <Dialog open={approvalOpen} onOpenChange={setApprovalOpen}>
+        <DialogContent className="max-w-sm text-center">
+          <DialogHeader className="items-center gap-0">
+            <div className="mb-3 flex size-14 items-center justify-center rounded-full bg-[#eef2fd]">
+              <SendHorizonal size={24} className="text-[#4080f0]" />
+            </div>
+            <DialogTitle className="text-base font-semibold text-[#1c1e21]">
+              PQQ sent for approval
+            </DialogTitle>
+            <DialogDescription className="mt-1.5 text-xs text-[#6b7280]">
+              This assessment has been submitted and is now pending manager review. You&apos;ll be notified once it&apos;s approved or returned with feedback.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-1 flex items-center justify-center gap-1.5 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <Clock size={12} />
+            Awaiting approval
+          </div>
+          <Button
+            className="mt-1 w-full bg-[#4080f0] text-white hover:bg-[#3070e0]"
+            onClick={() => {
+              setApprovalOpen(false);
+              router.push(`/leads/${leadId}`);
+            }}
+          >
+            Got it
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   Briefcase,
   Building2,
   Check,
+  Clock,
   Edit2,
   Headphones,
   Plus,
@@ -23,6 +24,7 @@ import {
   Star,
   ShieldCheck,
   AlertCircle,
+  ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -91,6 +93,10 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import {
+  getChecklistCompletionPct,
+  CHECKLIST_STATUS_LABELS,
+} from "@/data/opportunityChecklistData";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -216,6 +222,8 @@ export function LeadDetailPage({ id }: { id: string }) {
 
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [selectedDealStageId, setSelectedDealStageId] = useState(DEFAULT_DEAL_PIPELINE_STAGES[0]?.id ?? "");
+  const [exceptionOpen, setExceptionOpen] = useState(false);
+  const [exceptionReason, setExceptionReason] = useState("");
 
 
   const startEditDealInfo = () => {
@@ -317,6 +325,28 @@ export function LeadDetailPage({ id }: { id: string }) {
     const next = { ...detailDraft, pqqFormValues: clonePqqFormValues(pqqFormValues) };
     setDetailDraft(next);
     setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+  };
+
+  const updatePqqApprovalStatus = (
+    status: "Pending Approval" | "Approved" | "Rejected",
+  ) => {
+    if (!detailDraft) return;
+    const next = { ...detailDraft, pqqApprovalStatus: status };
+    setDetailDraft(next);
+    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+  };
+
+  const approveWithException = () => {
+    if (!detailDraft || !exceptionReason.trim()) return;
+    const next = {
+      ...detailDraft,
+      pqqApprovalStatus: "Approved" as const,
+      exceptionJustification: exceptionReason.trim(),
+    };
+    setDetailDraft(next);
+    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
+    setExceptionOpen(false);
+    setExceptionReason("");
   };
 
   const addActivity = () => {
@@ -1044,7 +1074,29 @@ export function LeadDetailPage({ id }: { id: string }) {
                               {detailDraft.pqqStatus}
                             </Badge>
                           )}
-                          {!detailDraft.pqqTotalScore && !detailDraft.pqqStatus && (
+                          {detailDraft.pqqApprovalStatus && (
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold shadow-sm",
+                                detailDraft.pqqApprovalStatus === "Approved"
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : detailDraft.pqqApprovalStatus === "Rejected"
+                                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                                    : "border-amber-200 bg-amber-50 text-amber-700",
+                              )}
+                            >
+                              {detailDraft.pqqApprovalStatus === "Approved" ? (
+                                <Check size={11} />
+                              ) : detailDraft.pqqApprovalStatus === "Rejected" ? (
+                                <X size={11} />
+                              ) : (
+                                <Clock size={11} />
+                              )}
+                              {detailDraft.pqqApprovalStatus}
+                            </Badge>
+                          )}
+                          {!detailDraft.pqqTotalScore && !detailDraft.pqqStatus && !detailDraft.pqqApprovalStatus && (
                             <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
                           )}
                         </div>
@@ -1307,6 +1359,276 @@ export function LeadDetailPage({ id }: { id: string }) {
                         )}
                       </div>
 
+                      {/* PQQ Approval Review card */}
+                      {detailDraft.pqqApprovalStatus && (() => {
+                        // Build BANT dimension rows
+                        const bantScoringSection = formDef.sections.find(
+                          (s) => s.stepId === "bant" && s.id === "section-bant-scoring",
+                        );
+                        let bantRows: { label: string; score: number; max: number; notes?: string }[] = [];
+                        if (usesCustomPqqForm && bantScoringSection) {
+                          const secFields = formDef.fields
+                            .filter((f) => f.sectionId === bantScoringSection.id)
+                            .sort((a, b) => a.order - b.order);
+                          for (let i = 0; i < secFields.length; i++) {
+                            const f = secFields[i]!;
+                            if (f.type === "slider") {
+                              const nextF = secFields[i + 1];
+                              const notes =
+                                nextF && (nextF.type === "text" || nextF.type === "textarea")
+                                  ? String(formVals[nextF.id] ?? "")
+                                  : "";
+                              bantRows.push({
+                                label: f.label.replace(/\s*score\s*/i, "").trim() || f.label,
+                                score: Number(formVals[f.id] ?? 0),
+                                max: f.max ?? 12,
+                                notes: notes || undefined,
+                              });
+                            }
+                          }
+                        } else if (!usesCustomPqqForm && detailDraft.pqq) {
+                          const b = detailDraft.pqq.bant;
+                          bantRows = [
+                            { label: "Budget", score: b.budgetScore, max: 12, notes: b.budgetNotes || undefined },
+                            { label: "Authority", score: b.authorityScore, max: 12, notes: b.authorityNotes || undefined },
+                            { label: "Need", score: b.needScore, max: 12, notes: b.needNotes || undefined },
+                            { label: "Timeline", score: b.timelineScore, max: 12, notes: b.timelineNotes || undefined },
+                          ];
+                        }
+                        const bantTotal = pqqTotal ?? detailDraft.pqqTotalScore ?? null;
+                        const bantMax = bantRows.length > 0 ? bantRows.reduce((s, r) => s + r.max, 0) : PQQ_MAX_TOTAL;
+                        const threshold = pqqSettings.bantDecisionThreshold;
+                        const thresholdPct = bantMax > 0 ? (threshold / bantMax) * 100 : 0;
+                        const scorePct = bantTotal !== null && bantMax > 0 ? Math.min(100, (bantTotal / bantMax) * 100) : 0;
+
+                        return (
+                          <div className="rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
+                            {/* Card header */}
+                            <div className="flex items-center justify-between gap-3 border-b border-[#e5e7eb] px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className={cn(
+                                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full",
+                                  detailDraft.pqqApprovalStatus === "Approved"
+                                    ? "bg-emerald-100"
+                                    : detailDraft.pqqApprovalStatus === "Rejected"
+                                      ? "bg-rose-100"
+                                      : "bg-amber-100",
+                                )}>
+                                  {detailDraft.pqqApprovalStatus === "Approved" ? (
+                                    <ShieldCheck size={14} className="text-emerald-600" />
+                                  ) : detailDraft.pqqApprovalStatus === "Rejected" ? (
+                                    <AlertCircle size={14} className="text-rose-600" />
+                                  ) : (
+                                    <Clock size={14} className="text-amber-600" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-[#1c1e21]">Approval Review</p>
+                                  <p className={cn(
+                                    "text-xs font-medium",
+                                    detailDraft.pqqApprovalStatus === "Approved"
+                                      ? "text-emerald-700"
+                                      : detailDraft.pqqApprovalStatus === "Rejected"
+                                        ? "text-rose-700"
+                                        : "text-amber-700",
+                                  )}>
+                                    {detailDraft.pqqApprovalStatus}
+                                    {detailDraft.pqqApprovalStatus === "Approved" && detailDraft.exceptionJustification
+                                      ? " (with exception)"
+                                      : ""}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {detailDraft.pqqApprovalStatus === "Pending Approval" ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 gap-1.5 border-[#e5e7eb] text-rose-600 hover:border-rose-200 hover:bg-rose-50"
+                                      onClick={() => updatePqqApprovalStatus("Rejected")}
+                                    >
+                                      <X size={13} />
+                                      Reject
+                                    </Button>
+                                    {pqqQualification === false && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 gap-1.5 border-[#e5e7eb] text-[#6b7280] hover:border-[#d1d5db] hover:bg-[#f9fafb]"
+                                        onClick={() => { setExceptionReason(""); setExceptionOpen(true); }}
+                                      >
+                                        <AlertCircle size={13} />
+                                        Approve with Exception
+                                      </Button>
+                                    )}
+                                    <Button
+                                      size="sm"
+                                      className="h-8 gap-1.5 bg-[#4080f0] text-white hover:bg-[#3070e0]"
+                                      onClick={() => updatePqqApprovalStatus("Approved")}
+                                    >
+                                      <Check size={13} />
+                                      Approve
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+                                    onClick={() => updatePqqApprovalStatus("Pending Approval")}
+                                  >
+                                    Reset to Pending
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* BANT score summary */}
+                            {bantTotal !== null && (
+                              <div className="border-b border-[#e5e7eb] px-4 py-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <span className="text-xs font-medium text-[#6b7280]">BANT total score</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-[#9ca3af]">
+                                      Threshold: <span className="font-semibold text-[#374151]">{threshold}</span>
+                                    </span>
+                                    <span className={cn(
+                                      "text-sm font-bold tabular-nums",
+                                      pqqQualification === true ? "text-emerald-600" : "text-rose-600",
+                                    )}>
+                                      {bantTotal}<span className="text-xs font-normal text-[#9ca3af]">/{bantMax}</span>
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="relative h-2 w-full overflow-hidden rounded-full bg-[#f0f2f7]">
+                                  <div
+                                    className={cn(
+                                      "h-full rounded-full transition-all",
+                                      pqqQualification === true ? "bg-emerald-500" : "bg-rose-400",
+                                    )}
+                                    style={{ width: `${scorePct}%` }}
+                                  />
+                                  {/* Threshold marker */}
+                                  <div
+                                    className="absolute top-0 h-full w-0.5 bg-[#374151]/40"
+                                    style={{ left: `${thresholdPct}%` }}
+                                  />
+                                </div>
+                                {detailDraft.exceptionJustification && (
+                                  <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Exception reason</p>
+                                    <p className="mt-0.5 text-xs text-[#374151]">{detailDraft.exceptionJustification}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* BANT dimension breakdown */}
+                            {bantRows.length > 0 && (
+                              <div className="divide-y divide-[#f3f4f6] px-4">
+                                {bantRows.map((row) => {
+                                  const rowPct = row.max > 0 ? Math.min(100, (row.score / row.max) * 100) : 0;
+                                  return (
+                                    <div key={row.label} className="py-2.5">
+                                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                                        <span className="text-xs font-medium text-[#374151]">{row.label}</span>
+                                        <span className="tabular-nums text-xs font-semibold text-[#1c1e21]">
+                                          {row.score}<span className="font-normal text-[#9ca3af]">/{row.max}</span>
+                                        </span>
+                                      </div>
+                                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#f0f2f7]">
+                                        <div
+                                          className="h-full rounded-full bg-[#4080f0] transition-all"
+                                          style={{ width: `${rowPct}%` }}
+                                        />
+                                      </div>
+                                      {row.notes && (
+                                        <p className="mt-1 text-[11px] text-[#6b7280]">{row.notes}</p>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Opportunity Checklist entry — shown once PQQ is approved */}
+                      {detailDraft.pqqApprovalStatus === "Approved" && (() => {
+                        const status = detailDraft.checklistStatus;
+                        const checklist = detailDraft.opportunityChecklist;
+                        const pct = checklist ? getChecklistCompletionPct(checklist) : 0;
+                        const statusLabel = status
+                          ? CHECKLIST_STATUS_LABELS[status]
+                          : "Not started";
+                        const isSubmitted = status === "submitted_to_psl";
+                        const isPslDone = status === "psl_approved" || status === "psl_rejected" || status === "psl_rework";
+                        return (
+                          <div className="rounded-xl border border-[#e5e7eb] bg-white shadow-sm">
+                            <div className="flex items-center justify-between gap-3 px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className={cn(
+                                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                                  isSubmitted || isPslDone ? "bg-emerald-100" : pct > 0 ? "bg-[#eef2fd]" : "bg-[#f3f4f6]",
+                                )}>
+                                  <ClipboardList
+                                    size={15}
+                                    className={cn(
+                                      isSubmitted || isPslDone
+                                        ? "text-emerald-600"
+                                        : pct > 0
+                                          ? "text-[#4080f0]"
+                                          : "text-[#9ca3af]",
+                                    )}
+                                  />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-[#1c1e21]">
+                                    Opportunity Checklist
+                                  </p>
+                                  <p className={cn(
+                                    "text-xs font-medium",
+                                    isSubmitted ? "text-emerald-700" : pct > 0 ? "text-[#4080f0]" : "text-[#9ca3af]",
+                                  )}>
+                                    {statusLabel}
+                                    {!isSubmitted && pct > 0 ? ` · ${pct}% complete` : ""}
+                                    {isSubmitted && checklist?.fv_pslName ? ` → ${checklist.fv_pslName}` : ""}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant={isSubmitted ? "outline" : "default"}
+                                className={cn(
+                                  "h-8 shrink-0 gap-1.5",
+                                  isSubmitted
+                                    ? "border-[#e5e7eb] text-[#6b7280]"
+                                    : "bg-[#4080f0] text-white hover:bg-[#3070e0]",
+                                )}
+                                onClick={() =>
+                                  router.push(`/leads/${detailDraft.id}/checklist`)
+                                }
+                              >
+                                <ClipboardList size={13} />
+                                {isSubmitted ? "View Checklist" : pct > 0 ? "Continue" : "Fill Checklist"}
+                              </Button>
+                            </div>
+                            {pct > 0 && !isSubmitted && (
+                              <div className="border-t border-[#f3f4f6] px-4 pb-3 pt-2">
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#f0f2f7]">
+                                  <div
+                                    className="h-full rounded-full bg-[#4080f0] transition-all"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       {/* Section status grid */}
                       {totalSections > 0 && (
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1446,6 +1768,43 @@ export function LeadDetailPage({ id }: { id: string }) {
               disabled={!activityForm.title.trim()}
             >
               Save activity
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exceptionOpen} onOpenChange={setExceptionOpen}>
+        <DialogContent className="sm:max-w-md border-[#e5e7eb]">
+          <DialogHeader>
+            <DialogTitle>Approve with Exception</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
+              <p className="text-xs text-amber-800">
+                This lead does not meet the BANT qualification threshold. Providing a justification will approve it as a strategic exception.
+              </p>
+            </div>
+            <FormField label="Exception justification *">
+              <Textarea
+                value={exceptionReason}
+                onChange={(e) => setExceptionReason(e.target.value)}
+                className="min-h-[100px] border-[#e5e7eb] text-sm"
+                placeholder="e.g. Strategic account — approved under executive sponsorship."
+              />
+            </FormField>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="border-[#e5e7eb]" onClick={() => setExceptionOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              onClick={approveWithException}
+              disabled={!exceptionReason.trim()}
+            >
+              <Check size={13} className="mr-1.5" />
+              Approve with Exception
             </Button>
           </DialogFooter>
         </DialogContent>

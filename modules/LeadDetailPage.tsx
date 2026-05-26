@@ -3,13 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
-  Briefcase,
   Building2,
   Check,
   Edit2,
-  Headphones,
   Plus,
-  Share2,
   Phone,
   Users,
   Globe,
@@ -68,7 +65,6 @@ import {
   type DealCurrency,
   computeBaseValue,
   type ActivityType,
-  type LeadSource,
   type PipelineStage,
   leadCustomerAccounts,
 } from "@/data/leadsManagementData";
@@ -91,6 +87,7 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -153,7 +150,6 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockLeadStore.stages].sort((a, b) => a.order - b.order),
   );
-  const [leadSources, setLeadSources] = useState<LeadSource[]>(() => [...mockLeadStore.leadSources]);
   const [pqqTemplates, setPqqTemplates] = useState(() => [...mockLeadStore.pqqTemplates]);
   const [pqqSettings, setPqqSettings] = useState<LeadPqqSettings>(() => ({
     ...mockLeadStore.pqqSettings,
@@ -177,9 +173,6 @@ export function LeadDetailPage({ id }: { id: string }) {
     const unsubStages = mockLeadStore.subscribeStages((nextStages) => {
       setStages([...nextStages].sort((a, b) => a.order - b.order));
     });
-    const unsubSources = mockLeadStore.subscribeLeadSources((nextSources) => {
-      setLeadSources([...nextSources]);
-    });
     const unsubPqqTemplates = mockLeadStore.subscribePqqTemplates((nextTemplates) => {
       setPqqTemplates([...nextTemplates]);
     });
@@ -189,7 +182,6 @@ export function LeadDetailPage({ id }: { id: string }) {
     return () => {
       unsubActivities();
       unsubStages();
-      unsubSources();
       unsubPqqTemplates();
       unsubPqqSettings();
     };
@@ -208,7 +200,7 @@ export function LeadDetailPage({ id }: { id: string }) {
     note: "",
   });
 
-  const [activeTab, setActiveTab] = useState<"overview" | "activities" | "timeline" | "discovery">(
+  const [activeTab, setActiveTab] = useState<"overview" | "activities" | "discovery">(
     "overview",
   );
   const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
@@ -240,14 +232,6 @@ export function LeadDetailPage({ id }: { id: string }) {
     () => new Map(stages.map((s) => [s.id, s])),
     [stages],
   );
-  const sourceById = useMemo(
-    () => new Map(leadSources.map((source) => [source.id, source])),
-    [leadSources],
-  );
-  const sortedLeadSources = useMemo(
-    () => [...leadSources].sort((a, b) => a.order - b.order),
-    [leadSources],
-  );
   const accountById = useMemo(
     () => new Map(leadCustomerAccounts.map((a) => [a.id, a])),
     [],
@@ -271,16 +255,6 @@ export function LeadDetailPage({ id }: { id: string }) {
     if (!pickId) return null;
     return contactById.get(pickId) ?? null;
   }, [detailDraft, contactById]);
-
-  const ownerOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const l of leads) {
-      set.add(l.primarySales);
-      set.add(l.presales);
-      set.add(l.channel);
-    }
-    return Array.from(set).sort();
-  }, [leads]);
 
   if (!detailDraft) {
     return (
@@ -354,7 +328,6 @@ export function LeadDetailPage({ id }: { id: string }) {
 
   const stage = stageById.get(detailDraft.stageId);
   const customer = accountById.get(detailDraft.customerId);
-  const leadSource = sourceById.get(detailDraft.sourceId);
   const customPqqTotal = getBantScoreFromFormValues(
     defaultPqqFormDefinition,
     detailDraft.pqqFormValues,
@@ -406,7 +379,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                 {stage.name}
               </Badge>
             )}
-            {pqqQualification === false && (
+            {PQQ_UI_ENABLED && pqqQualification === false && (
               <Badge
                 variant="outline"
                 className="rounded-full border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-900"
@@ -437,7 +410,7 @@ export function LeadDetailPage({ id }: { id: string }) {
           <Tabs
             value={activeTab}
             onValueChange={(value) =>
-              setActiveTab(value as "overview" | "activities" | "timeline" | "discovery")
+              setActiveTab(value as "overview" | "activities" | "discovery")
             }
             className="w-full"
           >
@@ -445,8 +418,9 @@ export function LeadDetailPage({ id }: { id: string }) {
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="activities">Activities</TabsTrigger>
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-                <TabsTrigger value="discovery">Discovery & BANT</TabsTrigger>
+                {PQQ_UI_ENABLED && (
+                  <TabsTrigger value="discovery">Discovery & BANT</TabsTrigger>
+                )}
               </TabsList>
             </div>
 
@@ -597,72 +571,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                         </Select>
                       </ProfileField>
                       <ProfileField
-                        label="Qualification score"
-                        value={`${detailDraft.probability}%`}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={String(detailDraft.probability)}
-                          onChange={(e) =>
-                            setDetailDraft((d) =>
-                              d
-                                ? {
-                                    ...d,
-                                    probability: Math.min(
-                                      100,
-                                      Math.max(0, Number(e.target.value) || 0),
-                                    ),
-                                  }
-                                : d,
-                            )
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Target qualify date"
-                        value={detailDraft.expectedClose || "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          type="date"
-                          value={detailDraft.expectedClose}
-                          onChange={(e) =>
-                            setDetailDraft((d) =>
-                              d ? { ...d, expectedClose: e.target.value } : d,
-                            )
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Lead source"
-                        value={leadSource?.name ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Select
-                          value={detailDraft.sourceId}
-                          onValueChange={(v) =>
-                            setDetailDraft((d) => (d ? { ...d, sourceId: v } : d))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {sortedLeadSources.map((source) => (
-                              <SelectItem key={source.id} value={source.id}>
-                                {source.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </ProfileField>
-                      <ProfileField
-                        label="Department"
+                        label="Teams"
                         value={detailDraft.department ?? "—"}
                         isEditing={isEditingDealInfo}
                       >
@@ -673,20 +582,6 @@ export function LeadDetailPage({ id }: { id: string }) {
                           }
                           className="h-9 border-[#e5e7eb]"
                           placeholder="field is empty"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Solution Category"
-                        value={detailDraft.solutionCategory ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.solutionCategory ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, solutionCategory: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. ERP"
                         />
                       </ProfileField>
                       <ProfileField
@@ -726,168 +621,6 @@ export function LeadDetailPage({ id }: { id: string }) {
                           </SelectContent>
                         </Select>
                       </ProfileField>
-                      <ProfileField
-                        label="Current state"
-                        value={detailDraft.currentState ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.currentState ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, currentState: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. LEAD"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Next step"
-                        value={detailDraft.nextStep ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.nextStep ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, nextStep: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. Nurturing"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Quarter start date"
-                        value={detailDraft.quarterStartDate ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.quarterStartDate ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, quarterStartDate: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. Q4"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Quarter End date"
-                        value={detailDraft.quarterEndDate ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.quarterEndDate ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, quarterEndDate: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. Q2"
-                        />
-                      </ProfileField>
-
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-[#e5e7eb] shadow-none">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
-                      Qualification & Validation
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <ProfileField
-                        label="Exception Justification"
-                        value={detailDraft.exceptionJustification ?? "—"}
-                        isEditing={isEditingDealInfo}
-                        className="md:col-span-2"
-                      >
-                        <Input
-                          value={detailDraft.exceptionJustification ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, exceptionJustification: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. N/A"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Exception Approved by"
-                        value={detailDraft.exceptionApprovedBy ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Input
-                          value={detailDraft.exceptionApprovedBy ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, exceptionApprovedBy: e.target.value } : d))
-                          }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="e.g. Nahom Wendessen"
-                        />
-                      </ProfileField>
-                      <ProfileField
-                        label="Checklist Validation Status"
-                        value={detailDraft.checklistValidationStatus ?? "—"}
-                        isEditing={isEditingDealInfo}
-                      >
-                        <Select
-                          value={detailDraft.checklistValidationStatus ?? ""}
-                          onValueChange={(v) =>
-                            setDetailDraft((d) => (d ? { ...d, checklistValidationStatus: v } : d))
-                          }
-                        >
-                          <SelectTrigger className="h-9 border-[#e5e7eb]">
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Approved">Approved</SelectItem>
-                            <SelectItem value="Rejected">Rejected</SelectItem>
-                            <SelectItem value="Pending">Pending</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </ProfileField>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-[#e5e7eb] shadow-none">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium text-[#1c1e21]">
-                      Lead assignment
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-
-                      <RoleRow
-                        label="Primary sales"
-                        name={detailDraft.primarySales}
-                        icon={Briefcase}
-                        isEditing={isEditingDealInfo}
-                        onChange={(v) =>
-                          setDetailDraft((d) => (d ? { ...d, primarySales: v } : d))
-                        }
-                        owners={ownerOptions}
-                      />
-                      <RoleRow
-                        label="Pre-sales"
-                        name={detailDraft.presales}
-                        icon={Headphones}
-                        isEditing={isEditingDealInfo}
-                        onChange={(v) =>
-                          setDetailDraft((d) => (d ? { ...d, presales: v } : d))
-                        }
-                        owners={ownerOptions}
-                      />
-                      <RoleRow
-                        label="Channel"
-                        name={detailDraft.channel}
-                        icon={Share2}
-                        isEditing={isEditingDealInfo}
-                        onChange={(v) =>
-                          setDetailDraft((d) => (d ? { ...d, channel: v } : d))
-                        }
-                        owners={ownerOptions}
-                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -1010,45 +743,47 @@ export function LeadDetailPage({ id }: { id: string }) {
                             : "—"}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
-                          PQQ Assessment
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {detailDraft.pqqTotalScore !== undefined && (
-                            <Badge
-                              variant="outline"
-                              className="flex items-center gap-1.5 border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 shadow-sm"
-                            >
-                              <Star size={12} className="fill-blue-500 text-blue-500" />
-                              Score: {detailDraft.pqqTotalScore}
-                            </Badge>
-                          )}
-                          {detailDraft.pqqStatus && (
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                "flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold shadow-sm",
-                                detailDraft.pqqStatus === "Qualified"
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : detailDraft.pqqStatus === "Unqualified"
-                                    ? "border-rose-200 bg-rose-50 text-rose-700"
-                                    : "border-amber-200 bg-amber-50 text-amber-700"
-                              )}
-                            >
-                              {detailDraft.pqqStatus === "Qualified" ? (
-                                <ShieldCheck size={12} />
-                              ) : (
-                                <AlertCircle size={12} />
-                              )}
-                              {detailDraft.pqqStatus}
-                            </Badge>
-                          )}
-                          {!detailDraft.pqqTotalScore && !detailDraft.pqqStatus && (
-                            <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
-                          )}
+                      {PQQ_UI_ENABLED && (
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
+                            PQQ Assessment
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {detailDraft.pqqTotalScore !== undefined && (
+                              <Badge
+                                variant="outline"
+                                className="flex items-center gap-1.5 border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700 shadow-sm"
+                              >
+                                <Star size={12} className="fill-blue-500 text-blue-500" />
+                                Score: {detailDraft.pqqTotalScore}
+                              </Badge>
+                            )}
+                            {detailDraft.pqqStatus && (
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "flex items-center gap-1.5 px-2 py-1 text-[11px] font-semibold shadow-sm",
+                                  detailDraft.pqqStatus === "Qualified"
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : detailDraft.pqqStatus === "Unqualified"
+                                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                                      : "border-amber-200 bg-amber-50 text-amber-700"
+                                )}
+                              >
+                                {detailDraft.pqqStatus === "Qualified" ? (
+                                  <ShieldCheck size={12} />
+                                ) : (
+                                  <AlertCircle size={12} />
+                                )}
+                                {detailDraft.pqqStatus}
+                              </Badge>
+                            )}
+                            {!detailDraft.pqqTotalScore && !detailDraft.pqqStatus && (
+                              <p className="text-xl font-semibold text-[#1c1e21]">Not captured</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1072,7 +807,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                       </div>
                       <div className="flex min-w-0 justify-end">
                         <div className="inline-flex min-w-0 flex-col items-start">
-                          <p className="text-xs text-[#6b7280]">Owner</p>
+                          <p className="text-xs text-[#6b7280]">Account Executive</p>
                           <div className="mt-0.5 flex items-center gap-1.5">
                             <Avatar className="size-5">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
@@ -1178,17 +913,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                 )}
               </TabsContent>
 
-              <TabsContent value="timeline" className="mt-0 outline-none">
-                <div className="mb-3 flex items-center gap-2">
-                  <h3 className="text-sm font-medium text-[#1c1e21]">Lead progression</h3>
-                </div>
-                <TimelineView
-                  lead={detailDraft}
-                  stageName={stageById.get(detailDraft.stageId)?.name}
-                  activityTypes={activityTypes}
-                />
-              </TabsContent>
-
+              {PQQ_UI_ENABLED && (
               <TabsContent value="discovery" className="mt-0 outline-none">
                 {(() => {
                   const formDef = defaultPqqFormDefinition;
@@ -1375,6 +1100,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                   );
                 })()}
               </TabsContent>
+              )}
             </Tabs>
           </div>
         </div>
@@ -1501,70 +1227,6 @@ export function LeadDetailPage({ id }: { id: string }) {
   );
 }
 
-function RoleRow({
-  label,
-  name,
-  icon: Icon,
-  owners,
-  onChange,
-  isEditing,
-}: {
-  label: string;
-  name: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  owners: string[];
-  onChange: (value: string) => void;
-  isEditing: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 rounded-md border border-[#e5e7eb] bg-white p-3">
-      <div className="flex items-center gap-2">
-        <span className="rounded-md bg-[#eef2fd] p-1.5 text-[#4080f0]">
-          <Icon size={13} />
-        </span>
-        <span className="text-xs text-[#6b7280]">{label}</span>
-      </div>
-      {isEditing ? (
-        <Select value={name} onValueChange={onChange}>
-          <SelectTrigger className="h-9 border-[#f0f2f7] bg-[#f9fafb]">
-            <div className="flex items-center gap-2">
-              <Avatar className="size-5">
-                <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-                  {initials(name)}
-                </AvatarFallback>
-              </Avatar>
-              <SelectValue />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            {owners.map((o) => (
-              <SelectItem key={o} value={o}>
-                <div className="flex items-center gap-2">
-                  <Avatar className="size-5">
-                    <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-                      {initials(o)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span>{o}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : (
-        <div className="flex min-h-[38px] items-center gap-2 rounded-md border border-[#f0f2f7] bg-[#f9fafb] px-3 py-2 text-sm text-[#1c1e21]">
-          <Avatar className="size-5">
-            <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-              {initials(name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="truncate">{name || "—"}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ActivityRowIcon({ name }: { name: string }) {
   const icons: Record<
     string,
@@ -1587,58 +1249,6 @@ function ActivityRowIcon({ name }: { name: string }) {
   };
   const Comp = icons[name] ?? ActivityIcon;
   return <Comp size={11} />;
-}
-
-function TimelineView({
-  lead,
-  stageName,
-  activityTypes,
-}: {
-  lead: CrmLead;
-  stageName?: string;
-  activityTypes: ActivityType[];
-}) {
-  const items = useMemo(() => {
-    const rows: { id: string; date: string; title: string; kind: string; icon?: string }[] = [];
-    rows.push({
-      id: "tl-stage",
-      date: lead.stageEnteredAt,
-      title: `Entered stage: ${stageName ?? "—"}`,
-      kind: "Stage",
-      icon: "Activity",
-    });
-    for (const a of lead.activities) {
-      const typeCfg = activityTypes.find((t) => t.name === a.kind);
-      rows.push({
-        id: a.id,
-        date: a.date,
-        title: a.title,
-        kind: a.kind,
-        icon: typeCfg?.icon || "Activity",
-      });
-    }
-    return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  }, [lead, stageName, activityTypes]);
-
-  return (
-    <div className="relative pl-6">
-      <div className="absolute bottom-0 left-2 top-0 w-px bg-[#dfe4ef]" />
-      {items.map((item) => (
-        <div key={item.id} className="relative mb-3 last:mb-0">
-          <span className="absolute -left-7 top-1.5 flex size-5 items-center justify-center rounded-full border border-[#d7deef] bg-white text-[#6b7280]">
-            <ActivityRowIcon name={item.icon ?? "Activity"} />
-          </span>
-          <div className="rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm text-[#1c1e21]">{item.title}</p>
-              <span className="shrink-0 text-xs text-[#9ca3af]">{item.date}</span>
-            </div>
-            <p className="text-xs text-[#6b7280]">{item.kind}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function ProfileField({

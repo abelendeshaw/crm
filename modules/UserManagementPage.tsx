@@ -6,14 +6,21 @@ import {
   Shield,
   UsersRound,
   Mail,
+  Layers,
 } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
 import { TeamsTab } from "@/components/user-management/TeamsTab";
+import { DepartmentsTab } from "@/components/user-management/DepartmentsTab";
 import { InvitationAcceptance } from "@/modules/InvitationAcceptance";
 import { cn } from "@/lib/utils";
 
-export type UserManagementTab = "users" | "roles" | "teams" | "invitations";
+export type UserManagementTab =
+  | "users"
+  | "roles"
+  | "teams"
+  | "departments"
+  | "invitations";
 
 const tabs: { id: UserManagementTab; label: string; icon: React.ReactNode }[] = [
   {
@@ -32,6 +39,11 @@ const tabs: { id: UserManagementTab; label: string; icon: React.ReactNode }[] = 
     icon: <UsersRound size={15} />,
   },
   {
+    id: "departments",
+    label: "Departments",
+    icon: <Layers size={15} />,
+  },
+  {
     id: "invitations",
     label: "Invitation Management",
     icon: <Mail size={15} />,
@@ -43,6 +55,7 @@ function parseTab(raw: string | null): UserManagementTab {
     raw === "users" ||
     raw === "roles" ||
     raw === "teams" ||
+    raw === "departments" ||
     raw === "invitations"
   ) {
     return raw;
@@ -111,6 +124,7 @@ export function UserManagementPage() {
         {activeTab === "users" && <UsersTab />}
         {activeTab === "roles" && <RolesTab />}
         {activeTab === "teams" && <TeamsTab />}
+        {activeTab === "departments" && <DepartmentsTab />}
         {activeTab === "invitations" && (
           <div className="min-h-0 flex-1 overflow-y-auto">
             <InvitationAcceptance />

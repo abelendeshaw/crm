@@ -65,6 +65,7 @@ import {
   type LeadSource,
   leadCustomerAccounts,
 } from "@/data/leadsManagementData";
+import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
 import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
 
@@ -158,6 +159,10 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     icon: <Gauge size={15} />,
   },
 ];
+
+const settingsTabs = PQQ_UI_ENABLED
+  ? tabs
+  : tabs.filter((tab) => tab.id !== "pqqTemplates");
 
 export function LeadsSettingsPage() {
   const router = useRouter();
@@ -664,14 +669,12 @@ export function LeadsSettingsPage() {
             ? "Define rules to prioritize and qualify leads automatically."
             : activeSection === "sources"
               ? "Define the sources your team can assign when creating and qualifying leads."
-              : activeSection === "pqqTemplates"
-                ? "Configure the Lead Discovery and PQQ worksheet templates used during qualification."
-                : "Configure lead pipeline stages and interaction types"}
+              : "Configure lead pipeline stages and interaction types"}
         </p>
 
         {/* Tab Bar - same pattern as UserManagement */}
         <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
+          {settingsTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveSection(tab.id)}
@@ -1686,7 +1689,9 @@ export function LeadsSettingsPage() {
                 </Dialog>
               </div>
             )}
-            {activeSection === "pqqTemplates" && <LeadPqqTemplateSettingsSection />}
+            {PQQ_UI_ENABLED && activeSection === "pqqTemplates" && (
+              <LeadPqqTemplateSettingsSection />
+            )}
             {activeSection === "scoring" && <LeadScoringSettingsSection />}
           </div>
         </div>

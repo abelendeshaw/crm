@@ -66,6 +66,7 @@ import {
   type DealPqq,
 } from "@/data/dealsManagementData";
 import { mockDealStore } from "@/data/mockStore";
+import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 
 function initials(name: string) {
@@ -759,10 +760,12 @@ export function DealDetailPage({ id }: { id: string }) {
                   </div>
                 </div>
 
-                <DealPqqSection
-                  value={detailDraft.pqq ?? createEmptyDealPqq()}
-                  onChange={updateDealPqq}
-                />
+                {PQQ_UI_ENABLED && (
+                  <DealPqqSection
+                    value={detailDraft.pqq ?? createEmptyDealPqq()}
+                    onChange={updateDealPqq}
+                  />
+                )}
                 </div>
               </TabsContent>
 

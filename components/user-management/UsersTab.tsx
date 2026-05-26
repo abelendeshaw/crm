@@ -89,13 +89,7 @@ const ROLES: UserRole[] = [
   "Viewer",
   "Support Agent",
 ];
-const DEPARTMENTS = [
-  "Management",
-  "Sales",
-  "IT",
-  "Finance",
-  "Customer Support",
-];
+const DEPARTMENTS = ["Sales", "Pre-sales"];
 const STATUSES: UserStatus[] = ["Active", "Inactive", "Pending", "Suspended"];
 
 const KNOWN_INVITE_CANDIDATES = [
@@ -113,7 +107,7 @@ const KNOWN_INVITE_CANDIDATES = [
     name: "Mekdes Hailu",
     email: "mekdes.hailu@company.com",
     phone: "0912002233",
-    department: "Finance",
+    department: "Pre-sales",
     branch: "Addis Ababa HQ",
     manager: "Daniel Bekele",
   },
@@ -122,7 +116,7 @@ const KNOWN_INVITE_CANDIDATES = [
     name: "Bereket Alemayehu",
     email: "bereket.alemayehu@company.com",
     phone: "0913003344",
-    department: "Customer Support",
+    department: "Pre-sales",
     branch: "Dire Dawa Branch",
     manager: "Hana Worku",
   },

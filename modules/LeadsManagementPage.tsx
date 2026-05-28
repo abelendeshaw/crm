@@ -99,12 +99,12 @@ const STAGE_COLOR_PRESETS: {
   columnClass: string;
   borderClass: string;
 }[] = [
-    { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
-    { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
-    { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
-    { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
-    { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
-    { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
+    { label: "Violet", columnClass: "bg-[#faf9fb]", borderClass: "border-[#e8e5ee]" },
+    { label: "Sky", columnClass: "bg-[#f8fbfd]", borderClass: "border-[#e0e8f2]" },
+    { label: "Mint", columnClass: "bg-[#f8fdf9]", borderClass: "border-[#dae8e2]" },
+    { label: "Amber", columnClass: "bg-[#fdfaf6]", borderClass: "border-[#e8e2d0]" },
+    { label: "Emerald", columnClass: "bg-[#f8fcf9]", borderClass: "border-[#d4e6dc]" },
+    { label: "Rose", columnClass: "bg-[#fdf8f8]", borderClass: "border-[#e8dada]" },
   ];
 
 function initials(name: string) {
@@ -192,6 +192,10 @@ export function LeadsManagementPage() {
     ...mockLeadStore.pqqSettings,
   }));
   const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
+
+  const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
+  const [droppedLeadId, setDroppedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
@@ -459,6 +463,12 @@ export function LeadsManagementPage() {
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     e.dataTransfer.setData("application/lead-id", leadId);
     e.dataTransfer.effectAllowed = "move";
+    setDraggingLeadId(leadId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingLeadId(null);
+    setDragOverStageId(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -466,11 +476,26 @@ export function LeadsManagementPage() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  const handleDragEnterStage = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    setDragOverStageId(stageId);
+  };
+
+  const handleDragLeaveStage = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverStageId(null);
+    }
+  };
+
   const handleDropOnStage = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("application/lead-id");
+    setDraggingLeadId(null);
+    setDragOverStageId(null);
     if (!id) return;
     moveLeadToStage(id, stageId);
+    setDroppedLeadId(id);
+    setTimeout(() => setDroppedLeadId(null), 400);
   };
 
   const saveNewLead = () => {
@@ -905,11 +930,14 @@ export function LeadsManagementPage() {
                 <div
                   key={stage.id}
                   className={cn(
-                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border",
+                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border transition-all duration-150",
                     stage.columnClass,
                     stage.borderClass,
+                    dragOverStageId === stage.id && "ring-2 ring-inset ring-blue-300/50 brightness-[0.985]",
                   )}
                   onDragOver={handleDragOver}
+                  onDragEnter={(e) => handleDragEnterStage(e, stage.id)}
+                  onDragLeave={handleDragLeaveStage}
                   onDrop={(e) => handleDropOnStage(e, stage.id)}
                 >
                   <div className="border-b border-black/5 px-3 py-2.5">
@@ -947,7 +975,12 @@ export function LeadsManagementPage() {
                           key={lead.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, lead.id)}
-                          className="cursor-pointer border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-colors"
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            "cursor-grab border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-all duration-150",
+                            draggingLeadId === lead.id && "opacity-40 scale-[0.97] cursor-grabbing",
+                            droppedLeadId === lead.id && "animate-kanban-drop-in",
+                          )}
                           onClick={() => openLeadDetail(lead)}
                         >
                           <CardContent className="space-y-2 p-3">

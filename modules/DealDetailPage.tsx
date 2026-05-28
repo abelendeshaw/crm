@@ -6,6 +6,7 @@ import {
   Briefcase,
   Building2,
   Check,
+  ChevronRight,
   Edit2,
   Headphones,
   Plus,
@@ -66,6 +67,7 @@ import {
   type DealPqq,
 } from "@/data/dealsManagementData";
 import { mockDealStore } from "@/data/mockStore";
+import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 
 function initials(name: string) {
@@ -267,37 +269,31 @@ export function DealDetailPage({ id }: { id: string }) {
   })();
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
-        <div>
-          <button
-            type="button"
-            onClick={() => router.push("/deals")}
-            className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
-          >
-            <ArrowLeft size={13} />
-            Back to Deals
-          </button>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="font-semibold text-[#1c1e21]">{detailDraft.name}</h2>
-            {stage && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                  stage.columnClass,
-                  stage.borderClass,
-                  "text-[#1c1e21]",
-                )}
-              >
-                {stage.name}
-              </Badge>
+      <div className="flex h-[48px] shrink-0 items-center gap-1 border-b border-[#e5e7eb] bg-white px-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/deals")}
+          className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Deals
+        </Button>
+        <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[#9ca3af]" />
+        <span className="max-w-[200px] truncate text-[12px] text-[#6b7280]">{detailDraft.name}</span>
+        {stage && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-1 rounded-full px-2 py-0 text-[10px] font-medium",
+              stage.columnClass,
+              stage.borderClass,
+              "text-[#1c1e21]",
             )}
-          </div>
-          <p className="mt-1 text-xs text-[#6b7280]">
-            {customer?.name ?? "Unknown customer"} · Created from lead:{" "}
-            {detailDraft.createdFromLead ? "Yes" : "No"}
-          </p>
-        </div>
+          >
+            {stage.name}
+          </Badge>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto bg-[#f8f9fb] p-3 sm:p-5">
@@ -759,10 +755,12 @@ export function DealDetailPage({ id }: { id: string }) {
                   </div>
                 </div>
 
-                <DealPqqSection
-                  value={detailDraft.pqq ?? createEmptyDealPqq()}
-                  onChange={updateDealPqq}
-                />
+                {PQQ_UI_ENABLED && (
+                  <DealPqqSection
+                    value={detailDraft.pqq ?? createEmptyDealPqq()}
+                    onChange={updateDealPqq}
+                  />
+                )}
                 </div>
               </TabsContent>
 

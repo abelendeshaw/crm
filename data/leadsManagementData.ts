@@ -53,6 +53,7 @@ export type CrmLead = {
   channel: string;
   description?: string;
   department?: string;
+  team?: string;
   solutionCategory?: string;
   fiscalYear?: string;
   quarter?: string;
@@ -78,48 +79,48 @@ export const DEFAULT_LEAD_PIPELINE_STAGES: PipelineStage[] = [
     name: "New",
     category: "open",
     order: 0,
-    columnClass: "bg-[#f5f3ff]",
-    borderClass: "border-[#e9d5ff]",
+    columnClass: "bg-[#faf9fb]",
+    borderClass: "border-[#e8e5ee]",
   },
   {
     id: "lead-stage-contacted",
     name: "Contacted",
     category: "open",
     order: 1,
-    columnClass: "bg-[#eff6ff]",
-    borderClass: "border-[#bfdbfe]",
+    columnClass: "bg-[#f8fbfd]",
+    borderClass: "border-[#e0e8f2]",
   },
   {
     id: "lead-stage-qualified",
     name: "Qualified",
     category: "open",
     order: 2,
-    columnClass: "bg-[#ecfdf5]",
-    borderClass: "border-[#a7f3d0]",
+    columnClass: "bg-[#f8fdf9]",
+    borderClass: "border-[#dae8e2]",
   },
   {
     id: "lead-stage-nurture",
     name: "Nurturing",
     category: "open",
     order: 3,
-    columnClass: "bg-[#fffbeb]",
-    borderClass: "border-[#fde68a]",
+    columnClass: "bg-[#fdfaf6]",
+    borderClass: "border-[#e8e2d0]",
   },
   {
     id: "lead-stage-converted",
     name: "Converted",
     category: "won",
     order: 4,
-    columnClass: "bg-[#ecfdf3]",
-    borderClass: "border-[#86efac]",
+    columnClass: "bg-[#f8fcf9]",
+    borderClass: "border-[#d4e6dc]",
   },
   {
     id: "lead-stage-disqualified",
     name: "Disqualified",
     category: "lost",
     order: 5,
-    columnClass: "bg-[#fef2f2]",
-    borderClass: "border-[#fecaca]",
+    columnClass: "bg-[#fdf8f8]",
+    borderClass: "border-[#e8dada]",
   },
 ];
 
@@ -165,29 +166,54 @@ const ownersPool = [
   "Hana Worku",
 ];
 
+export const SALES_TEAMS = [
+  "Public and Telecom Sales",
+  "International and Corporate Sales",
+  "BFSI",
+] as const;
+
 function isoDaysAgo(days: number) {
   const d = new Date();
   d.setDate(d.getDate() - days);
   return d.toISOString().split("T")[0]!;
 }
 
+const leadBlueprints: Array<{
+  topic: string;
+  solutionCategory: string;
+  department: string;
+}> = [
+  { topic: "ERP rollout", solutionCategory: "ERP", department: "Operations" },
+  { topic: "CRM platform", solutionCategory: "CRM", department: "Sales" },
+  { topic: "HRIS upgrade", solutionCategory: "HRIS", department: "People" },
+  { topic: "Finance automation", solutionCategory: "Finance", department: "Finance" },
+  { topic: "Warehouse digitization", solutionCategory: "WMS", department: "Logistics" },
+  { topic: "Cybersecurity audit", solutionCategory: "Security", department: "IT" },
+  { topic: "POS modernization", solutionCategory: "Retail", department: "Operations" },
+  { topic: "Data warehouse", solutionCategory: "Analytics", department: "Data" },
+  { topic: "Self-service portal", solutionCategory: "Portal", department: "Customer Success" },
+  { topic: "Field service app", solutionCategory: "Mobile", department: "Service" },
+];
+
 function seedLeads(): CrmLead[] {
-  const accounts = customerAccounts.slice(0, 8);
+  const accounts = customerAccounts;
   const stages = DEFAULT_LEAD_PIPELINE_STAGES;
   const targetThisMonth = "2026-05-28";
   const targetNextMonth = "2026-06-12";
+  const total = Math.max(8, leadBlueprints.length);
 
-  return accounts.map((acc, i) => {
-    const stage = stages[i % 6]!;
+  return leadBlueprints.slice(0, total).map((bp, i) => {
+    const acc = accounts[i % accounts.length]!;
+    const stage = stages[i % stages.length]!;
     const source = DEFAULT_LEAD_SOURCES[i % DEFAULT_LEAD_SOURCES.length]!;
     const currency: DealCurrency = i % 3 === 0 ? "USD" : i % 3 === 1 ? "ETB" : "EUR";
     const value = 12000 + i * 6200;
-    const probability = [20, 35, 45, 55, 70, 85, 40][i % 7]!;
-    const stuckDays = i === 2 ? 5 : i === 5 ? 12 : 1;
+    const probability = [20, 35, 45, 55, 70, 85, 40, 60, 25, 50][i % 10]!;
+    const stuckDays = [1, 3, 5, 8, 12, 2, 6, 14, 4, 9][i % 10]!;
     const isFirst = i === 0;
     return {
-      id: `lead-seed-${acc.id}`,
-      name: `${acc.name.split(" ")[0] ?? "Account"} prospect`,
+      id: `lead-seed-${i + 1}-${acc.id}`,
+      name: `${acc.name.split(" ")[0] ?? "Account"} ${bp.topic}`,
       customerId: acc.id,
       sourceId: source.id,
       value,
@@ -200,10 +226,11 @@ function seedLeads(): CrmLead[] {
       primarySales: ownersPool[i % ownersPool.length]!,
       presales: ownersPool[(i + 1) % ownersPool.length]!,
       channel: ownersPool[(i + 2) % ownersPool.length]!,
-      department: isFirst ? "" : undefined,
-      solutionCategory: isFirst ? "ERP" : undefined,
-      fiscalYear: isFirst ? "2018" : undefined,
-      quarter: isFirst ? "Q4" : undefined,
+      department: bp.department,
+      team: SALES_TEAMS[i % SALES_TEAMS.length]!,
+      solutionCategory: bp.solutionCategory,
+      fiscalYear: isFirst ? "2018" : `${2025 + (i % 3)}`,
+      quarter: (["Q1", "Q2", "Q3", "Q4"] as const)[i % 4],
       currentState: isFirst ? "LEAD" : undefined,
       nextStep: isFirst ? "Nurturing" : undefined,
       quarterStartDate: isFirst ? "Q4" : undefined,
@@ -215,14 +242,14 @@ function seedLeads(): CrmLead[] {
       checklistValidationStatus: isFirst ? "Approved" : undefined,
       activities: [
         {
-          id: `lead-act-${acc.id}-1`,
+          id: `lead-act-${i + 1}-1`,
           kind: "Call",
           title: "Introduction call",
           date: isoDaysAgo(stuckDays + 8),
           note: "Captured needs overview.",
         },
         {
-          id: `lead-act-${acc.id}-2`,
+          id: `lead-act-${i + 1}-2`,
           kind: "Meeting",
           title: "Discovery meeting",
           date: isoDaysAgo(stuckDays + 2),

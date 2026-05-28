@@ -29,10 +29,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", icon: <LayoutDashboard size={18} />, path: "/" },
+  { label: "Dashboard", icon: <LayoutDashboard size={16} />, path: "/" },
   {
     label: "Leads",
-    icon: <Users size={18} />,
+    icon: <Users size={16} />,
     path: "/leads",
     children: [
       { label: "Pipeline", path: "/leads" },
@@ -41,28 +41,28 @@ const navItems: NavItem[] = [
   },
   {
     label: "Deals",
-    icon: <Handshake size={18} />,
+    icon: <Handshake size={16} />,
     path: "/deals",
     children: [
       { label: "Pipeline", path: "/deals" },
       { label: "Settings", path: "/deals/settings" },
     ],
   },
-  { label: "Targets", icon: <Target size={18} />, path: "/targets" },
+  { label: "Targets", icon: <Target size={16} />, path: "/targets" },
   {
     label: "Customer",
-    icon: <Building2 size={18} />,
+    icon: <Building2 size={16} />,
     path: "/customers",
     children: [
       { label: "Customers", path: "/customers" },
       { label: "Contacts", path: "/contacts" },
     ],
   },
-  { label: "Activity", icon: <Activity size={18} />, path: "/activity" },
-  { label: "Report", icon: <BarChart2 size={18} />, path: "/report" },
+  { label: "Activity", icon: <Activity size={16} />, path: "/activity" },
+  { label: "Report", icon: <BarChart2 size={16} />, path: "/report" },
   {
     label: "Settings",
-    icon: <Settings size={18} />,
+    icon: <Settings size={16} />,
     path: "/settings",
     children: [
       { label: "General", path: "/settings?section=general" },
@@ -78,7 +78,7 @@ const navItems: NavItem[] = [
 
 const userManagementNav: NavItem = {
   label: "User Management",
-  icon: <UserCog size={18} />,
+  icon: <UserCog size={16} />,
   path: "/user-management",
 };
 
@@ -126,11 +126,11 @@ export function CRMLayout({ children }: CRMLayoutProps) {
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e5e7eb] h-[52px]">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e5e7eb] h-[56px]">
           <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[#4080f0]">
             <span className="text-white font-bold text-xs">A</span>
           </div>
-          <span className="font-semibold text-[#1c1e21] text-sm tracking-wide">
+          <span className="font-semibold text-[#1c1e21] text-[13px] tracking-wide">
             CRM
           </span>
           <div className="ml-auto">
@@ -147,7 +147,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               <div key={item.label}>
                 <div
                   className={cn(
-                    "flex items-center gap-3 px-4 py-2.5 cursor-pointer group transition-colors relative",
+                    "flex items-center gap-3 px-4 py-2 cursor-pointer group transition-colors relative",
                     active
                       ? "text-[#4080f0] bg-[#eef2fd]"
                       : "text-[#6b7280] hover:bg-[#f5f6fa] hover:text-[#1c1e21]"
@@ -169,13 +169,13 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                   {item.path && !item.children ? (
                     <Link
                       href={item.path}
-                      className="flex-1 text-sm font-medium"
+                      className="flex-1 text-[13px] font-medium"
                       onClick={() => setMobileNavOpen(false)}
                     >
                       {item.label}
                     </Link>
                   ) : (
-                    <span className="flex-1 text-sm font-medium">{item.label}</span>
+                    <span className="flex-1 text-[13px] font-medium">{item.label}</span>
                   )}
                   {item.children && (
                     <span className="ml-auto">
@@ -198,7 +198,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                           href={child.path}
                           onClick={() => setMobileNavOpen(false)}
                           className={cn(
-                            "block py-1.5 text-sm transition-colors",
+                            "block py-1.5 text-[13px] transition-colors",
                             childActive
                               ? "text-[#4080f0] font-medium"
                               : "text-[#6b7280] hover:text-[#1c1e21]"
@@ -237,7 +237,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               {userManagementNav.icon}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium leading-tight">
+              <p className="text-[13px] font-medium leading-tight">
                 {userManagementNav.label}
               </p>
               <p className="text-xs text-[#9ca3af]">Users, roles, teams</p>
@@ -254,7 +254,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             onClick={() => setMobileNavOpen((prev) => !prev)}
             aria-label="Toggle navigation"
           >
-            {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileNavOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
           <span className="text-sm font-semibold text-[#1c1e21]">CRM</span>
           <span className="w-9" />

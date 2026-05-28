@@ -52,13 +52,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const DEPARTMENTS = [
-  "Sales",
-  "IT",
-  "Finance",
-  "Customer Support",
-  "Management",
-];
+const DEPARTMENTS = ["Sales", "Pre-sales"];
 const BRANCHES = [
   "Addis Ababa HQ",
   "Dire Dawa Branch",
@@ -67,7 +61,8 @@ const BRANCHES = [
 ];
 
 const deptColors: Record<string, string> = {
-  Sales: "bg-[#eef2fd] text-[#4080f0]",
+  "Pre-sales": "bg-[#eef2fd] text-[#4080f0]",
+  Sales: "bg-[#ecfdf5] text-[#059669]",
   IT: "bg-[#f0fdf4] text-[#166534]",
   Finance: "bg-[#fff8e6] text-[#b07d00]",
   "Customer Support": "bg-[#fdf4ff] text-[#9333ea]",
@@ -970,7 +965,7 @@ export function TeamsTab() {
 
   const [form, setForm] = useState({
     name: "",
-    department: "Sales",
+    department: "Pre-sales",
     branch: "Addis Ababa HQ",
     manager: "",
     description: "",
@@ -1047,7 +1042,7 @@ export function TeamsTab() {
     setCreateOpen(false);
     setForm({
       name: "",
-      department: "Sales",
+      department: "Pre-sales",
       branch: "Addis Ababa HQ",
       manager: "",
       description: "",
@@ -1173,7 +1168,7 @@ export function TeamsTab() {
             <div className="space-y-1.5">
               <Label className="text-xs text-[#6b7280]">Team Name *</Label>
               <Input
-                placeholder="e.g. Sales Team E"
+                placeholder="e.g. Software Solutions Pre-sales"
                 value={form.name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))

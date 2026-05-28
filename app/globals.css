@@ -129,6 +129,20 @@
   }
 }
 
+@keyframes kanban-drop-in {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.96) translateY(-6px);
+  }
+  60% {
+    transform: scale(1.01) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -136,6 +150,9 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  .animate-kanban-drop-in {
+    animation: kanban-drop-in 0.28s ease-out forwards;
   }
 }
 

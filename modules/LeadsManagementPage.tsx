@@ -6,17 +6,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
-  Briefcase,
   Calendar,
   Check,
   CheckCircle2,
-  Headphones,
   Kanban,
   List as ListIcon,
   Percent,
   Plus,
   Search,
-  Share2,
   ShieldCheck,
   SkipForward,
 } from "lucide-react";
@@ -91,6 +88,7 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -101,12 +99,12 @@ const STAGE_COLOR_PRESETS: {
   columnClass: string;
   borderClass: string;
 }[] = [
-    { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
-    { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
-    { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
-    { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
-    { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
-    { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
+    { label: "Violet", columnClass: "bg-[#faf9fb]", borderClass: "border-[#e8e5ee]" },
+    { label: "Sky", columnClass: "bg-[#f8fbfd]", borderClass: "border-[#e0e8f2]" },
+    { label: "Mint", columnClass: "bg-[#f8fdf9]", borderClass: "border-[#dae8e2]" },
+    { label: "Amber", columnClass: "bg-[#fdfaf6]", borderClass: "border-[#e8e2d0]" },
+    { label: "Emerald", columnClass: "bg-[#f8fcf9]", borderClass: "border-[#d4e6dc]" },
+    { label: "Rose", columnClass: "bg-[#fdf8f8]", borderClass: "border-[#e8dada]" },
   ];
 
 function initials(name: string) {
@@ -128,6 +126,22 @@ function formatMoney(amount: number, currency: string) {
   } catch {
     return `${currency} ${amount.toLocaleString()}`;
   }
+}
+
+const SALES_TEAM_BADGE_STYLES: Record<string, string> = {
+  "Public and Telecom Sales":
+    "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
+  "International and Corporate Sales":
+    "border-[#a7f3d0] bg-[#ecfdf5] text-[#059669]",
+  BFSI: "border-[#ddd6fe] bg-[#f5f3ff] text-[#6d28d9]",
+};
+
+function salesTeamBadgeClass(team?: string) {
+  if (!team) return "border-[#e5e7eb] bg-[#f9fafb] text-[#374151]";
+  return (
+    SALES_TEAM_BADGE_STYLES[team] ??
+    "border-[#e5e7eb] bg-[#f9fafb] text-[#374151]"
+  );
 }
 
 function daysBetween(fromIso: string, toDate = new Date()) {
@@ -178,6 +192,10 @@ export function LeadsManagementPage() {
     ...mockLeadStore.pqqSettings,
   }));
   const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
+
+  const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
+  const [droppedLeadId, setDroppedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
@@ -445,6 +463,12 @@ export function LeadsManagementPage() {
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     e.dataTransfer.setData("application/lead-id", leadId);
     e.dataTransfer.effectAllowed = "move";
+    setDraggingLeadId(leadId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingLeadId(null);
+    setDragOverStageId(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -452,11 +476,26 @@ export function LeadsManagementPage() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  const handleDragEnterStage = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    setDragOverStageId(stageId);
+  };
+
+  const handleDragLeaveStage = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverStageId(null);
+    }
+  };
+
   const handleDropOnStage = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("application/lead-id");
+    setDraggingLeadId(null);
+    setDragOverStageId(null);
     if (!id) return;
     moveLeadToStage(id, stageId);
+    setDroppedLeadId(id);
+    setTimeout(() => setDroppedLeadId(null), 400);
   };
 
   const saveNewLead = () => {
@@ -719,7 +758,7 @@ export function LeadsManagementPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
+      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
         <h1 className="font-semibold text-[#1c1e21]">Leads</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
           Pipeline, scoring, and lead qualification in one view
@@ -786,13 +825,13 @@ export function LeadsManagementPage() {
                   </SelectContent>
                 </Select>
               </FormField>
-              <FormField label="Owner" className="w-[150px]">
+              <FormField label="Teams" className="w-[150px]">
                 <Select value={filterOwner} onValueChange={setFilterOwner}>
                   <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue placeholder="Owner" />
+                    <SelectValue placeholder="Teams" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All owners</SelectItem>
+                    <SelectItem value="all">All teams</SelectItem>
                     {ownerOptions.map((o) => (
                       <SelectItem key={o} value={o}>
                         {o}
@@ -891,11 +930,14 @@ export function LeadsManagementPage() {
                 <div
                   key={stage.id}
                   className={cn(
-                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border",
+                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border transition-all duration-150",
                     stage.columnClass,
                     stage.borderClass,
+                    dragOverStageId === stage.id && "ring-2 ring-inset ring-blue-300/50 brightness-[0.985]",
                   )}
                   onDragOver={handleDragOver}
+                  onDragEnter={(e) => handleDragEnterStage(e, stage.id)}
+                  onDragLeave={handleDragLeaveStage}
                   onDrop={(e) => handleDropOnStage(e, stage.id)}
                 >
                   <div className="border-b border-black/5 px-3 py-2.5">
@@ -933,7 +975,12 @@ export function LeadsManagementPage() {
                           key={lead.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, lead.id)}
-                          className="cursor-pointer border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-colors"
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            "cursor-grab border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-all duration-150",
+                            draggingLeadId === lead.id && "opacity-40 scale-[0.97] cursor-grabbing",
+                            droppedLeadId === lead.id && "animate-kanban-drop-in",
+                          )}
                           onClick={() => openLeadDetail(lead)}
                         >
                           <CardContent className="space-y-2 p-3">
@@ -942,7 +989,7 @@ export function LeadsManagementPage() {
                                 {lead.name}
                               </p>
                               <div className="flex shrink-0 flex-col items-end gap-1">
-                                {!hasSavedPqq && (
+                                {PQQ_UI_ENABLED && !hasSavedPqq && (
                                   <Badge
                                     variant="outline"
                                     className="border-[#fdba74] bg-[#fff7ed] text-[10px] text-[#9a3412]"
@@ -950,7 +997,7 @@ export function LeadsManagementPage() {
                                     PQQ missing
                                   </Badge>
                                 )}
-                                {pqqQualification === false && (
+                                {PQQ_UI_ENABLED && pqqQualification === false && (
                                   <Badge
                                     variant="outline"
                                     className="border-rose-200 bg-rose-50 text-[10px] text-rose-900"
@@ -968,6 +1015,19 @@ export function LeadsManagementPage() {
                                   </Badge>
                                 )}
                               </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {lead.team && (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] font-medium",
+                                    salesTeamBadgeClass(lead.team),
+                                  )}
+                                >
+                                  {lead.team}
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -990,32 +1050,6 @@ export function LeadsManagementPage() {
                                 <Calendar size={12} />
                                 {lead.expectedClose}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-1 border-t border-[#f3f4f6] pt-2">
-                              <span title="Sales" className="inline-flex rounded-md bg-[#eef2fd] p-1 text-[#4080f0]">
-                                <Briefcase size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#eef2fd] text-[#245fcb]">
-                                  {initials(lead.primarySales)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span title="Pre-sales" className="inline-flex rounded-md bg-[#f0fdf4] p-1 text-[#15803d]">
-                                <Headphones size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#f0fdf4] text-[#166534]">
-                                  {initials(lead.presales)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span title="Channel" className="inline-flex rounded-md bg-[#fff7ed] p-1 text-[#c2410c]">
-                                <Share2 size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#fff7ed] text-[#9a3412]">
-                                  {initials(lead.channel)}
-                                </AvatarFallback>
-                              </Avatar>
                             </div>
                           </CardContent>
                         </Card>
@@ -1456,20 +1490,27 @@ export function LeadsManagementPage() {
             <p className="text-xs text-red-600">{formErrors.manual}</p>
           )}
 
-          <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={openFillPqq}
-              >
-                Fill PQQ
-              </Button>
-              {(usesCustomPqqForm ? createPqqFormValues : createPqq) && (
-                <span className="text-xs text-[#6b7280]">PQQ attached</span>
-              )}
-            </div>
+          <DialogFooter
+            className={cn(
+              "flex-col gap-3 sm:flex-row sm:items-center",
+              PQQ_UI_ENABLED ? "sm:justify-between" : "sm:justify-end",
+            )}
+          >
+            {PQQ_UI_ENABLED && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={openFillPqq}
+                >
+                  Fill PQQ
+                </Button>
+                {(usesCustomPqqForm ? createPqqFormValues : createPqq) && (
+                  <span className="text-xs text-[#6b7280]">PQQ attached</span>
+                )}
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
                 Cancel
@@ -1487,6 +1528,7 @@ export function LeadsManagementPage() {
         </DialogContent>
       </Dialog>
 
+      {PQQ_UI_ENABLED && (
       <Dialog open={pqqDialogOpen} onOpenChange={setPqqDialogOpen}>
         <DialogContent className="flex max-h-[min(88vh,660px)] max-w-[calc(100%-2rem)] flex-col overflow-hidden sm:max-w-lg">
           {usesCustomPqqForm && pqqWizardSections.length > 0 ? (() => {
@@ -1855,6 +1897,7 @@ export function LeadsManagementPage() {
           )}
         </DialogContent>
       </Dialog>
+      )}
 
       <Dialog open={addCustomerOpen} onOpenChange={setAddCustomerOpen}>
         <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-2xl">

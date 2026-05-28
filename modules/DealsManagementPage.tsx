@@ -526,7 +526,7 @@ export function DealsManagementPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
+      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
         <h1 className="font-semibold text-[#1c1e21]">Deals</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
           Pipeline, forecast, and deal execution in one view

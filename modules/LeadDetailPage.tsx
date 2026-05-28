@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Building2,
   Check,
+  ChevronRight,
   Edit2,
   Plus,
   Phone,
@@ -354,52 +355,46 @@ export function LeadDetailPage({ id }: { id: string }) {
   })();
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
-        <div>
-          <button
-            type="button"
-            onClick={() => router.push("/leads")}
-            className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
+      <div className="flex h-[48px] shrink-0 items-center gap-1 border-b border-[#e5e7eb] bg-white px-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/leads")}
+          className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Leads
+        </Button>
+        <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[#9ca3af]" />
+        <span className="max-w-[200px] truncate text-[12px] text-[#6b7280]">{detailDraft.name}</span>
+        {stage && (
+          <Badge
+            variant="outline"
+            className={cn(
+              "ml-1 rounded-full px-2 py-0 text-[10px] font-medium",
+              stage.columnClass,
+              stage.borderClass,
+              "text-[#1c1e21]",
+            )}
           >
-            <ArrowLeft size={13} />
-            Back to Leads
-          </button>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="font-semibold text-[#1c1e21]">{detailDraft.name}</h2>
-            {stage && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                  stage.columnClass,
-                  stage.borderClass,
-                  "text-[#1c1e21]",
-                )}
-              >
-                {stage.name}
-              </Badge>
-            )}
-            {PQQ_UI_ENABLED && pqqQualification === false && (
-              <Badge
-                variant="outline"
-                className="rounded-full border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[11px] font-medium text-rose-900"
-              >
-                Non-qualified
-              </Badge>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-[#6b7280]">
-            {customer?.name ?? "Unknown customer"}
-            {customer?.industry ? ` · ${customer.industry}` : ""}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+            {stage.name}
+          </Badge>
+        )}
+        {PQQ_UI_ENABLED && pqqQualification === false && (
+          <Badge
+            variant="outline"
+            className="ml-1 rounded-full border-rose-200 bg-rose-50 px-2 py-0 text-[10px] font-medium text-rose-900"
+          >
+            Non-qualified
+          </Badge>
+        )}
+        <div className="ml-auto flex items-center gap-1">
           <Button
-            className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+            size="sm"
+            className="h-7 gap-1.5 px-2.5 text-[12px] bg-[#4080f0] text-white hover:bg-[#3070e0]"
             onClick={() => setIsConversionOpen(true)}
           >
-            <ArrowUpRight size={14} className="mr-1.5" />
+            <ArrowUpRight className="w-3.5 h-3.5" />
             Convert to Deal
           </Button>
         </div>

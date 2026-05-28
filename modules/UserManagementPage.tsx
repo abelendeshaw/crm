@@ -84,7 +84,7 @@ export function UserManagementPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Page Header */}
-      <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
+      <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="font-semibold text-[#1c1e21]">User Management</h1>

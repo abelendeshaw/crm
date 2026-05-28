@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ChevronLeft,
+  ArrowLeft,
+  ChevronRight,
   Target,
   TrendingUp,
   Wallet,
@@ -140,7 +141,7 @@ export function SalesTargetDetailPage({ id }: { id: string }) {
   if (!target) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
-        <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
+        <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
           <h1 className="font-semibold text-[#1c1e21]">Sales Targets</h1>
         </div>
         <div className="flex flex-1 items-center justify-center bg-[#f5f6fa]">
@@ -153,7 +154,7 @@ export function SalesTargetDetailPage({ id }: { id: string }) {
               className="mt-4 border-[#e5e7eb]"
               onClick={() => router.push("/targets")}
             >
-              <ChevronLeft size={14} className="mr-1" />
+              <ArrowLeft size={14} className="mr-1" />
               Back to targets
             </Button>
           </div>
@@ -175,33 +176,22 @@ export function SalesTargetDetailPage({ id }: { id: string }) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 border-[#e5e7eb] shrink-0"
-              onClick={() => router.push("/targets")}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            <div className="min-w-0">
-              <h1 className="font-semibold text-[#1c1e21] truncate">{target.name}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Avatar className="size-4">
-                  <AvatarFallback className="text-[7px] bg-[#eef2fd] text-[#4080f0]">
-                    {initials(target.assignedTo)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs text-[#6b7280]">{target.assignedTo}</span>
-                <span className="text-xs text-[#d1d5db]">·</span>
-                <span className="text-xs text-[#6b7280]">
-                  {target.startDate} → {target.endDate}
-                </span>
-              </div>
-            </div>
-          </div>
+      <div className="flex h-[48px] shrink-0 items-center gap-1 border-b border-[#e5e7eb] bg-white px-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/targets")}
+          className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Targets
+        </Button>
+        <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[#9ca3af]" />
+        <span className="max-w-[200px] truncate text-[12px] text-[#6b7280]">{target.name}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden text-[11px] text-[#9ca3af] sm:block">
+            {target.assignedTo} · {target.startDate} → {target.endDate}
+          </span>
           <Badge
             variant="outline"
             className={cn(

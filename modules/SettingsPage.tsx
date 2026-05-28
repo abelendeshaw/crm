@@ -87,7 +87,7 @@ function PlaceholderSection({ section }: { section: SettingSection }) {
   const item = settingsNav.find((s) => s.id === section);
   return (
     <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
+      <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
         <div className="flex items-center gap-1.5 text-xs text-[#9ca3af] mb-1">
           <span>Settings</span>
           <ChevronRight size={12} />

@@ -662,7 +662,7 @@ export function LeadsSettingsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="bg-white border-b border-[#e5e7eb] px-4 py-4 sm:px-6 flex-shrink-0">
+      <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
         <h1 className="font-semibold text-[#1c1e21]">Leads Settings</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
           {activeSection === "scoring"
@@ -866,7 +866,7 @@ export function LeadsSettingsPage() {
 
                 <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
                   <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-4 py-3 sm:px-6">
+                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-6 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <CardTitle className="font-semibold text-[#1c1e21]">

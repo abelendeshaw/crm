@@ -372,18 +372,18 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
     <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
       {/* ── Sticky header ─────────────────────────────────── */}
       <header className="shrink-0 border-b border-[#e5e7eb] bg-white">
-        <div className="flex items-center gap-3 px-4 py-3">
+        <div className="flex h-[48px] items-center gap-1 px-6">
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 text-[#6b7280] hover:text-[#1c1e21]"
+            className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
             onClick={saveAndExit}
           >
-            <ArrowLeft size={15} />
+            <ArrowLeft className="w-3.5 h-3.5" />
             {lead.name}
           </Button>
           <div className="flex-1 text-center">
-            <p className="text-sm font-semibold text-[#1c1e21]">
+            <p className="text-[13px] font-semibold text-[#1c1e21]">
               {template?.name ?? "PQQ Assessment"}
             </p>
           </div>
@@ -391,7 +391,7 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
             size="sm"
             variant="outline"
             className={cn(
-              "gap-1.5 border-[#e5e7eb] text-[#6b7280]",
+              "h-7 gap-1.5 px-2.5 text-[12px] border-[#e5e7eb] text-[#6b7280]",
               saved && "border-emerald-200 text-emerald-600",
             )}
             onClick={saveAndExit}

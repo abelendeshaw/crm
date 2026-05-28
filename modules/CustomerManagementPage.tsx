@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Building2,
+  ChevronRight,
   Contact,
   GitBranch,
   Search,
@@ -749,7 +750,7 @@ export function CustomerManagementPage({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
+      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
         <h1 className="font-semibold text-[#1c1e21]">Customer Management</h1>
       </div>
 
@@ -1314,18 +1315,18 @@ function CustomerAccountDetailView({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-4 py-4 sm:px-6">
-        <div>
-          <button
-            type="button"
-            onClick={onBack}
-            className="mb-2 flex items-center gap-1 text-xs text-[#6b7280] hover:text-[#1c1e21]"
-          >
-            <ArrowLeft size={13} />
-            Back to Customers
-          </button>
-          <h2 className="font-semibold text-[#1c1e21]">{account.name}</h2>
-        </div>
+      <div className="flex h-[48px] shrink-0 items-center gap-1 border-b border-[#e5e7eb] bg-white px-6">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Customers
+        </Button>
+        <ChevronRight className="w-3.5 h-3.5 shrink-0 text-[#9ca3af]" />
+        <span className="max-w-[240px] truncate text-[12px] text-[#6b7280]">{account.name}</span>
       </div>
 
       <div className="flex-1 overflow-auto bg-[#f8f9fb] p-3 sm:p-5">

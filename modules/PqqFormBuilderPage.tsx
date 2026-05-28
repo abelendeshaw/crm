@@ -236,14 +236,14 @@ export function PqqFormBuilderPage({ templateId }: { templateId?: string }) {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       {/* ── Header ─────────────────────────────────────────────── */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-[#e5e7eb] bg-white px-4 py-3">
+      <header className="flex h-[48px] shrink-0 items-center gap-1 border-b border-[#e5e7eb] bg-white px-6">
         <Button
           variant="ghost"
           size="sm"
-          className="gap-1.5 text-[#6b7280] hover:text-[#1c1e21]"
+          className="h-7 gap-1.5 px-2.5 text-[12px] text-[#6b7280] hover:text-[#1c1e21]"
           onClick={() => router.push("/leads/settings")}
         >
-          <ArrowLeft size={15} />
+          <ArrowLeft className="w-3.5 h-3.5" />
           Back
         </Button>
 

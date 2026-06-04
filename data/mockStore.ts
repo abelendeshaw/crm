@@ -53,6 +53,8 @@ class MockDealStore {
   ];
 
   private _targets: SalesTarget[] = [...initialTargets];
+  private _dealAgingWarningDays: number = 4;
+  private _dealAgingWarningDaysSubscribers: ((days: number) => void)[] = [];
 
   private constructor() {}
 
@@ -149,6 +151,26 @@ class MockDealStore {
 
   private _notifyTargets() {
     this._targetsSubscribers.forEach(s => s(this._targets));
+  }
+
+  public get dealAgingWarningDays(): number {
+    return this._dealAgingWarningDays;
+  }
+
+  public set dealAgingWarningDays(days: number) {
+    this._dealAgingWarningDays = Math.max(1, Math.round(days));
+    this._notifyDealAgingWarningDays();
+  }
+
+  public subscribeDealAgingWarningDays(callback: (days: number) => void) {
+    this._dealAgingWarningDaysSubscribers.push(callback);
+    return () => {
+      this._dealAgingWarningDaysSubscribers = this._dealAgingWarningDaysSubscribers.filter(s => s !== callback);
+    };
+  }
+
+  private _notifyDealAgingWarningDays() {
+    this._dealAgingWarningDaysSubscribers.forEach(s => s(this._dealAgingWarningDays));
   }
 }
 

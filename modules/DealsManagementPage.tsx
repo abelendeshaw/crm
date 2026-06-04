@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowUpRight,
   Briefcase,
   Calendar,
+  CheckCircle2,
+  Clock,
   Headphones,
   Kanban,
   LineChart,
@@ -67,7 +70,6 @@ import {
   dealCustomerAccounts,
   FX_TO_ETB,
   initialDeals,
-  STAGE_AGING_WARNING_DAYS,
   type PipelineStage,
   computeBaseValue,
 } from "@/data/dealsManagementData";
@@ -80,12 +82,12 @@ const STAGE_COLOR_PRESETS: {
   columnClass: string;
   borderClass: string;
 }[] = [
-    { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
-    { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
-    { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
-    { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
-    { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
-    { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
+    { label: "Violet", columnClass: "bg-[#f9f8ff]", borderClass: "border-[#e4dff5]" },
+    { label: "Sky", columnClass: "bg-[#f5f9ff]", borderClass: "border-[#d8e6f8]" },
+    { label: "Mint", columnClass: "bg-[#f3fdf8]", borderClass: "border-[#c4e6d6]" },
+    { label: "Amber", columnClass: "bg-[#fdfaf3]", borderClass: "border-[#e8ddb8]" },
+    { label: "Emerald", columnClass: "bg-[#f3fdf6]", borderClass: "border-[#bce0c8]" },
+    { label: "Rose", columnClass: "bg-[#fdf6f6]", borderClass: "border-[#ecdada]" },
   ];
 
 function initials(name: string) {
@@ -181,6 +183,7 @@ export function DealsManagementPage() {
     [...mockDealStore.stages].sort((a, b) => a.order - b.order),
   );
   const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
+  const [agingWarningDays, setAgingWarningDays] = useState(() => mockDealStore.dealAgingWarningDays);
 
   useEffect(() => {
     const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
@@ -193,11 +196,13 @@ export function DealsManagementPage() {
     const unsubStages = mockDealStore.subscribeStages((newStages) => {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
+    const unsubAging = mockDealStore.subscribeDealAgingWarningDays(setAgingWarningDays);
 
     return () => {
       clearTimeout(loadingTimer);
       unsubDeals();
       unsubStages();
+      unsubAging();
     };
   }, []);
 
@@ -520,7 +525,7 @@ export function DealsManagementPage() {
     const st = stageById.get(deal.stageId);
     if (!st || st.category !== "open") return null;
     const days = daysBetween(deal.stageEnteredAt);
-    if (days < STAGE_AGING_WARNING_DAYS) return null;
+    if (days < agingWarningDays) return null;
     return `Stuck for ${days} days`;
   };
 
@@ -745,6 +750,10 @@ export function DealsManagementPage() {
                     {columnDeals.map((deal) => {
                       const customer = accountById.get(deal.customerId);
                       const stuck = agingLabel(deal);
+                      const today = new Date().toISOString().split("T")[0]!;
+                      const pending = deal.activities.filter((a) => !a.completedAt);
+                      const overdue = pending.filter((a) => a.dueDate && a.dueDate < today);
+                      const allDone = deal.activities.length > 0 && pending.length === 0;
                       return (
                         <Card
                           key={deal.id}
@@ -758,15 +767,26 @@ export function DealsManagementPage() {
                               <p className="text-sm font-medium leading-snug text-[#1c1e21]">
                                 {deal.name}
                               </p>
-                              {stuck && (
-                                <Badge
-                                  variant="outline"
-                                  className="shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-900"
-                                >
-                                  <AlertTriangle className="mr-0.5 size-3" />
-                                  {stuck}
-                                </Badge>
-                              )}
+                              <div className="flex shrink-0 flex-col items-end gap-1">
+                                {stuck && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-900"
+                                  >
+                                    <AlertTriangle className="mr-0.5 size-3" />
+                                    {stuck}
+                                  </Badge>
+                                )}
+                                {deal.sourceLeadId && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#bfdbfe] bg-[#eff6ff] text-[10px] text-[#1d4ed8]"
+                                  >
+                                    <ArrowUpRight className="mr-0.5 size-3" />
+                                    From lead
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -790,6 +810,24 @@ export function DealsManagementPage() {
                                 {deal.expectedClose}
                               </span>
                             </div>
+                            {(pending.length > 0 || allDone) && (
+                              <div className="flex items-center gap-1.5">
+                                {allDone ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#16a34a]">
+                                    <CheckCircle2 size={11} />
+                                    All activities done
+                                  </span>
+                                ) : (
+                                  <span className={cn(
+                                    "inline-flex items-center gap-1 text-[10px] font-medium",
+                                    overdue.length > 0 ? "text-[#b45309]" : "text-[#6b7280]",
+                                  )}>
+                                    <Clock size={11} />
+                                    {pending.length} pending{overdue.length > 0 && ` · ${overdue.length} overdue`}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             <div className="flex items-center gap-1 border-t border-[#f3f4f6] pt-2">
                               <span title="Sales" className="inline-flex rounded-md bg-[#eef2fd] p-1 text-[#4080f0]">
                                 <Briefcase size={12} />
@@ -871,6 +909,10 @@ export function DealsManagementPage() {
                     const customer = accountById.get(deal.customerId);
                     const stage = stageById.get(deal.stageId);
                     const stuck = agingLabel(deal);
+                    const today = new Date().toISOString().split("T")[0]!;
+                    const pending = deal.activities.filter((a) => !a.completedAt);
+                    const overdue = pending.filter((a) => a.dueDate && a.dueDate < today);
+                    const allDone = deal.activities.length > 0 && pending.length === 0;
                     return (
                       <TableRow
                         key={deal.id}
@@ -878,8 +920,17 @@ export function DealsManagementPage() {
                         onClick={() => openDealDetail(deal)}
                       >
                         <TableCell className="font-medium text-[#1c1e21]">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate">{deal.name}</span>
+                            {deal.sourceLeadId && (
+                              <Badge
+                                variant="outline"
+                                className="shrink-0 border-[#bfdbfe] bg-[#eff6ff] text-[10px] text-[#1d4ed8]"
+                              >
+                                <ArrowUpRight className="mr-0.5 size-3" />
+                                From lead
+                              </Badge>
+                            )}
                             {stuck && (
                               <Badge
                                 variant="outline"
@@ -888,6 +939,21 @@ export function DealsManagementPage() {
                                 <AlertTriangle className="mr-0.5 size-3" />
                                 {stuck}
                               </Badge>
+                            )}
+                            {allDone && (
+                              <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium text-[#16a34a]">
+                                <CheckCircle2 size={11} />
+                                Done
+                              </span>
+                            )}
+                            {!allDone && pending.length > 0 && (
+                              <span className={cn(
+                                "inline-flex shrink-0 items-center gap-0.5 text-[10px] font-medium",
+                                overdue.length > 0 ? "text-[#b45309]" : "text-[#6b7280]",
+                              )}>
+                                <Clock size={11} />
+                                {pending.length} pending{overdue.length > 0 && ` · ${overdue.length} overdue`}
+                              </span>
                             )}
                           </div>
                         </TableCell>

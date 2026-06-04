@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
+  ArrowUpRight,
   Briefcase,
   Building2,
   Check,
+  CheckCircle2,
   ChevronRight,
   Edit2,
   Headphones,
@@ -66,7 +68,7 @@ import {
   type ActivityType,
   type DealPqq,
 } from "@/data/dealsManagementData";
-import { mockDealStore } from "@/data/mockStore";
+import { mockDealStore, mockLeadStore } from "@/data/mockStore";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 
@@ -139,11 +141,15 @@ export function DealDetailPage({ id }: { id: string }) {
     title: string;
     date: string;
     note: string;
+    assignedTo: string;
+    dueDate: string;
   }>({
     kind: "Call",
     title: "",
     date: new Date().toISOString().split("T")[0]!,
     note: "",
+    assignedTo: "",
+    dueDate: "",
   });
 
   const [activeTab, setActiveTab] = useState<"overview" | "activities" | "timeline">(
@@ -232,6 +238,8 @@ export function DealDetailPage({ id }: { id: string }) {
       title: activityForm.title.trim(),
       date: activityForm.date,
       note: activityForm.note.trim() || undefined,
+      assignedTo: activityForm.assignedTo.trim() || undefined,
+      dueDate: activityForm.dueDate || undefined,
     };
     const next = {
       ...detailDraft,
@@ -239,16 +247,28 @@ export function DealDetailPage({ id }: { id: string }) {
     };
     setDetailDraft(next);
     setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
-    setActivityForm((f) => ({
-      ...f,
-      title: "",
-      note: "",
-    }));
+    setActivityForm((f) => ({ ...f, title: "", note: "", assignedTo: "", dueDate: "" }));
     setActivityOpen(false);
+  };
+
+  const markActivityComplete = (activityId: string) => {
+    if (!detailDraft) return;
+    const today = new Date().toISOString().split("T")[0]!;
+    const next = {
+      ...detailDraft,
+      activities: detailDraft.activities.map((a) =>
+        a.id === activityId ? { ...a, completedAt: today } : a,
+      ),
+    };
+    setDetailDraft(next);
+    setDeals((prev) => prev.map((d) => (d.id === next.id ? next : d)));
   };
 
   const stage = stageById.get(detailDraft.stageId);
   const customer = accountById.get(detailDraft.customerId);
+  const sourceLead = detailDraft.sourceLeadId
+    ? mockLeadStore.leads.find((l) => l.id === detailDraft.sourceLeadId)
+    : null;
   const expectedRevenue = Math.round((detailDraft.value * detailDraft.probability) / 100);
   const dealAgeDays = (() => {
     const start = new Date(detailDraft.stageEnteredAt);
@@ -725,6 +745,19 @@ export function DealDetailPage({ id }: { id: string }) {
                         </p>
                       </div>
                     </div>
+                    {detailDraft.sourceLeadId && (
+                      <div>
+                        <p className="text-xs text-[#6b7280]">Source Lead</p>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/leads/${detailDraft.sourceLeadId}`)}
+                          className="mt-0.5 flex items-center gap-1 text-sm text-[#4080f0] hover:underline"
+                        >
+                          <ArrowUpRight size={13} />
+                          {sourceLead?.name ?? "View lead"}
+                        </button>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <p className="text-xs text-[#6b7280]">Created From Lead</p>
@@ -784,20 +817,35 @@ export function DealDetailPage({ id }: { id: string }) {
                     <div className="absolute bottom-0 left-2 top-0 w-px bg-[#dfe4ef]" />
                     {detailDraft.activities.map((a) => {
                       const typeCfg = activityTypes.find((t) => t.name === a.kind);
+                      const isDone = Boolean(a.completedAt);
                       return (
                         <div key={a.id} className="relative mb-3 last:mb-0">
-                          <span className="absolute -left-7 top-1.5 flex size-5 items-center justify-center rounded-full border border-[#d7deef] bg-white text-[#6b7280]">
-                            <ActivityRowIcon name={typeCfg?.icon ?? a.kind} />
+                          <span className={cn("absolute -left-7 top-1.5 flex size-5 items-center justify-center rounded-full border bg-white", isDone ? "border-[#86efac] text-[#16a34a]" : "border-[#d7deef] text-[#6b7280]")}>
+                            {isDone ? <CheckCircle2 size={12} /> : <ActivityRowIcon name={typeCfg?.icon ?? a.kind} />}
                           </span>
-                          <div className="rounded-md border border-[#e5e7eb] bg-[#fafbff] px-3 py-2">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm text-[#1c1e21]">{a.title}</p>
-                              <span className="shrink-0 text-xs text-[#9ca3af]">{a.date}</span>
+                          <div className={cn("rounded-md border px-3 py-2", isDone ? "border-[#d1fae5] bg-[#f0fdf4]" : "border-[#e5e7eb] bg-[#fafbff]")}>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={cn("text-sm", isDone && "text-[#6b7280] line-through")}>{a.title}</p>
+                              <div className="flex shrink-0 items-center gap-2">
+                                <span className="text-xs text-[#9ca3af]">{a.date}</span>
+                                {!isDone && (
+                                  <button
+                                    type="button"
+                                    onClick={() => markActivityComplete(a.id)}
+                                    className="rounded px-1.5 py-0.5 text-[10px] font-medium text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1c1e21]"
+                                  >
+                                    Mark done
+                                  </button>
+                                )}
+                              </div>
                             </div>
-                            <p className="text-xs text-[#6b7280]">
-                              {a.kind}
-                              {a.note ? ` · ${a.note}` : ""}
-                            </p>
+                            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-xs text-[#9ca3af]">
+                              <span>{a.kind}</span>
+                              {a.assignedTo && <span>· {a.assignedTo}</span>}
+                              {a.dueDate && !isDone && <span>· Due {a.dueDate}</span>}
+                              {isDone && a.completedAt && <span className="text-[#16a34a]">· Completed {a.completedAt}</span>}
+                              {a.note && <span>· {a.note}</span>}
+                            </div>
                           </div>
                         </div>
                       );
@@ -865,13 +913,31 @@ export function DealDetailPage({ id }: { id: string }) {
                 className="h-9 border-[#e5e7eb]"
               />
             </FormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="Assigned To">
+                <Input
+                  value={activityForm.assignedTo}
+                  onChange={(e) => setActivityForm((p) => ({ ...p, assignedTo: e.target.value }))}
+                  className="h-9 border-[#e5e7eb]"
+                  placeholder="e.g. Sara Tesfaye"
+                />
+              </FormField>
+              <FormField label="Due Date">
+                <Input
+                  type="date"
+                  value={activityForm.dueDate}
+                  onChange={(e) => setActivityForm((p) => ({ ...p, dueDate: e.target.value }))}
+                  className="h-9 border-[#e5e7eb]"
+                />
+              </FormField>
+            </div>
             <FormField label="Notes">
               <Textarea
                 value={activityForm.note}
                 onChange={(e) =>
                   setActivityForm((p) => ({ ...p, note: e.target.value }))
                 }
-                className="min-h-[100px] border-[#e5e7eb] text-sm"
+                className="min-h-[80px] border-[#e5e7eb] text-sm"
                 placeholder="Add some details about this activity..."
               />
             </FormField>

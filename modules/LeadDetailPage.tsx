@@ -75,6 +75,9 @@ import {
   PQQ_MAX_TOTAL,
   DEFAULT_PIPELINE_STAGES as DEFAULT_DEAL_PIPELINE_STAGES,
   type DealPqq,
+  type CrmDeal,
+  computeBaseValue as computeDealBaseValue,
+  AUTOMATION_DEFAULT_STAGE_ID,
 } from "@/data/dealsManagementData";
 import {
   clonePqqFormValues,
@@ -87,7 +90,7 @@ import {
   type LeadPqqSettings,
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
-import { mockLeadStore } from "@/data/mockStore";
+import { mockLeadStore, mockDealStore } from "@/data/mockStore";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
@@ -208,7 +211,18 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmLead | null>(null);
 
   const [isConversionOpen, setIsConversionOpen] = useState(false);
-  const [selectedDealStageId, setSelectedDealStageId] = useState(DEFAULT_DEAL_PIPELINE_STAGES[0]?.id ?? "");
+  const [dealStages, setDealStages] = useState(() =>
+    [...mockDealStore.stages].sort((a, b) => a.order - b.order),
+  );
+  const [selectedDealStageId, setSelectedDealStageId] = useState(
+    () => mockDealStore.stages.find((s) => s.category === "open")?.id ?? AUTOMATION_DEFAULT_STAGE_ID,
+  );
+
+  useEffect(() => {
+    return mockDealStore.subscribeStages((stages) =>
+      setDealStages([...stages].sort((a, b) => a.order - b.order)),
+    );
+  }, []);
 
 
   const startEditDealInfo = () => {
@@ -319,11 +333,37 @@ export function LeadDetailPage({ id }: { id: string }) {
 
   const convertToDeal = () => {
     if (!detailDraft) return;
-    console.log("Converting lead to deal with stage:", selectedDealStageId);
-    // In a real app, this would create a Deal and potentially update the Lead status
+    const today = new Date().toISOString().split("T")[0]!;
+    const newDealId = `deal-conv-${crypto.randomUUID()}`;
+    const newDeal: CrmDeal = {
+      id: newDealId,
+      name: `${detailDraft.name} - Deal`,
+      customerId: detailDraft.customerId,
+      value: detailDraft.value,
+      currency: detailDraft.currency,
+      baseValue: computeDealBaseValue(detailDraft.value, detailDraft.currency),
+      probability: detailDraft.probability,
+      expectedClose: detailDraft.expectedClose,
+      stageId: selectedDealStageId,
+      stageEnteredAt: today,
+      primarySales: detailDraft.primarySales,
+      presales: detailDraft.presales,
+      channel: detailDraft.channel,
+      createdFromLead: true,
+      leadConvertedAt: today,
+      sourceLeadId: detailDraft.id,
+      activities: [
+        {
+          id: `act-conv-${crypto.randomUUID()}`,
+          kind: "External",
+          title: "Converted from lead",
+          date: today,
+        },
+      ],
+    };
+    mockDealStore.deals = [newDeal, ...mockDealStore.deals];
     setIsConversionOpen(false);
-    // Maybe show a toast or redirect
-    router.push("/deals");
+    router.push(`/deals/${newDealId}`);
   };
 
 
@@ -1190,7 +1230,7 @@ export function LeadDetailPage({ id }: { id: string }) {
                   <SelectValue placeholder="Select stage" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_DEAL_PIPELINE_STAGES.map((s) => (
+                  {dealStages.filter((s) => s.category === "open").map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}
                     </SelectItem>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Bell,
   Check,
   CheckCheck,
   X,
@@ -62,13 +63,13 @@ const STAGE_COLOR_PRESETS: {
   columnClass: string;
   borderClass: string;
 }[] = [
-  { label: "Violet", columnClass: "bg-[#f5f3ff]", borderClass: "border-[#e9d5ff]" },
-  { label: "Sky", columnClass: "bg-[#eff6ff]", borderClass: "border-[#bfdbfe]" },
-  { label: "Mint", columnClass: "bg-[#ecfdf5]", borderClass: "border-[#a7f3d0]" },
-  { label: "Amber", columnClass: "bg-[#fffbeb]", borderClass: "border-[#fde68a]" },
-  { label: "Emerald", columnClass: "bg-[#ecfdf3]", borderClass: "border-[#86efac]" },
-  { label: "Rose", columnClass: "bg-[#fef2f2]", borderClass: "border-[#fecaca]" },
-  { label: "Slate", columnClass: "bg-[#f8fafc]", borderClass: "border-[#cbd5e1]" },
+  { label: "Violet", columnClass: "bg-[#f9f8ff]", borderClass: "border-[#e4dff5]" },
+  { label: "Sky", columnClass: "bg-[#f5f9ff]", borderClass: "border-[#d8e6f8]" },
+  { label: "Mint", columnClass: "bg-[#f3fdf8]", borderClass: "border-[#c4e6d6]" },
+  { label: "Amber", columnClass: "bg-[#fdfaf3]", borderClass: "border-[#e8ddb8]" },
+  { label: "Emerald", columnClass: "bg-[#f3fdf6]", borderClass: "border-[#bce0c8]" },
+  { label: "Rose", columnClass: "bg-[#fdf6f6]", borderClass: "border-[#ecdada]" },
+  { label: "Slate", columnClass: "bg-[#f8fafc]", borderClass: "border-[#dde3eb]" },
 ];
 
 const AVAILABLE_ICONS = [
@@ -142,6 +143,19 @@ export function DealsSettingsPage() {
   const [newStageName, setNewStageName] = useState("");
   const [newStagePresetIndex, setNewStagePresetIndex] = useState("1");
   const [newStagePlacement, setNewStagePlacement] = useState("end");
+  const [agingWarningDays, setAgingWarningDays] = useState(() => mockDealStore.dealAgingWarningDays);
+  const [agingDraftValue, setAgingDraftValue] = useState(() => String(mockDealStore.dealAgingWarningDays));
+  const [agingSaved, setAgingSaved] = useState(false);
+
+  const saveAgingThreshold = () => {
+    const num = parseInt(agingDraftValue, 10);
+    if (!num || num < 1) return;
+    mockDealStore.dealAgingWarningDays = num;
+    setAgingWarningDays(num);
+    setAgingSaved(true);
+    setTimeout(() => setAgingSaved(false), 2000);
+  };
+
   const [stageConfigDraft, setStageConfigDraft] = useState<{ name: string; presetIndex: number } | null>(
     null,
   );
@@ -1073,6 +1087,48 @@ export function DealsSettingsPage() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+
+                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
+                  <div className="mb-4 flex items-center gap-2">
+                    <Bell size={15} className="text-[#4080f0]" />
+                    <h3 className="text-sm font-semibold text-[#1c1e21]">Pipeline Behavior</h3>
+                  </div>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                    <div className="flex-1">
+                      <p className="mb-1 text-xs font-medium text-[#374151]">Aging alert threshold</p>
+                      <p className="mb-2 text-xs text-[#6b7280]">
+                        Flag deals as "stuck" when they remain in the same stage longer than this many days.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={agingDraftValue}
+                          onChange={(e) => setAgingDraftValue(e.target.value)}
+                          className="h-9 w-24 border-[#e5e7eb] text-sm"
+                        />
+                        <span className="text-sm text-[#6b7280]">days</span>
+                        <Button
+                          size="sm"
+                          className={cn(
+                            "h-9 gap-1.5 px-3 text-[13px] transition-colors",
+                            agingSaved
+                              ? "bg-[#16a34a] text-white hover:bg-[#15803d]"
+                              : "bg-[#4080f0] text-white hover:bg-[#3070e0]",
+                          )}
+                          onClick={saveAgingThreshold}
+                          disabled={!agingDraftValue || parseInt(agingDraftValue, 10) < 1}
+                        >
+                          {agingSaved ? <><Check size={13} /> Saved</> : "Save"}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2 text-xs text-[#6b7280] sm:self-end">
+                      Currently: <span className="font-semibold text-[#1c1e21]">{agingWarningDays} day{agingWarningDays === 1 ? "" : "s"}</span>
+                    </div>
+                  </div>
+                </section>
               </div>
             ) : (
               <div className="space-y-6">

@@ -34,48 +34,48 @@ export const DEFAULT_PIPELINE_STAGES: PipelineStage[] = [
     name: "Qualification",
     category: "open",
     order: 0,
-    columnClass: "bg-[#f5f3ff]",
-    borderClass: "border-[#e9d5ff]",
+    columnClass: "bg-[#f9f8ff]",
+    borderClass: "border-[#e4dff5]",
   },
   {
     id: "stage-needs",
     name: "Needs Analysis",
     category: "open",
     order: 1,
-    columnClass: "bg-[#eff6ff]",
-    borderClass: "border-[#bfdbfe]",
+    columnClass: "bg-[#f5f9ff]",
+    borderClass: "border-[#d8e6f8]",
   },
   {
     id: "stage-proposal",
     name: "Proposal",
     category: "open",
     order: 2,
-    columnClass: "bg-[#ecfdf5]",
-    borderClass: "border-[#a7f3d0]",
+    columnClass: "bg-[#f3fdf8]",
+    borderClass: "border-[#c4e6d6]",
   },
   {
     id: "stage-negotiation",
     name: "Negotiation",
     category: "open",
     order: 3,
-    columnClass: "bg-[#fffbeb]",
-    borderClass: "border-[#fde68a]",
+    columnClass: "bg-[#fdfaf3]",
+    borderClass: "border-[#e8ddb8]",
   },
   {
     id: "stage-won",
     name: "Closed Won",
     category: "won",
     order: 4,
-    columnClass: "bg-[#ecfdf3]",
-    borderClass: "border-[#86efac]",
+    columnClass: "bg-[#f3fdf6]",
+    borderClass: "border-[#bce0c8]",
   },
   {
     id: "stage-lost",
     name: "Closed Lost",
     category: "lost",
     order: 5,
-    columnClass: "bg-[#fef2f2]",
-    borderClass: "border-[#fecaca]",
+    columnClass: "bg-[#fdf6f6]",
+    borderClass: "border-[#ecdada]",
   },
 ];
 export type ActivityType = {
@@ -95,6 +95,9 @@ export type DealActivity = {
   title: string;
   date: string;
   note?: string;
+  assignedTo?: string;
+  dueDate?: string;
+  completedAt?: string;
 };
 
 /** Lead Discovery & PQQ (BANT) — captured at deal creation and editable on the deal record */
@@ -271,6 +274,7 @@ export type CrmDeal = {
   channel: string;
   createdFromLead?: boolean;
   leadConvertedAt?: string;
+  sourceLeadId?: string;
   description?: string;
   /** Lead Discovery & PQQ / BANT worksheet */
   pqq?: DealPqq;

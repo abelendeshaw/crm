@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   LayoutDashboard,
@@ -18,69 +18,90 @@ import {
   Menu,
   X,
   Target,
+  Bell,
+  HelpCircle,
+  Search,
+  LogOut,
+  UserCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavItem {
   label: string;
   icon: React.ReactNode;
-  path?: string;
+  path: string;
   children?: { label: string; path: string }[];
 }
 
-const navItems: NavItem[] = [
-  { label: "Dashboard", icon: <LayoutDashboard size={16} />, path: "/" },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
   {
-    label: "Leads",
-    icon: <Users size={16} />,
-    path: "/leads",
-    children: [
-      { label: "Pipeline", path: "/leads" },
-      { label: "Settings", path: "/leads/settings" },
+    label: "Overview",
+    items: [
+      { label: "Dashboard", icon: <LayoutDashboard size={16} />, path: "/" },
     ],
   },
   {
-    label: "Deals",
-    icon: <Handshake size={16} />,
-    path: "/deals",
-    children: [
-      { label: "Pipeline", path: "/deals" },
-      { label: "Settings", path: "/deals/settings" },
+    label: "Sales",
+    items: [
+      {
+        label: "Leads",
+        icon: <Users size={16} />,
+        path: "/leads",
+        children: [
+          { label: "Pipeline", path: "/leads" },
+          { label: "Settings", path: "/leads/settings" },
+        ],
+      },
+      {
+        label: "Deals",
+        icon: <Handshake size={16} />,
+        path: "/deals",
+        children: [
+          { label: "Pipeline", path: "/deals" },
+          { label: "Settings", path: "/deals/settings" },
+        ],
+      },
+      { label: "Targets", icon: <Target size={16} />, path: "/targets" },
     ],
   },
-  { label: "Targets", icon: <Target size={16} />, path: "/targets" },
   {
-    label: "Customer",
-    icon: <Building2 size={16} />,
-    path: "/customers",
-    children: [
-      { label: "Customers", path: "/customers" },
-      { label: "Contacts", path: "/contacts" },
+    label: "Customers",
+    items: [
+      {
+        label: "Customer",
+        icon: <Building2 size={16} />,
+        path: "/customers",
+        children: [
+          { label: "Customers", path: "/customers" },
+          { label: "Contacts", path: "/contacts" },
+        ],
+      },
     ],
   },
-  { label: "Activity", icon: <Activity size={16} />, path: "/activity" },
-  { label: "Report", icon: <BarChart2 size={16} />, path: "/report" },
   {
-    label: "Settings",
-    icon: <Settings size={16} />,
-    path: "/settings",
-    children: [
-      { label: "General", path: "/settings?section=general" },
-      { label: "Integrations", path: "/settings?section=integrations" },
-      { label: "Notifications", path: "/settings?section=notifications" },
-      { label: "Security", path: "/settings?section=security" },
-      { label: "Appearance", path: "/settings?section=appearance" },
-      { label: "Localization", path: "/settings?section=localization" },
-      { label: "Data & Backup", path: "/settings?section=data" },
+    label: "Analytics",
+    items: [
+      { label: "Activity", icon: <Activity size={16} />, path: "/activity" },
+      { label: "Report", icon: <BarChart2 size={16} />, path: "/report" },
     ],
   },
 ];
-
-const userManagementNav: NavItem = {
-  label: "User Management",
-  icon: <UserCog size={16} />,
-  path: "/user-management",
-};
 
 interface CRMLayoutProps {
   children: React.ReactNode;
@@ -88,8 +109,10 @@ interface CRMLayoutProps {
 
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const currentPathWithQuery =
     typeof window !== "undefined" ? `${pathname}${window.location.search}` : pathname;
 
@@ -99,8 +122,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
     );
   };
 
-  const isActive = (path?: string) => {
-    if (!path) return false;
+  const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
     return pathname.startsWith(path);
   };
@@ -108,6 +130,18 @@ export function CRMLayout({ children }: CRMLayoutProps) {
   const isChildActive = (children?: { label: string; path: string }[]) => {
     return children?.some((c) => currentPathWithQuery === c.path);
   };
+
+  const navItemClass = (active: boolean, collapsed = false) =>
+    cn(
+      "flex items-center gap-3 px-2 py-2 rounded-md cursor-pointer group transition-all duration-100 relative",
+      collapsed && "justify-center",
+      active
+        ? "bg-white text-[#4080f0]"
+        : "text-white/80 hover:bg-white/15 hover:text-white"
+    );
+
+  const navIconClass = (active: boolean) =>
+    cn("flex-shrink-0", active ? "text-[#4080f0]" : "group-hover:text-white");
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -120,133 +154,204 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         />
       )}
 
+      {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex h-full w-[220px] min-w-[220px] flex-col bg-white border-r border-[#e5e7eb] transition-transform md:static md:z-10 md:translate-x-0",
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-[#4080f0] text-white transition-all duration-200 md:static md:z-10 md:translate-x-0",
+          sidebarCollapsed ? "w-[60px] min-w-[60px]" : "w-[220px] min-w-[220px]",
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-[#e5e7eb] h-[56px]">
-          <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[#4080f0]">
-            <span className="text-white font-bold text-xs">A</span>
-          </div>
-          <span className="font-semibold text-[#1c1e21] text-[13px] tracking-wide">
-            CRM
-          </span>
-          <div className="ml-auto">
-            <Grid3x3 size={16} className="text-[#9ca3af]" />
-          </div>
+        {/* Logo */}
+        <div
+          className={cn(
+            "h-[56px] flex items-center border-b border-white/16 flex-shrink-0",
+            sidebarCollapsed ? "px-4 justify-center" : "px-5"
+          )}
+        >
+          {sidebarCollapsed ? (
+            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/20">
+              <span className="text-white font-bold text-xs">A</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 min-w-0 w-full">
+              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/20 flex-shrink-0">
+                <span className="text-white font-bold text-xs">A</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-white text-sm font-semibold leading-tight truncate">
+                  CRM
+                </div>
+                <div className="text-white/60 text-xs leading-tight">Workspace</div>
+              </div>
+              <Grid3x3 size={16} className="text-white/60 flex-shrink-0" />
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {navItems.map((item) => {
-            const active = isActive(item.path) || isChildActive(item.children);
-            const isExpanded = expanded.includes(item.label);
-
-            return (
-              <div key={item.label}>
-                <div
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-2 cursor-pointer group transition-colors relative",
-                    active
-                      ? "text-[#4080f0] bg-[#eef2fd]"
-                      : "text-[#6b7280] hover:bg-[#f5f6fa] hover:text-[#1c1e21]"
-                  )}
-                  onClick={() => item.children && toggleExpand(item.label)}
-                >
-                  {active && (
-                    <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#4080f0] rounded-r" />
-                  )}
-                  <span
-                    className={cn(
-                      active
-                        ? "text-[#4080f0]"
-                        : "text-[#9ca3af] group-hover:text-[#6b7280]"
-                    )}
-                  >
-                    {item.icon}
+        {/* Nav groups */}
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto py-3 px-2">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              {!sidebarCollapsed && (
+                <div className="mb-1 px-2">
+                  <span className="text-white/60 text-[10px] uppercase tracking-widest font-semibold">
+                    {group.label}
                   </span>
-                  {item.path && !item.children ? (
-                    <Link
-                      href={item.path}
-                      className="flex-1 text-[13px] font-medium"
-                      onClick={() => setMobileNavOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <span className="flex-1 text-[13px] font-medium">{item.label}</span>
-                  )}
-                  {item.children && (
-                    <span className="ml-auto">
-                      {isExpanded ? (
-                        <ChevronDown size={14} />
-                      ) : (
-                        <ChevronRight size={14} />
-                      )}
-                    </span>
-                  )}
                 </div>
+              )}
+              <div className="flex flex-col gap-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item.path) || !!isChildActive(item.children);
+                  const isExpanded = expanded.includes(item.label);
 
-                {item.children && isExpanded && (
-                  <div className="ml-[34px] border-l border-[#e5e7eb] pl-3 py-1">
-                    {item.children.map((child) => {
-                      const childActive = currentPathWithQuery === child.path;
-                      return (
-                        <Link
-                          key={child.path}
-                          href={child.path}
-                          onClick={() => setMobileNavOpen(false)}
-                          className={cn(
-                            "block py-1.5 text-[13px] transition-colors",
-                            childActive
-                              ? "text-[#4080f0] font-medium"
-                              : "text-[#6b7280] hover:text-[#1c1e21]"
-                          )}
-                        >
-                          {child.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
+                  return (
+                    <div key={item.label}>
+                      <div
+                        className={navItemClass(active, sidebarCollapsed)}
+                        onClick={() => item.children && toggleExpand(item.label)}
+                      >
+                        {active && !sidebarCollapsed && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+                        )}
+                        <span className={navIconClass(active)}>{item.icon}</span>
+                        {!sidebarCollapsed && (
+                          <>
+                            {!item.children ? (
+                              <Link
+                                href={item.path}
+                                className="flex-1 text-[13px] font-medium truncate"
+                                onClick={() => setMobileNavOpen(false)}
+                              >
+                                {item.label}
+                              </Link>
+                            ) : (
+                              <span className="flex-1 text-[13px] font-medium truncate">
+                                {item.label}
+                              </span>
+                            )}
+                            {item.children && (
+                              <span className="ml-auto flex-shrink-0">
+                                {isExpanded ? (
+                                  <ChevronDown size={14} />
+                                ) : (
+                                  <ChevronRight size={14} />
+                                )}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {item.children && isExpanded && !sidebarCollapsed && (
+                        <div className="ml-[28px] border-l border-white/20 pl-3 py-1">
+                          {item.children.map((child) => {
+                            const childActive = currentPathWithQuery === child.path;
+                            return (
+                              <Link
+                                key={child.path}
+                                href={child.path}
+                                onClick={() => setMobileNavOpen(false)}
+                                className={cn(
+                                  "block py-1.5 text-[13px] transition-colors",
+                                  childActive
+                                    ? "text-white font-medium"
+                                    : "text-white/70 hover:text-white"
+                                )}
+                              >
+                                {child.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </nav>
 
-        <div className="border-t border-[#e5e7eb] p-3">
-          <Link
-            href={userManagementNav.path ?? "/user-management"}
-            onClick={() => setMobileNavOpen(false)}
+        {/* Bottom section */}
+        <div className="border-t border-white/16 flex-shrink-0 p-2">
+          {/* Settings */}
+          <div className={navItemClass(isActive("/settings"), sidebarCollapsed)}>
+            {isActive("/settings") && !sidebarCollapsed && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+            )}
+            <span className={navIconClass(isActive("/settings"))}>
+              <Settings size={16} />
+            </span>
+            {!sidebarCollapsed && (
+              <Link
+                href="/settings"
+                className="flex-1 text-[13px] font-medium"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Settings
+              </Link>
+            )}
+          </div>
+
+          {/* User Management */}
+          <div className={navItemClass(isActive("/user-management"), sidebarCollapsed)}>
+            {isActive("/user-management") && !sidebarCollapsed && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+            )}
+            <span className={navIconClass(isActive("/user-management"))}>
+              <UserCog size={16} />
+            </span>
+            {!sidebarCollapsed && (
+              <Link
+                href="/user-management"
+                className="flex-1 text-[13px] font-medium"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                User Management
+              </Link>
+            )}
+          </div>
+
+          {/* User info */}
+          {!sidebarCollapsed && (
+            <div className="mt-1 px-2 py-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-xs font-semibold flex-shrink-0">
+                  A
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-xs font-medium truncate">Admin User</div>
+                  <div className="text-white/60 text-[11px] truncate">Admin</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Collapse toggle */}
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed((c) => !c)}
             className={cn(
-              "flex items-center gap-3 rounded-lg border px-3 py-3 transition-colors",
-              isActive(userManagementNav.path)
-                ? "border-[#bfd0fb] bg-[#eef2fd] text-[#245fcb]"
-                : "border-[#e5e7eb] bg-[#fafbff] text-[#4b5563] hover:bg-[#f3f6ff]"
+              "flex w-full items-center gap-3 rounded-md px-2 py-2 text-white/70 hover:bg-white/15 hover:text-white transition-all duration-100",
+              sidebarCollapsed && "justify-center"
             )}
           >
-            <span
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-md",
-                isActive(userManagementNav.path)
-                  ? "bg-[#dfe9ff] text-[#3b78e7]"
-                  : "bg-white text-[#6b7280]"
-              )}
-            >
-              {userManagementNav.icon}
-            </span>
-            <div className="min-w-0">
-              <p className="text-[13px] font-medium leading-tight">
-                {userManagementNav.label}
-              </p>
-              <p className="text-xs text-[#9ca3af]">Users, roles, teams</p>
-            </div>
-          </Link>
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4" />
+            ) : (
+              <>
+                <PanelLeftClose className="w-4 h-4" />
+                <span className="text-[13px]">Collapse</span>
+              </>
+            )}
+          </button>
         </div>
       </aside>
 
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#f5f6fa]">
+        {/* Mobile header */}
         <div className="flex items-center justify-between border-b border-[#e5e7eb] bg-white px-4 py-3 md:hidden">
           <button
             type="button"
@@ -259,7 +364,84 @@ export function CRMLayout({ children }: CRMLayoutProps) {
           <span className="text-sm font-semibold text-[#1c1e21]">CRM</span>
           <span className="w-9" />
         </div>
-        {children}
+
+        {/* Desktop header */}
+        <header className="hidden md:flex h-[56px] items-center gap-4 border-b border-[#e5e7eb] bg-white px-6 flex-shrink-0">
+          <div className="flex-1 flex items-center gap-3">
+            <div className="relative">
+              <Search className="text-[#9ca3af] absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+              <Input
+                placeholder="Search leads, deals, contacts..."
+                className="h-8 min-h-0 w-64 pl-9 pr-4 text-[13px]"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Notifications */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-[#9ca3af] hover:text-[#1c1e21] size-8"
+            >
+              <Bell className="w-4 h-4" />
+            </Button>
+
+            {/* Help */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-[#9ca3af] hover:text-[#1c1e21] size-8"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
+
+            <div className="h-5 w-px bg-[#e5e7eb]" />
+
+            {/* User profile */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-auto gap-2 px-0 hover:bg-transparent"
+                >
+                  <div className="flex size-7 items-center justify-center rounded-full bg-[#4080f0] text-white text-xs font-semibold">
+                    A
+                  </div>
+                  <div className="text-left hidden sm:block">
+                    <div className="text-[#1c1e21] text-[13px] font-medium leading-tight">
+                      Admin User
+                    </div>
+                    <div className="text-[#9ca3af] text-[11px] leading-tight">Admin</div>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem className="text-[13px]">
+                  <UserCircle className="w-3.5 h-3.5 mr-2" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => router.push("/settings")}
+                  className="text-[13px]"
+                >
+                  <Settings className="w-3.5 h-3.5 mr-2" />
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-[13px] text-red-600">
+                  <LogOut className="w-3.5 h-3.5 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

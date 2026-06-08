@@ -118,7 +118,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+      prev.includes(label) ? [] : [label]
     );
   };
 
@@ -250,7 +250,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                       </div>
 
                       {item.children && isExpanded && !sidebarCollapsed && (
-                        <div className="ml-[28px] border-l border-white/20 pl-3 py-1">
+                        <div className="ml-[28px] pl-3 py-1">
                           {item.children.map((child) => {
                             const childActive = currentPathWithQuery === child.path;
                             return (

@@ -86,25 +86,26 @@ const settingSectionIds: SettingSection[] = [
 function PlaceholderSection({ section }: { section: SettingSection }) {
   const item = settingsNav.find((s) => s.id === section);
   return (
-    <div className="flex flex-col h-full">
-      <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
-        <div className="flex items-center gap-1.5 text-xs text-[#9ca3af] mb-1">
+    <div className="flex flex-col">
+      <div className="border-b border-[#e5e7eb] px-5 py-4">
+        <div className="mb-1 flex items-center gap-1.5 text-xs text-[#9ca3af]">
           <span>Settings</span>
-          <ChevronRight size={12} />
-          <span className="text-[#4080f0] font-medium">{item?.label}</span>
+          <ChevronRight size={11} />
+          <span className="font-medium text-[#4080f0]">{item?.label}</span>
         </div>
-        <h1 className="font-semibold text-[#1c1e21]">{item?.label}</h1>
-        <p className="text-sm text-[#9ca3af] mt-0.5">{item?.description}</p>
+        <div className="flex items-center gap-2">
+          <span className="text-[#4080f0]">{item?.icon}</span>
+          <h2 className="text-[15px] font-semibold text-[#1c1e21]">{item?.label}</h2>
+        </div>
+        <p className="mt-0.5 text-[13px] text-[#9ca3af]">{item?.description}</p>
       </div>
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#eef2fd] flex items-center justify-center mx-auto mb-4 text-[#4080f0]">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#eef2fd] text-[#4080f0]">
             {item?.icon}
           </div>
-          <h3 className="font-medium text-[#1c1e21] mb-1">{item?.label} Settings</h3>
-          <p className="text-sm text-[#9ca3af]">
-            This section is coming soon.
-          </p>
+          <p className="text-sm font-medium text-[#1c1e21]">{item?.label} Settings</p>
+          <p className="mt-1 text-xs text-[#9ca3af]">This section is coming soon.</p>
         </div>
       </div>
     </div>
@@ -123,50 +124,58 @@ export function SettingsPage() {
     useState<SettingSection>(selectedSection);
 
   return (
-    <div className="flex h-full overflow-hidden flex-col lg:flex-row">
-      {/* Settings Left Nav */}
-      <aside className="w-full lg:w-[220px] lg:min-w-[220px] bg-white border-b lg:border-b-0 lg:border-r border-[#e5e7eb] flex flex-col py-3 lg:py-4 overflow-y-auto">
-        <div className="px-4 mb-3">
-          <p className="text-[10px] font-semibold text-[#9ca3af] uppercase tracking-widest">
-            Settings
-          </p>
-        </div>
-        <nav className="flex gap-0.5 px-2 overflow-x-auto lg:flex-col">
-          {settingsNav.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveSection(item.id)}
-              className={cn(
-                "flex items-center gap-2.5 px-3 py-2.5 rounded-md text-sm min-w-max lg:min-w-0 lg:w-full text-left transition-colors relative",
-                activeSection === item.id
-                  ? "bg-[#eef2fd] text-[#4080f0] font-medium"
-                  : "text-[#6b7280] hover:bg-[#f5f6fa] hover:text-[#1c1e21]"
-              )}
-            >
-              <span
-                className={
-                  activeSection === item.id ? "text-[#4080f0]" : "text-[#9ca3af]"
-                }
+    <div className="min-h-full overflow-y-auto bg-[#f5f6fa] p-6">
+      <div className="mx-auto flex max-w-5xl items-start gap-6">
+        {/* Left nav card */}
+        <div className="w-64 shrink-0 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+          <div className="border-b border-[#e5e7eb] px-4 py-3.5">
+            <h2 className="text-[13px] font-semibold text-[#1c1e21]">Settings</h2>
+            <p className="text-[11px] text-[#9ca3af]">Workspace configuration</p>
+          </div>
+          <nav className="flex flex-col gap-0.5 p-2">
+            {settingsNav.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveSection(item.id)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                  activeSection === item.id
+                    ? "bg-[#eef2fd]"
+                    : "hover:bg-[#f5f6fa]"
+                )}
               >
-                {item.icon}
-              </span>
-              {item.label}
-              {activeSection === item.id && (
-                <span className="ml-auto">
-                  <ChevronRight size={12} className="text-[#4080f0]" />
+                <span
+                  className={cn(
+                    "shrink-0",
+                    activeSection === item.id ? "text-[#4080f0]" : "text-[#9ca3af]"
+                  )}
+                >
+                  {item.icon}
                 </span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </aside>
+                <span className="flex min-w-0 flex-col">
+                  <span
+                    className={cn(
+                      "text-[13px] font-medium",
+                      activeSection === item.id ? "text-[#4080f0]" : "text-[#1c1e21]"
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="truncate text-[11px] text-[#9ca3af]">
+                    {item.description}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      {/* Settings Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <PlaceholderSection section={activeSection} />
+        {/* Right content card */}
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+          <PlaceholderSection section={activeSection} />
+        </div>
       </div>
     </div>
   );
 }
-
-

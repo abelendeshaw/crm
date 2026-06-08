@@ -1,16 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
-  Bell,
   Check,
-  CheckCheck,
-  X,
   GripVertical,
-  CheckCircle2,
-  Settings as SettingsIcon,
-  LayoutGrid,
   Pencil,
   Plus,
   Trash2,
@@ -27,7 +20,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,17 +38,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { mockDealStore } from "@/data/mockStore";
-import { PipelineStage, ActivityType, CrmDeal, dealCustomerAccounts } from "@/data/dealsManagementData";
+import { PipelineStage, ActivityType, CrmDeal } from "@/data/dealsManagementData";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -125,7 +109,6 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function DealsSettingsPage() {
-  const router = useRouter();
   const [activeSection, setActiveSection] = useState<Tab>("stages");
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
@@ -156,9 +139,11 @@ export function DealsSettingsPage() {
     setTimeout(() => setAgingSaved(false), 2000);
   };
 
-  const [stageConfigDraft, setStageConfigDraft] = useState<{ name: string; presetIndex: number } | null>(
-    null,
-  );
+  const [stageConfigDraft, setStageConfigDraft] = useState<{
+    name: string;
+    presetIndex: number;
+    placementAfterStageId: string;
+  } | null>(null);
   const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
     [...mockDealStore.stages].sort((a, b) => a.order - b.order),
@@ -495,14 +480,6 @@ export function DealsSettingsPage() {
   for (const deal of deals) {
     stageDealCountById.set(deal.stageId, (stageDealCountById.get(deal.stageId) ?? 0) + 1);
   }
-  const customerNameById = new Map(dealCustomerAccounts.map((account) => [account.id, account.name]));
-  const getStageInitials = (name: string) =>
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("");
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -531,6 +508,18 @@ export function DealsSettingsPage() {
               {tab.label}
             </button>
           ))}
+          {activeSection === "activities" && (
+            <div className="ml-auto shrink-0 pb-px pl-3">
+              <Button
+                onClick={openAddActivityDialog}
+                size="sm"
+                className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
+              >
+                <Plus size={14} className="mr-1" />
+                Add Type
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -538,383 +527,305 @@ export function DealsSettingsPage() {
         <div className="h-full overflow-y-auto no-scrollbar">
           <div className="w-full pb-4">
             {activeSection === "stages" ? (
-              <div className="space-y-4">
-                <div className="flex flex-col gap-4 rounded-lg border border-[#e5e7eb] bg-white p-4 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="font-semibold text-[#1c1e21]">Deals Settings</h2>
-                    <p className="mt-1 text-xs text-[#6b7280]">
-                      Design and manage your sales flow architecture.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Button
-                      onClick={openAddStageDialog}
-                      size="sm"
-                      className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                    >
-                      <Plus size={16} className="mr-1.5" />
-                      New Stage
-                    </Button>
-                  </div>
-                </div>
+              <div className="flex gap-5 items-start">
 
-                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-[#1c1e21]">Pipeline Stages</h3>
-                    <span className="inline-flex items-center rounded-full border border-[#bfdbfe] bg-[#eef2fd] px-2.5 py-0.5 text-xs font-semibold text-[#4080f0]">
-                      {orderedStages.length} stages
-                    </span>
-                  </div>
-                  <div className="overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                    <div className="flex gap-4 min-w-max">
-                      {orderedStages.map((stage, idx) => {
-                        const isSelected = selectedStage?.id === stage.id;
-                        const isDraggedCard = draggedStageId === stage.id;
-                        const shouldShiftLeft =
-                          draggedStageIndex >= 0 &&
-                          dropTargetStageIndex >= 0 &&
-                          draggedStageIndex < dropTargetStageIndex &&
-                          idx > draggedStageIndex &&
-                          idx <= dropTargetStageIndex;
-                        const shouldShiftRight =
-                          draggedStageIndex >= 0 &&
-                          dropTargetStageIndex >= 0 &&
-                          draggedStageIndex > dropTargetStageIndex &&
-                          idx >= dropTargetStageIndex &&
-                          idx < draggedStageIndex;
-                        const shiftX = shouldShiftLeft ? -272 : shouldShiftRight ? 272 : 0;
-                        return (
-                          <button
-                            key={stage.id}
-                            type="button"
-                            onClick={() => setSelectedStageId(stage.id)}
-                            onMouseEnter={() => handleStageDragOverCard(stage.id)}
-                            className={cn(
-                              "flex flex-col w-64 rounded-xl p-4 text-left border transform-gpu transition-[transform,box-shadow,background-color,border-color,opacity] duration-300 ease-out cursor-pointer",
-                              isSelected
-                                ? "border-[#4080f0] bg-[#eef2fd] shadow-sm"
-                                : "border-[#e5e7eb] bg-white hover:border-[#cbd5e1]",
-                              isDraggedCard && "opacity-0",
-                              dropTargetStageId === stage.id && draggedStageId !== stage.id
-                                ? "bg-[#f0f7ff] ring-2 ring-[#bfdbfe]"
-                                : ""
-                            )}
-                            style={{
-                              transform: shiftX !== 0 ? `translateX(${shiftX}px)` : undefined,
-                            }}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <span />
-                              <span
-                                role="button"
-                                tabIndex={-1}
-                                aria-label="Drag stage to reorder"
-                                onMouseDown={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  handleStageDragStart(stage.id, {
-                                    x: event.clientX,
-                                    y: event.clientY,
-                                  });
-                                }}
-                                onClick={(event) => event.stopPropagation()}
-                                className={cn(
-                                  "inline-flex h-6 w-6 items-center justify-center rounded-md cursor-grab hover:bg-[#f3f4f6]",
-                                  isDraggedCard && "cursor-grabbing",
-                                )}
-                              >
-                                <GripVertical
-                                  size={16}
-                                  className={cn(
-                                    draggedStageId ? "text-[#4080f0] animate-pulse" : "text-[#c4c7d4]",
-                                  )}
-                                />
-                              </span>
-                            </div>
-                            <h4 className="font-semibold text-[#1c1e21]">{stage.name}</h4>
-                            <p className="text-sm text-[#6b7280] mb-4">
-                              {stage.category === "won"
-                                ? "Successful closure stage"
-                                : stage.category === "lost"
-                                  ? "Lost opportunity stage"
-                                  : "Active progression stage"}
-                            </p>
-                            <div className="mt-auto flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={cn(
-                                    "h-4 w-4 rounded-full border",
-                                    stage.columnClass,
-                                    stage.borderClass,
-                                  )}
-                                />
-                                <span className="text-xs text-[#6b7280]">Stage color</span>
-                              </div>
-                              <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                                {stageDealCountById.get(stage.id) ?? 0} Deals
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
+                {/* ── Left column: compact stage list ───────────────── */}
+                <div className="w-[260px] shrink-0 flex flex-col gap-1.5">
+                  {orderedStages.map((stage, idx) => {
+                    const isSelected = selectedStage?.id === stage.id;
+                    const isDraggedCard = draggedStageId === stage.id;
+                    const shouldShiftUp =
+                      draggedStageIndex >= 0 &&
+                      dropTargetStageIndex >= 0 &&
+                      draggedStageIndex < dropTargetStageIndex &&
+                      idx > draggedStageIndex &&
+                      idx <= dropTargetStageIndex;
+                    const shouldShiftDown =
+                      draggedStageIndex >= 0 &&
+                      dropTargetStageIndex >= 0 &&
+                      draggedStageIndex > dropTargetStageIndex &&
+                      idx >= dropTargetStageIndex &&
+                      idx < draggedStageIndex;
+                    const shiftY = shouldShiftUp ? -50 : shouldShiftDown ? 50 : 0;
+                    return (
                       <button
+                        key={stage.id}
                         type="button"
-                        onClick={openAddStageDialog}
-                        className="flex flex-col w-64 border-2 border-dashed border-[#d1d5db] rounded-xl p-4 text-center items-center justify-center text-[#6b7280] hover:bg-[#f9fafb] transition-colors"
+                        onClick={() => setSelectedStageId(stage.id)}
+                        onMouseEnter={() => handleStageDragOverCard(stage.id)}
+                        className={cn(
+                          "group relative flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transform-gpu transition-[transform,background-color,border-color,opacity] duration-200 ease-out",
+                          isSelected
+                            ? "border-[#4080f0] bg-[#eef2fd]"
+                            : "border-[#e5e7eb] bg-white hover:border-[#c7d4e8] hover:bg-[#fafbff]",
+                          isDraggedCard && "opacity-0",
+                          dropTargetStageId === stage.id && draggedStageId !== stage.id
+                            ? "ring-2 ring-[#bfdbfe]"
+                            : ""
+                        )}
+                        style={{ transform: shiftY !== 0 ? `translateY(${shiftY}px)` : undefined }}
                       >
-                        <Plus size={28} className="mb-2" />
-                        <span className="font-semibold">Add Stage</span>
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          aria-label="Drag stage to reorder"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleStageDragStart(stage.id, { x: event.clientX, y: event.clientY });
+                          }}
+                          onClick={(event) => event.stopPropagation()}
+                          className={cn(
+                            "shrink-0 inline-flex h-5 w-5 items-center justify-center rounded cursor-grab hover:bg-[#e9ecef]",
+                            isDraggedCard && "cursor-grabbing",
+                          )}
+                        >
+                          <GripVertical
+                            size={13}
+                            className={cn(draggedStageId ? "text-[#4080f0] animate-pulse" : "text-[#c4c7d4]")}
+                          />
+                        </span>
+                        <div className={cn("h-2.5 w-2.5 shrink-0 rounded-full border-2", stage.columnClass, stage.borderClass)} />
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1c1e21]">{stage.name}</span>
+                        <span className="shrink-0 text-xs text-[#9ca3af] tabular-nums">
+                          {stageDealCountById.get(stage.id) ?? 0}
+                        </span>
                       </button>
-                    </div>
-                  </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={openAddStageDialog}
+                    className="mt-0.5 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-[#d1d5db] py-2.5 text-[13px] font-medium text-[#9ca3af] hover:border-[#b0b8c5] hover:bg-[#f9fafb] hover:text-[#6b7280] transition-colors"
+                  >
+                    <Plus size={13} />
+                    Add Stage
+                  </button>
                   {draggedStage && dragPointer && (
                     <div
-                      className="pointer-events-none fixed z-50 w-64 rounded-xl border border-[#93c5fd] bg-white p-4 shadow-xl"
-                      style={{
-                        left: dragPointer.x - 128,
-                        top: dragPointer.y - 44,
-                      }}
+                      className="pointer-events-none fixed z-50 w-[240px] rounded-lg border border-[#93c5fd] bg-white px-3 py-2.5 shadow-xl"
+                      style={{ left: dragPointer.x - 120, top: dragPointer.y - 22 }}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <span />
-                        <GripVertical size={16} className="text-[#4080f0]" />
-                      </div>
-                      <h4 className="font-semibold text-[#1c1e21]">{draggedStage.name}</h4>
-                      <p className="mb-4 text-sm text-[#6b7280]">
-                        {draggedStage.category === "won"
-                          ? "Successful closure stage"
-                          : draggedStage.category === "lost"
-                            ? "Lost opportunity stage"
-                            : "Active progression stage"}
-                      </p>
-                      <div className="mt-auto flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={cn(
-                              "h-4 w-4 rounded-full border",
-                              draggedStage.columnClass,
-                              draggedStage.borderClass,
-                            )}
-                          />
-                          <span className="text-xs text-[#6b7280]">Stage color</span>
-                        </div>
-                        <span className="rounded-full bg-[#eef2fd] px-2 py-0.5 text-xs font-semibold text-[#4080f0]">
-                          {stageDealCountById.get(draggedStage.id) ?? 0} Deals
-                        </span>
+                      <div className="flex items-center gap-2.5">
+                        <GripVertical size={13} className="shrink-0 text-[#4080f0]" />
+                        <div className={cn("h-2.5 w-2.5 shrink-0 rounded-full border-2", draggedStage.columnClass, draggedStage.borderClass)} />
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1c1e21]">{draggedStage.name}</span>
                       </div>
                     </div>
                   )}
-                </section>
+                </div>
 
-                <section className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
-                  <Card className="overflow-hidden border-0 bg-transparent shadow-none">
-                    <CardHeader className="border-b border-[#e5e7eb] bg-white px-2 pb-1.5 pt-1.5 sm:px-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="font-semibold text-[#1c1e21]">
-                            Stage Settings: {selectedStage?.name ?? "N/A"}
-                          </CardTitle>
-                          <CardDescription className="mt-0 text-xs text-[#6b7280]">
-                            Manage properties and requirements for this phase
-                          </CardDescription>
+                {/* ── Right column: stage settings + pipeline behaviour ── */}
+                <div className="flex-1 min-w-0">
+                  {selectedStage ? (
+                    <div className="overflow-hidden rounded-xl border border-[#e5e7eb] bg-white">
+                      <div className="flex items-center gap-3 border-b border-[#e5e7eb] px-5 py-3.5">
+                        <div className={cn("h-3 w-3 shrink-0 rounded-full border-2", selectedStage.columnClass, selectedStage.borderClass)} />
+                        <div className="min-w-0 flex-1">
+                          <h3 className="truncate text-[13px] font-semibold text-[#1c1e21]">{selectedStage.name}</h3>
+                          <p className="text-[11px] capitalize text-[#9ca3af]">{selectedStage.category} stage</p>
                         </div>
-                        {selectedStage && (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={cn(
+                              "h-8 gap-1.5 text-[13px]",
+                              isStageConfigEditing
+                                ? "border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                : "border-[#e5e7eb] text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
+                            )}
+                            onClick={() => {
+                              if (!selectedStage) return;
+                              if (!isStageConfigEditing) {
+                                const currentIdx = orderedStages.findIndex((s) => s.id === selectedStage.id);
+                                setStageConfigDraft({
+                                  name: selectedStage.name,
+                                  presetIndex: selectedStagePresetIndex,
+                                  placementAfterStageId: currentIdx === 0 ? "" : orderedStages[currentIdx - 1]?.id ?? "",
+                                });
+                                setIsStageConfigEditing(true);
+                                return;
+                              }
+                              if (!stageConfigDraft) return;
+                              const nextName = stageConfigDraft.name.trim() || selectedStage.name;
+                              updateStage(selectedStage.id, { name: nextName });
+                              setPreset(selectedStage.id, stageConfigDraft.presetIndex);
+                              const currentIds = orderedStages.map((s) => s.id);
+                              const withoutCurrent = currentIds.filter((id) => id !== selectedStage.id);
+                              const insertAt =
+                                stageConfigDraft.placementAfterStageId === ""
+                                  ? 0
+                                  : withoutCurrent.indexOf(stageConfigDraft.placementAfterStageId) + 1;
+                              const newOrder = [...withoutCurrent];
+                              newOrder.splice(insertAt, 0, selectedStage.id);
+                              if (currentIds.join(",") !== newOrder.join(",")) {
+                                reorderStagesByIds(newOrder);
+                              }
+                              setIsStageConfigEditing(false);
+                              setStageDetailsFeedback("Stage updated.");
+                            }}
+                          >
+                            {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
+                            {isStageConfigEditing ? "Confirm" : "Edit"}
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                            className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-600"
                             onClick={() => {
                               setDeleteStageHasDeals(selectedStageHasDeals);
                               setDeleteStageDialogOpen(true);
                             }}
                             title="Delete stage"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </Button>
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-3 sm:px-6 sm:pb-6">
-                      {selectedStage ? (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <CardTitle className="text-sm font-semibold">Stage Configuration</CardTitle>
-                                  <CardDescription className="text-xs">
-                                    Update name and color, then confirm.
-                                  </CardDescription>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "h-8 w-8",
-                                    isStageConfigEditing
-                                      ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                                      : "text-[#6b7280] hover:bg-[#f3f4f6] hover:text-[#1f2937]",
-                                  )}
-                                  onClick={() => {
-                                    if (!selectedStage) return;
-                                    if (!isStageConfigEditing) {
-                                      setStageConfigDraft({
-                                        name: selectedStage.name,
-                                        presetIndex: selectedStagePresetIndex,
-                                      });
-                                      setIsStageConfigEditing(true);
-                                      return;
-                                    }
-                                    if (!stageConfigDraft) return;
-                                    const nextName = stageConfigDraft.name.trim() || selectedStage.name;
-                                    updateStage(selectedStage.id, { name: nextName });
-                                    setPreset(selectedStage.id, stageConfigDraft.presetIndex);
-                                    setIsStageConfigEditing(false);
-                                    setStageDetailsFeedback("Stage configuration updated.");
-                                  }}
-                                  title={isStageConfigEditing ? "Confirm changes" : "Edit stage configuration"}
-                                  aria-label={
-                                    isStageConfigEditing
-                                      ? "Confirm stage configuration changes"
-                                      : "Edit stage configuration"
-                                  }
-                                >
-                                  {isStageConfigEditing ? <Check size={14} /> : <Pencil size={14} />}
-                                </Button>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4 pt-0">
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Stage Name
-                                </label>
-                                <Input
-                                  value={stageConfigDraft?.name ?? selectedStage.name}
-                                  onChange={(event) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, name: event.target.value } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                  className="h-9 border-[#e5e7eb] bg-white text-sm"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                  Color
-                                </label>
-                                <Select
-                                  value={String(stageConfigDraft?.presetIndex ?? selectedStagePresetIndex)}
-                                  onValueChange={(value) =>
-                                    setStageConfigDraft((prev) =>
-                                      prev ? { ...prev, presetIndex: Number(value) } : prev,
-                                    )
-                                  }
-                                  disabled={!isStageConfigEditing}
-                                >
-                                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white">
-                                    <div className="flex items-center gap-2">
-                                      <div
-                                        className={cn(
-                                          "h-3 w-3 rounded-full border",
-                                          selectedStage.columnClass,
-                                          selectedStage.borderClass,
-                                        )}
-                                      />
-                                      <SelectValue />
-                                    </div>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {STAGE_COLOR_PRESETS.map((preset, index) => (
-                                      <SelectItem key={preset.label} value={String(index)}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <span
-                                            className={cn(
-                                              "h-3 w-3 rounded-full border",
-                                              preset.columnClass,
-                                              preset.borderClass,
-                                            )}
-                                          />
-                                          {preset.label}
-                                        </span>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              {stageDetailsFeedback && (
-                                <p className="text-xs text-[#245fcb]">{stageDetailsFeedback}</p>
-                              )}
-                            </CardContent>
-                          </Card>
-
-                          <Card className="border-[#e5e7eb] bg-white shadow-none">
-                            <CardHeader className="pb-3">
-                              <CardTitle className="text-sm font-semibold">Deals in Stage</CardTitle>
-                              <CardDescription className="text-xs">
-                                {selectedStageDeals.length} deal(s) currently mapped to this stage.
-                              </CardDescription>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <div className="overflow-hidden rounded-md border border-[#e5e7eb]">
-                                <table className="w-full text-sm">
-                                  <thead>
-                                    <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Deal
-                                      </th>
-                                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                                        Customer
-                                      </th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {selectedStageDeals.length > 0 ? (
-                                      selectedStageDeals.map((deal) => (
-                                        <tr
-                                          key={deal.id}
-                                          className="border-b border-[#f0f2f7] transition-colors hover:bg-[#fafbff]"
-                                        >
-                                          <td className="px-4 py-3">
-                                            <p className="text-sm font-medium text-[#1c1e21]">{deal.name}</p>
-                                          </td>
-                                          <td className="px-4 py-3">
-                                            <div className="flex items-center justify-between gap-3">
-                                              <p className="text-sm text-[#1c1e21]">
-                                                {customerNameById.get(deal.customerId) ?? "Unknown customer"}
-                                              </p>
-                                              <Button
-                                                type="button"
-                                                size="sm"
-                                                className="h-7 bg-[#4080f0] px-2 text-xs text-white hover:bg-[#3070e0]"
-                                                onClick={() => router.push(`/deals/${deal.id}`)}
-                                              >
-                                                View Deal
-                                              </Button>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ))
-                                    ) : (
-                                      <tr>
-                                        <td colSpan={2} className="px-4 py-8 text-center text-sm text-[#6b7280]">
-                                          No deals currently in this stage.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </CardContent>
-                          </Card>
                         </div>
-                      ) : (
-                        <p className="text-sm text-[#6b7280]">Select a stage to view details.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </section>
+                      </div>
+                      <div className="p-5 space-y-5">
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">
+                            Stage Name
+                          </label>
+                          <Input
+                            value={stageConfigDraft?.name ?? selectedStage.name}
+                            onChange={(event) =>
+                              setStageConfigDraft((prev) =>
+                                prev ? { ...prev, name: event.target.value } : prev,
+                              )
+                            }
+                            disabled={!isStageConfigEditing}
+                            className="h-9 border-[#e5e7eb] bg-white text-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">
+                            Color
+                          </label>
+                          <div className="flex gap-2">
+                            {STAGE_COLOR_PRESETS.map((preset, index) => {
+                              const hex = preset.borderClass.match(/#[0-9a-fA-F]{6}/)?.[0] ?? "#cccccc";
+                              const activeIdx = stageConfigDraft?.presetIndex ?? selectedStagePresetIndex;
+                              const isActivePreset = activeIdx === index;
+                              return (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  title={preset.label}
+                                  disabled={!isStageConfigEditing}
+                                  className={cn(
+                                    "h-6 w-6 rounded-full border-2 transition-transform",
+                                    isActivePreset ? "border-[#1c1e21] scale-110" : "border-transparent",
+                                    isStageConfigEditing ? "hover:scale-110 cursor-pointer" : "cursor-default opacity-70",
+                                  )}
+                                  style={{ backgroundColor: hex }}
+                                  onClick={() =>
+                                    setStageConfigDraft((prev) =>
+                                      prev ? { ...prev, presetIndex: index } : prev,
+                                    )
+                                  }
+                                />
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="block text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">
+                            Position in Pipeline
+                          </label>
+                          <Select
+                            value={
+                              stageConfigDraft
+                                ? (stageConfigDraft.placementAfterStageId || "__first__")
+                                : (orderedStages.findIndex((s) => s.id === selectedStage.id) === 0
+                                    ? "__first__"
+                                    : orderedStages[
+                                        orderedStages.findIndex((s) => s.id === selectedStage.id) - 1
+                                      ]?.id ?? "__first__")
+                            }
+                            onValueChange={(value) =>
+                              setStageConfigDraft((prev) =>
+                                prev
+                                  ? { ...prev, placementAfterStageId: value === "__first__" ? "" : value }
+                                  : prev,
+                              )
+                            }
+                            disabled={!isStageConfigEditing}
+                          >
+                            <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__first__">1st — Beginning</SelectItem>
+                              {orderedStages
+                                .filter((s) => s.id !== selectedStage.id)
+                                .map((s, i) => {
+                                  const pos = i + 2;
+                                  const suffix = pos === 2 ? "nd" : pos === 3 ? "rd" : "th";
+                                  return (
+                                    <SelectItem key={s.id} value={s.id}>
+                                      {pos}{suffix} — After &quot;{s.name}&quot;
+                                    </SelectItem>
+                                  );
+                                })}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {stageDetailsFeedback && (
+                          <p className="text-xs text-[#4080f0]">{stageDetailsFeedback}</p>
+                        )}
+
+                        <div className="border-t border-[#e5e7eb] pt-5">
+                          <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-[#9ca3af]">
+                            Pipeline Behaviour
+                          </p>
+                          <div className="space-y-2">
+                            <p className="text-[13px] font-medium text-[#374151]">Aging alert threshold</p>
+                            <p className="text-xs text-[#6b7280]">
+                              Flag deals as "stuck" when they remain in the same stage longer than this many days.
+                            </p>
+                            <div className="flex items-center gap-2 pt-1">
+                              <Input
+                                type="number"
+                                min={1}
+                                max={365}
+                                value={agingDraftValue}
+                                onChange={(e) => setAgingDraftValue(e.target.value)}
+                                className="h-9 w-20 border-[#e5e7eb] text-sm"
+                              />
+                              <span className="text-sm text-[#6b7280]">days</span>
+                              <Button
+                                size="sm"
+                                className={cn(
+                                  "h-9 gap-1.5 px-3 text-[13px] transition-colors",
+                                  agingSaved
+                                    ? "bg-[#16a34a] text-white hover:bg-[#15803d]"
+                                    : "bg-[#4080f0] text-white hover:bg-[#3070e0]",
+                                )}
+                                onClick={saveAgingThreshold}
+                                disabled={!agingDraftValue || parseInt(agingDraftValue, 10) < 1}
+                              >
+                                {agingSaved ? <><Check size={13} /> Saved</> : "Save"}
+                              </Button>
+                              <span className="ml-1 text-xs text-[#9ca3af]">
+                                Current: <span className="font-semibold text-[#1c1e21]">{agingWarningDays}d</span>
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-[#e5e7eb] bg-white text-sm text-[#9ca3af]">
+                      Select a stage to configure it
+                    </div>
+                  )}
+                </div>
 
                 <Dialog open={deleteStageDialogOpen} onOpenChange={setDeleteStageDialogOpen}>
                   <DialogContent>
@@ -1088,67 +999,9 @@ export function DealsSettingsPage() {
                   </DialogContent>
                 </Dialog>
 
-                <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Bell size={15} className="text-[#4080f0]" />
-                    <h3 className="text-sm font-semibold text-[#1c1e21]">Pipeline Behavior</h3>
-                  </div>
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                    <div className="flex-1">
-                      <p className="mb-1 text-xs font-medium text-[#374151]">Aging alert threshold</p>
-                      <p className="mb-2 text-xs text-[#6b7280]">
-                        Flag deals as "stuck" when they remain in the same stage longer than this many days.
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={365}
-                          value={agingDraftValue}
-                          onChange={(e) => setAgingDraftValue(e.target.value)}
-                          className="h-9 w-24 border-[#e5e7eb] text-sm"
-                        />
-                        <span className="text-sm text-[#6b7280]">days</span>
-                        <Button
-                          size="sm"
-                          className={cn(
-                            "h-9 gap-1.5 px-3 text-[13px] transition-colors",
-                            agingSaved
-                              ? "bg-[#16a34a] text-white hover:bg-[#15803d]"
-                              : "bg-[#4080f0] text-white hover:bg-[#3070e0]",
-                          )}
-                          onClick={saveAgingThreshold}
-                          disabled={!agingDraftValue || parseInt(agingDraftValue, 10) < 1}
-                        >
-                          {agingSaved ? <><Check size={13} /> Saved</> : "Save"}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] px-3 py-2 text-xs text-[#6b7280] sm:self-end">
-                      Currently: <span className="font-semibold text-[#1c1e21]">{agingWarningDays} day{agingWarningDays === 1 ? "" : "s"}</span>
-                    </div>
-                  </div>
-                </section>
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="flex flex-col gap-3 rounded-lg border border-[#e5e7eb] bg-white p-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-base font-semibold text-[#1c1e21]">Activity Types</h2>
-                    <p className="mt-1 max-w-2xl text-xs text-[#6b7280]">
-                      Configure and prioritize the types of activities your team records in the CRM.
-                      Use search to quickly find an activity, then edit or remove as needed.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={openAddActivityDialog}
-                    size="sm"
-                    className="bg-[#4080f0] text-white hover:bg-[#3070e0] shadow-sm"
-                  >
-                    <Plus size={16} className="mr-1.5" />
-                    Add Type
-                  </Button>
-                </div>
 
                 <section className="rounded-lg border border-[#e5e7eb] bg-white p-4">
                   <div className="mb-3 flex items-center justify-between gap-3">

@@ -115,35 +115,42 @@ function TeamCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const teamInitials = team.name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <div
-      className="self-start bg-white rounded-lg border border-[#e5e7eb] p-3.5 hover:border-[#bfcffa] hover:shadow-sm transition-all cursor-pointer"
+      className="group self-start overflow-hidden rounded-xl border border-[#e5e7eb] bg-white transition-all hover:border-[#c7d4f8] hover:shadow-md cursor-pointer"
       onClick={onView}
     >
-      <div className="flex items-start justify-between mb-2.5">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <h4 className="font-semibold text-[#1c1e21] text-sm">
-              {team.name}
-            </h4>
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                deptColors[team.department] || "bg-[#f5f5f5] text-[#6b7280]"
-              }`}
-            >
-              {team.department}
-            </span>
-          </div>
-          <p className="text-xs text-[#9ca3af] line-clamp-1">
-            {team.description}
-          </p>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef2fd] text-[13px] font-bold text-[#4080f0]">
+          {teamInitials}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-[13px] font-semibold text-[#1c1e21]">
+            {team.name}
+          </h4>
+          <span
+            className={cn(
+              "mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium",
+              deptColors[team.department] || "bg-[#f5f5f5] text-[#6b7280]",
+            )}
+          >
+            {team.department}
+          </span>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 hover:bg-[#f0f2f7] flex-shrink-0 ml-1"
+              className="h-7 w-7 shrink-0 text-[#9ca3af] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[#f0f2f7] hover:text-[#1c1e21]"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal size={14} />
@@ -152,29 +159,20 @@ function TeamCard({
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem
               className="text-sm cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onView();
-              }}
+              onClick={(e) => { e.stopPropagation(); onView(); }}
             >
               <Users size={12} className="mr-2" /> View Team
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-sm cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
             >
               <Edit size={12} className="mr-2" /> Edit Team
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-sm cursor-pointer text-[#dc2626]"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
             >
               <Trash2 size={12} className="mr-2" /> Delete
             </DropdownMenuItem>
@@ -182,41 +180,53 @@ function TeamCard({
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-1.5 mb-2.5 text-xs text-[#6b7280]">
-        <MapPin size={11} />
-        <span>{team.branch}</span>
+      {/* Description */}
+      {team.description && (
+        <p className="px-4 pb-3 text-xs text-[#6b7280] line-clamp-1">
+          {team.description}
+        </p>
+      )}
+
+      {/* Meta */}
+      <div className="border-t border-[#f0f2f7] px-4 py-3 space-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-[#6b7280]">
+          <MapPin size={11} className="shrink-0" />
+          <span className="truncate">{team.branch}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-[#6b7280]">
+          <Crown size={11} className="shrink-0 text-[#f59e0b]" />
+          <span className="truncate">
+            {team.manager && team.manager !== "—" ? (
+              <span className="font-medium text-[#374151]">{team.manager}</span>
+            ) : (
+              "No manager"
+            )}
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-2.5 mb-3">
-        <div className="text-center">
-          <p className="font-semibold text-[#1c1e21]">{team.membersCount}</p>
-          <p className="text-xs text-[#9ca3af]">Members</p>
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-[#f0f2f7] px-4 py-3">
+        <div className="flex items-center -space-x-1.5">
+          {team.members.slice(0, 5).map((member, idx) => (
+            <Avatar key={idx} className="h-6 w-6 border-2 border-white">
+              <AvatarFallback
+                className={cn(getAvatarColor(member), "text-white text-[9px] font-semibold")}
+              >
+                {getInitials(member)}
+              </AvatarFallback>
+            </Avatar>
+          ))}
+          {team.membersCount > 5 && (
+            <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#f0f2f7] text-[9px] font-semibold text-[#6b7280]">
+              +{team.membersCount - 5}
+            </div>
+          )}
         </div>
-        <div className="h-8 w-px bg-[#e5e7eb]" />
-        <div>
-          <p className="text-xs text-[#9ca3af]">Manager</p>
-          <p className="font-medium text-[#1c1e21] text-sm">{team.manager}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center -space-x-2">
-        {team.members.slice(0, 5).map((member, idx) => (
-          <Avatar key={idx} className="h-7 w-7 border-2 border-white">
-            <AvatarFallback
-              className={`${getAvatarColor(member)} text-white text-[10px] font-medium`}
-            >
-              {getInitials(member)}
-            </AvatarFallback>
-          </Avatar>
-        ))}
-        {team.membersCount > 5 && (
-          <div className="h-7 w-7 rounded-full bg-[#f0f2f7] border-2 border-white flex items-center justify-center text-[10px] text-[#6b7280] font-medium">
-            +{team.membersCount - 5}
-          </div>
-        )}
-        {team.membersCount === 0 && (
-          <span className="text-xs text-[#9ca3af]">No members yet</span>
-        )}
+        <span className="flex items-center gap-1 text-xs font-medium text-[#6b7280]">
+          {team.membersCount} {team.membersCount === 1 ? "member" : "members"}
+          <ChevronRight size={13} className="text-[#d1d5db] transition-transform group-hover:translate-x-0.5" />
+        </span>
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ const navGroups: NavGroup[] = [
           { label: "Settings", path: "/deals/settings" },
         ],
       },
-      { label: "Targets", icon: <Target size={16} />, path: "/targets" },
+      // { label: "Targets", icon: <Target size={16} />, path: "/targets" },
     ],
   },
   {
@@ -312,21 +312,6 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               </Link>
             )}
           </div>
-
-          {/* User info */}
-          {!sidebarCollapsed && (
-            <div className="mt-1 px-2 py-2">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white text-xs font-semibold flex-shrink-0">
-                  A
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-xs font-medium truncate">Admin User</div>
-                  <div className="text-white/60 text-[11px] truncate">Admin</div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Collapse toggle */}
           <button

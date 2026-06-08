@@ -203,13 +203,19 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
                   const active = isActive(item.path) || !!isChildActive(item.children);
-                  const isExpanded = expanded.includes(item.label);
+                  // Auto-expand when the parent or any child is active; allow
+                  // manual toggle for inactive parents.
+                  const isExpanded = active || expanded.includes(item.label);
 
                   return (
                     <div key={item.label}>
                       <div
                         className={navItemClass(active, sidebarCollapsed)}
-                        onClick={() => item.children && toggleExpand(item.label)}
+                        onClick={() => {
+                          if (!item.children) return;
+                          // Only allow collapsing when this section isn't active
+                          if (!active) toggleExpand(item.label);
+                        }}
                       >
                         {active && !sidebarCollapsed && (
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
@@ -231,7 +237,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                               </span>
                             )}
                             {item.children && (
-                              <span className="ml-auto flex-shrink-0">
+                              <span className="ml-auto flex-shrink-0 opacity-60">
                                 {isExpanded ? (
                                   <ChevronDown size={14} />
                                 ) : (

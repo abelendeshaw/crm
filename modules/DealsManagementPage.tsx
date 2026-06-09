@@ -11,13 +11,10 @@ import {
   Clock,
   Headphones,
   Kanban,
-  LineChart,
   List as ListIcon,
-  Percent,
   Plus,
   Search,
   Share2,
-  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -77,19 +74,6 @@ import { mockDealStore } from "@/data/mockStore";
 
 type ProbabilityFilter = "all" | "high" | "medium" | "low";
 
-const STAGE_COLOR_PRESETS: {
-  label: string;
-  columnClass: string;
-  borderClass: string;
-}[] = [
-    { label: "Violet", columnClass: "bg-[#f9f8ff]", borderClass: "border-[#e4dff5]" },
-    { label: "Sky", columnClass: "bg-[#f5f9ff]", borderClass: "border-[#d8e6f8]" },
-    { label: "Mint", columnClass: "bg-[#f3fdf8]", borderClass: "border-[#c4e6d6]" },
-    { label: "Amber", columnClass: "bg-[#fdfaf3]", borderClass: "border-[#e8ddb8]" },
-    { label: "Emerald", columnClass: "bg-[#f3fdf6]", borderClass: "border-[#bce0c8]" },
-    { label: "Rose", columnClass: "bg-[#fdf6f6]", borderClass: "border-[#ecdada]" },
-  ];
-
 function initials(name: string) {
   return name
     .split(/\s+/)
@@ -122,12 +106,6 @@ function daysBetween(fromIso: string, toDate = new Date()) {
   return Math.max(0, Math.floor((b - a) / 86400000));
 }
 
-function monthPrefix(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
-
 function FormField({
   label,
   children,
@@ -141,28 +119,6 @@ function FormField({
     <div className={cn("space-y-1.5", className)}>
       <Label className="text-xs text-[#6b7280]">{label}</Label>
       {children}
-    </div>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}) {
-  return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
-      <div className="rounded-md bg-[#eef2fd] p-2">
-        <Icon size={16} className="text-[#4080f0]" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-[#6b7280]">{title}</p>
-        <p className="truncate text-base font-semibold text-[#1c1e21]">{value}</p>
-      </div>
     </div>
   );
 }
@@ -305,25 +261,6 @@ export function DealsManagementPage() {
         l.name.toLowerCase().includes(q) || l.industry.toLowerCase().includes(q),
     );
   }, [leads, leadSearch]);
-
-  const forecast = useMemo(() => {
-    let pipeline = 0;
-    let weighted = 0;
-    let closingMonth = 0;
-    const prefix = monthPrefix();
-    for (const deal of deals) {
-      const st = stageById.get(deal.stageId);
-      if (!st || st.category !== "open") continue;
-      pipeline += deal.baseValue;
-      weighted += deal.baseValue * (deal.probability / 100);
-      if (deal.expectedClose.startsWith(prefix)) closingMonth += 1;
-    }
-    return {
-      pipeline,
-      weighted,
-      closingMonth,
-    };
-  }, [deals, stageById]);
 
   const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
     _setDeals((prev) => (typeof newDeals === "function" ? newDeals(prev) : newDeals));
@@ -531,126 +468,16 @@ export function DealsManagementPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Deals</h1>
-        <p className="mt-0.5 text-xs text-[#6b7280]">
-          Pipeline, forecast, and deal execution in one view
-        </p>
-      </div>
-
-      <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
-        {saveFeedback && (
-          <div
-            className={cn(
-              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
-              saveFeedback.type === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-700",
-            )}
-          >
-            {saveFeedback.message}
+      <div className="flex-shrink-0 bg-white">
+        <div className="flex items-end justify-between gap-4 border-b border-[#d1d5db] px-6 py-3">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold text-[#4080f0]">Deals</h1>
+            <p className="mt-0.5 text-xs text-[#6b7280]">
+              Pipeline, forecast, and deal execution in one view
+            </p>
           </div>
-        )}
-
-        {isPageLoading ? (
-          <div className="space-y-4 p-3 sm:p-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-        <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
-          <div className="flex flex-wrap gap-3">
-            <StatCard
-              title="Total pipeline"
-              value={formatMoney(forecast.pipeline, BASE_CURRENCY)}
-              icon={Wallet}
-            />
-            <StatCard
-              title="Weighted forecast"
-              value={formatMoney(Math.round(forecast.weighted), BASE_CURRENCY)}
-              icon={LineChart}
-            />
-            <StatCard
-              title="Deals closing this month"
-              value={String(forecast.closingMonth)}
-              icon={Calendar}
-            />
-          </div>
-
-
-
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:gap-3">
-              <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
-                <Search
-                  size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
-                />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search deals by name or customer"
-                  className="h-9 border-[#e5e7eb] bg-white pl-9"
-                />
-              </div>
-              <FormField label="Stage" className="w-[150px]">
-                <Select value={filterStageId} onValueChange={setFilterStageId}>
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue placeholder="Stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All stages</SelectItem>
-                    {sortedStages.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Owner" className="w-[150px]">
-                <Select value={filterOwner} onValueChange={setFilterOwner}>
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue placeholder="Owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All owners</SelectItem>
-                    {ownerOptions.map((o) => (
-                      <SelectItem key={o} value={o}>
-                        {o}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Close probability" className="w-[160px]">
-                <Select
-                  value={filterProbability}
-                  onValueChange={(v) => setFilterProbability(v as ProbabilityFilter)}
-                >
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="high">High (70%+)</SelectItem>
-                    <SelectItem value="medium">Medium (40–69%)</SelectItem>
-                    <SelectItem value="low">Low (under 40%)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+          {!isPageLoading && (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <div
                 role="group"
                 aria-label="Toggle view"
@@ -701,11 +528,98 @@ export function DealsManagementPage() {
                 New Deal
               </Button>
             </div>
-          </div>
+          )}
         </div>
+        {!isPageLoading && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[#d1d5db] px-6 py-3 sm:gap-3">
+              <div className="relative w-full min-w-0 flex-[1_1_100%] sm:flex-[1_1_180px] sm:max-w-none lg:max-w-[300px]">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search deals by name or customer"
+                  className="h-9 w-full border-[#e5e7eb] bg-white pl-9"
+                />
+              </div>
+              <Select value={filterStageId} onValueChange={setFilterStageId}>
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[130px] sm:flex-none">
+                  <SelectValue placeholder="All stages" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stages</SelectItem>
+                  {sortedStages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterOwner} onValueChange={setFilterOwner}>
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[130px] sm:flex-none">
+                  <SelectValue placeholder="All owners" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All owners</SelectItem>
+                  {ownerOptions.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filterProbability}
+                onValueChange={(v) => setFilterProbability(v as ProbabilityFilter)}
+              >
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[140px] sm:flex-none">
+                  <SelectValue placeholder="All probability" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All probability</SelectItem>
+                  <SelectItem value="high">High (70%+)</SelectItem>
+                  <SelectItem value="medium">Medium (40–69%)</SelectItem>
+                  <SelectItem value="low">Low (under 40%)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+        )}
+      </div>
 
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
+        {saveFeedback && (
+          <div
+            className={cn(
+              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
+              saveFeedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700",
+            )}
+          >
+            {saveFeedback.message}
+          </div>
+        )}
+
+        {isPageLoading ? (
+          <div className="space-y-4 p-3 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         {viewMode === "kanban" ? (
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden bg-white px-3 pb-4 sm:px-5 no-scrollbar">
           {sortedStages.length === 0 ? (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
               <div>
@@ -716,7 +630,7 @@ export function DealsManagementPage() {
               </div>
             </div>
           ) : (
-          <div className="flex h-full min-w-max gap-3 pb-1">
+          <div className="flex h-full min-w-max gap-3 pb-1 pt-3">
             {sortedStages.map((stage) => {
               const columnDeals = filteredDeals.filter((d) => d.stageId === stage.id);
               const totalBase = columnDeals.reduce((sum, d) => sum + d.baseValue, 0);
@@ -800,10 +714,7 @@ export function DealsManagementPage() {
                               )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-                              <span className="inline-flex items-center gap-0.5">
-                                <Percent size={12} />
-                                {deal.probability}%
-                              </span>
+                              <span>{deal.probability}%</span>
                               <span className="text-[#d1d5db]">·</span>
                               <span className="inline-flex items-center gap-0.5">
                                 <Calendar size={12} />
@@ -866,37 +777,36 @@ export function DealsManagementPage() {
           )}
         </div>
         ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-3 pb-4 sm:px-5 no-scrollbar">
-          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
-            <Table>
+        <div className="min-h-0 flex-1 overflow-auto bg-white pt-3 pb-4 pl-5 no-scrollbar">
+            <Table className="w-full">
               <TableHeader>
-                <TableRow className="bg-[#f9fafb] hover:bg-[#f9fafb]">
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                <TableRow className="border-[#e5e7eb] hover:bg-transparent">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Deal
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Customer
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Stage
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Value
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Probability
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Expected close
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Owner
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredDeals.length === 0 ? (
-                  <TableRow>
+                  <TableRow className="border-[#e5e7eb] hover:bg-transparent">
                     <TableCell
                       colSpan={7}
                       className="px-4 py-10 text-center text-sm text-[#6b7280]"
@@ -916,10 +826,10 @@ export function DealsManagementPage() {
                     return (
                       <TableRow
                         key={deal.id}
-                        className="cursor-pointer"
+                        className="cursor-pointer border-[#e5e7eb] hover:bg-transparent"
                         onClick={() => openDealDetail(deal)}
                       >
-                        <TableCell className="font-medium text-[#1c1e21]">
+                        <TableCell className="px-4 font-medium text-[#1c1e21]">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate">{deal.name}</span>
                             {deal.sourceLeadId && (
@@ -957,10 +867,10 @@ export function DealsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 text-sm text-[#374151]">
                           {customer?.name ?? "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           {stage ? (
                             <Badge
                               variant="outline"
@@ -977,36 +887,35 @@ export function DealsManagementPage() {
                             <span className="text-xs text-[#9ca3af]">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm font-semibold text-[#1c1e21]">
-                          <div className="inline-flex flex-col items-end">
-                            <span>{formatMoney(deal.value, deal.currency)}</span>
+                        <TableCell className="px-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-[#1c1e21]">
+                              {formatMoney(deal.value, deal.currency)}
+                            </span>
                             {deal.currency !== BASE_CURRENCY && (
-                              <span className="text-[10px] font-normal text-[#9ca3af]">
+                              <span className="text-xs text-[#6b7280]">
                                 {formatMoney(deal.baseValue, BASE_CURRENCY)}
                               </span>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
-                            <Percent size={12} />
-                            {deal.probability}%
-                          </span>
+                        <TableCell className="px-4 text-sm text-[#6b7280]">
+                          {deal.probability}%
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
                             <Calendar size={12} />
                             {deal.expectedClose}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <div className="flex items-center gap-2">
                             <Avatar className="size-6">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
                                 {initials(deal.primarySales)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="truncate text-xs text-[#374151]">
+                            <span className="truncate text-sm text-[#374151]">
                               {deal.primarySales}
                             </span>
                           </div>
@@ -1017,7 +926,6 @@ export function DealsManagementPage() {
                 )}
               </TableBody>
             </Table>
-          </div>
         </div>
         )}
           </>

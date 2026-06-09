@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -118,9 +118,35 @@ export function CRMLayout({ children }: CRMLayoutProps) {
 
   const toggleExpand = (label: string) => {
     setExpanded((prev) =>
-      prev.includes(label) ? [] : [label]
+      prev.includes(label)
+        ? prev.filter((item) => item !== label)
+        : [...prev, label],
     );
   };
+
+  useEffect(() => {
+    const activeParentLabels: string[] = [];
+    for (const group of navGroups) {
+      for (const item of group.items) {
+        if (!item.children) continue;
+        const hasActiveChild = item.children.some(
+          (child) =>
+            pathname === child.path || pathname.startsWith(`${child.path}/`),
+        );
+        const parentActive =
+          item.path === "/" ? pathname === "/" : pathname.startsWith(item.path);
+        if (hasActiveChild || parentActive) {
+          activeParentLabels.push(item.label);
+        }
+      }
+    }
+    if (activeParentLabels.length === 0) return;
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      activeParentLabels.forEach((label) => next.add(label));
+      return Array.from(next);
+    });
+  }, [pathname]);
 
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
@@ -190,7 +216,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         </div>
 
         {/* Nav groups */}
-        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto py-3 px-2">
+        <nav className="flex flex-1 flex-col gap-4 overflow-y-auto py-3 px-2 no-scrollbar">
           {navGroups.map((group) => (
             <div key={group.label}>
               {!sidebarCollapsed && (
@@ -203,53 +229,107 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
                   const active = isActive(item.path) || !!isChildActive(item.children);
-                  // Auto-expand when the parent or any child is active; allow
-                  // manual toggle for inactive parents.
-                  const isExpanded = active || expanded.includes(item.label);
+                  const isExpanded = expanded.includes(item.label);
 
-                  return (
-                    <div key={item.label}>
-                      <div
-                        className={navItemClass(active, sidebarCollapsed)}
-                        onClick={() => {
-                          if (!item.children) return;
-                          // Only allow collapsing when this section isn't active
-                          if (!active) toggleExpand(item.label);
-                        }}
+                  if (sidebarCollapsed) {
+                    if (item.children) {
+                      return (
+                        <DropdownMenu key={item.label}>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              title={item.label}
+                              className={navItemClass(active, true)}
+                            >
+                              {active && (
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+                              )}
+                              <span className={navIconClass(active)}>{item.icon}</span>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent side="right" align="start" className="min-w-[168px]">
+                            {item.children.map((child) => {
+                              const childActive = currentPathWithQuery === child.path;
+                              return (
+                                <DropdownMenuItem
+                                  key={child.path}
+                                  className={cn(
+                                    "text-[13px]",
+                                    childActive && "font-medium text-[#4080f0]",
+                                  )}
+                                  onSelect={() => {
+                                    router.push(child.path);
+                                    setMobileNavOpen(false);
+                                  }}
+                                >
+                                  {child.label}
+                                </DropdownMenuItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.path}
+                        title={item.label}
+                        className={navItemClass(active, true)}
+                        onClick={() => setMobileNavOpen(false)}
                       >
-                        {active && !sidebarCollapsed && (
+                        {active && (
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
                         )}
                         <span className={navIconClass(active)}>{item.icon}</span>
-                        {!sidebarCollapsed && (
-                          <>
-                            {!item.children ? (
-                              <Link
-                                href={item.path}
-                                className="flex-1 text-[13px] font-medium truncate"
-                                onClick={() => setMobileNavOpen(false)}
-                              >
-                                {item.label}
-                              </Link>
-                            ) : (
-                              <span className="flex-1 text-[13px] font-medium truncate">
-                                {item.label}
-                              </span>
-                            )}
-                            {item.children && (
-                              <span className="ml-auto flex-shrink-0 opacity-60">
-                                {isExpanded ? (
-                                  <ChevronDown size={14} />
-                                ) : (
-                                  <ChevronRight size={14} />
-                                )}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
+                      </Link>
+                    );
+                  }
 
-                      {item.children && isExpanded && !sidebarCollapsed && (
+                  if (!item.children) {
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.path}
+                        className={navItemClass(active)}
+                        onClick={() => setMobileNavOpen(false)}
+                      >
+                        {active && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+                        )}
+                        <span className={navIconClass(active)}>{item.icon}</span>
+                        <span className="flex-1 truncate text-[13px] font-medium">
+                          {item.label}
+                        </span>
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div key={item.label}>
+                      <button
+                        type="button"
+                        className={cn(navItemClass(active), "w-full")}
+                        onClick={() => toggleExpand(item.label)}
+                      >
+                        {active && (
+                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+                        )}
+                        <span className={navIconClass(active)}>{item.icon}</span>
+                        <span className="flex-1 truncate text-left text-[13px] font-medium">
+                          {item.label}
+                        </span>
+                        <span className="ml-auto flex-shrink-0 opacity-60">
+                          {isExpanded ? (
+                            <ChevronDown size={14} />
+                          ) : (
+                            <ChevronRight size={14} />
+                          )}
+                        </span>
+                      </button>
+
+                      {isExpanded && (
                         <div className="ml-[28px] pl-3 py-1">
                           {item.children.map((child) => {
                             const childActive = currentPathWithQuery === child.path;
@@ -262,7 +342,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                                   "block py-1.5 text-[13px] transition-colors",
                                   childActive
                                     ? "text-white font-medium"
-                                    : "text-white/70 hover:text-white"
+                                    : "text-white/70 hover:text-white",
                                 )}
                               >
                                 {child.label}
@@ -282,42 +362,40 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         {/* Bottom section */}
         <div className="border-t border-white/16 flex-shrink-0 p-2">
           {/* Settings */}
-          <div className={navItemClass(isActive("/settings"), sidebarCollapsed)}>
-            {isActive("/settings") && !sidebarCollapsed && (
+          <Link
+            href="/settings"
+            title="Settings"
+            className={navItemClass(isActive("/settings"), sidebarCollapsed)}
+            onClick={() => setMobileNavOpen(false)}
+          >
+            {isActive("/settings") && (
               <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
             )}
             <span className={navIconClass(isActive("/settings"))}>
               <Settings size={16} />
             </span>
             {!sidebarCollapsed && (
-              <Link
-                href="/settings"
-                className="flex-1 text-[13px] font-medium"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Settings
-              </Link>
+              <span className="flex-1 text-[13px] font-medium">Settings</span>
             )}
-          </div>
+          </Link>
 
           {/* User Management */}
-          <div className={navItemClass(isActive("/user-management"), sidebarCollapsed)}>
-            {isActive("/user-management") && !sidebarCollapsed && (
+          <Link
+            href="/user-management"
+            title="User Management"
+            className={navItemClass(isActive("/user-management"), sidebarCollapsed)}
+            onClick={() => setMobileNavOpen(false)}
+          >
+            {isActive("/user-management") && (
               <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
             )}
             <span className={navIconClass(isActive("/user-management"))}>
               <UserCog size={16} />
             </span>
             {!sidebarCollapsed && (
-              <Link
-                href="/user-management"
-                className="flex-1 text-[13px] font-medium"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                User Management
-              </Link>
+              <span className="flex-1 text-[13px] font-medium">User Management</span>
             )}
-          </div>
+          </Link>
 
           {/* Collapse toggle */}
           <button

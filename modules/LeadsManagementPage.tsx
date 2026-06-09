@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Kanban,
   List as ListIcon,
-  Percent,
   Plus,
   Search,
   ShieldCheck,
@@ -93,19 +92,6 @@ import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
 type ProbabilityFilter = "all" | "high" | "medium" | "low";
-
-const STAGE_COLOR_PRESETS: {
-  label: string;
-  columnClass: string;
-  borderClass: string;
-}[] = [
-    { label: "Violet", columnClass: "bg-[#faf9fb]", borderClass: "border-[#e8e5ee]" },
-    { label: "Sky", columnClass: "bg-[#f8fbfd]", borderClass: "border-[#e0e8f2]" },
-    { label: "Mint", columnClass: "bg-[#f8fdf9]", borderClass: "border-[#dae8e2]" },
-    { label: "Amber", columnClass: "bg-[#fdfaf6]", borderClass: "border-[#e8e2d0]" },
-    { label: "Emerald", columnClass: "bg-[#f8fcf9]", borderClass: "border-[#d4e6dc]" },
-    { label: "Rose", columnClass: "bg-[#fdf8f8]", borderClass: "border-[#e8dada]" },
-  ];
 
 function initials(name: string) {
   return name
@@ -758,106 +744,16 @@ export function LeadsManagementPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Leads</h1>
-        <p className="mt-0.5 text-xs text-[#6b7280]">
-          Pipeline, scoring, and lead qualification in one view
-        </p>
-      </div>
-
-      <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
-        {saveFeedback && (
-          <div
-            className={cn(
-              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
-              saveFeedback.type === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                : "border-red-200 bg-red-50 text-red-700",
-            )}
-          >
-            {saveFeedback.message}
+      <div className="flex-shrink-0 bg-white">
+        <div className="flex items-end justify-between gap-4 border-b border-[#d1d5db] px-6 py-3">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold text-[#4080f0]">Leads</h1>
+            <p className="mt-0.5 text-xs text-[#6b7280]">
+              Pipeline, scoring, and lead qualification in one view
+            </p>
           </div>
-        )}
-
-        {isPageLoading ? (
-          <div className="space-y-4 p-3 sm:p-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
-        <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:gap-3">
-              <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
-                <Search
-                  size={15}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
-                />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search leads by name or customer"
-                  className="h-9 border-[#e5e7eb] bg-white pl-9"
-                />
-              </div>
-              <FormField label="Stage" className="w-[150px]">
-                <Select value={filterStageId} onValueChange={setFilterStageId}>
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue placeholder="Stage" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All stages</SelectItem>
-                    {sortedStages.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Teams" className="w-[150px]">
-                <Select value={filterOwner} onValueChange={setFilterOwner}>
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue placeholder="Teams" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All teams</SelectItem>
-                    {ownerOptions.map((o) => (
-                      <SelectItem key={o} value={o}>
-                        {o}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Qualification score" className="w-[160px]">
-                <Select
-                  value={filterProbability}
-                  onValueChange={(v) => setFilterProbability(v as ProbabilityFilter)}
-                >
-                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="high">High (70%+)</SelectItem>
-                    <SelectItem value="medium">Medium (40–69%)</SelectItem>
-                    <SelectItem value="low">Low (under 40%)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+          {!isPageLoading && (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <div
                 role="group"
                 aria-label="Toggle view"
@@ -907,11 +803,98 @@ export function LeadsManagementPage() {
                 New Lead
               </Button>
             </div>
-          </div>
+          )}
         </div>
+        {!isPageLoading && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[#d1d5db] px-6 py-3 sm:gap-3">
+              <div className="relative w-full min-w-0 flex-[1_1_100%] sm:flex-[1_1_180px] sm:max-w-none lg:max-w-[300px]">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca3af]"
+                />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search leads by name or customer"
+                  className="h-9 w-full border-[#e5e7eb] bg-white pl-9"
+                />
+              </div>
+              <Select value={filterStageId} onValueChange={setFilterStageId}>
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[130px] sm:flex-none">
+                  <SelectValue placeholder="All stages" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All stages</SelectItem>
+                  {sortedStages.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={filterOwner} onValueChange={setFilterOwner}>
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[130px] sm:flex-none">
+                  <SelectValue placeholder="All teams" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All teams</SelectItem>
+                  {ownerOptions.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={filterProbability}
+                onValueChange={(v) => setFilterProbability(v as ProbabilityFilter)}
+              >
+                <SelectTrigger className="h-9 w-full min-w-[110px] flex-[1_1_110px] border-[#e5e7eb] bg-white text-xs sm:w-[140px] sm:flex-none">
+                  <SelectValue placeholder="All Score" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Score</SelectItem>
+                  <SelectItem value="high">High (70%+)</SelectItem>
+                  <SelectItem value="medium">Medium (40–69%)</SelectItem>
+                  <SelectItem value="low">Low (under 40%)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+        )}
+      </div>
 
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
+        {saveFeedback && (
+          <div
+            className={cn(
+              "mx-3 mt-3 rounded-md border px-3 py-2 text-sm sm:mx-5",
+              saveFeedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-red-200 bg-red-50 text-red-700",
+            )}
+          >
+            {saveFeedback.message}
+          </div>
+        )}
+
+        {isPageLoading ? (
+          <div className="space-y-4 p-3 sm:p-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
         {viewMode === "kanban" ? (
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden bg-white px-3 pb-4 sm:px-5 no-scrollbar">
           {sortedStages.length === 0 ? (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
               <div>
@@ -922,7 +905,7 @@ export function LeadsManagementPage() {
               </div>
             </div>
           ) : (
-          <div className="flex h-full min-w-max gap-3 pb-1">
+          <div className="flex h-full min-w-max gap-3 pb-1 pt-3">
             {sortedStages.map((stage) => {
               const columnLeads = filteredPipelineLeads.filter((l) => l.stageId === stage.id);
               const totalBase = columnLeads.reduce((sum, l) => sum + l.baseValue, 0);
@@ -1041,10 +1024,7 @@ export function LeadsManagementPage() {
                               )}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-                              <span className="inline-flex items-center gap-0.5">
-                                <Percent size={12} />
-                                {lead.probability}%
-                              </span>
+                              <span>{lead.probability}%</span>
                               <span className="text-[#d1d5db]">·</span>
                               <span className="inline-flex items-center gap-0.5">
                                 <Calendar size={12} />
@@ -1063,37 +1043,36 @@ export function LeadsManagementPage() {
           )}
         </div>
         ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-3 pb-4 sm:px-5 no-scrollbar">
-          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
-            <Table>
+        <div className="min-h-0 flex-1 overflow-auto bg-white pt-3 pb-4 pl-5 no-scrollbar">
+            <Table className="w-full">
               <TableHeader>
-                <TableRow className="bg-[#f9fafb] hover:bg-[#f9fafb]">
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                <TableRow className="border-[#e5e7eb] hover:bg-transparent">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Lead
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Customer
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Stage
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Value
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Score
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Expected close
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 text-xs font-medium uppercase tracking-wide text-[#6b7280]">
                     Owner
                   </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPipelineLeads.length === 0 ? (
-                  <TableRow>
+                  <TableRow className="border-[#e5e7eb] hover:bg-transparent">
                     <TableCell
                       colSpan={7}
                       className="px-4 py-10 text-center text-sm text-[#6b7280]"
@@ -1109,10 +1088,10 @@ export function LeadsManagementPage() {
                     return (
                       <TableRow
                         key={lead.id}
-                        className="cursor-pointer"
+                        className="cursor-pointer border-[#e5e7eb] hover:bg-transparent"
                         onClick={() => openLeadDetail(lead)}
                       >
-                        <TableCell className="font-medium text-[#1c1e21]">
+                        <TableCell className="px-4 font-medium text-[#1c1e21]">
                           <div className="flex items-center gap-2">
                             <span className="truncate">{lead.name}</span>
                             {stuck && (
@@ -1126,10 +1105,10 @@ export function LeadsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 text-sm text-[#374151]">
                           {customer?.name ?? "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           {stage ? (
                             <Badge
                               variant="outline"
@@ -1146,36 +1125,35 @@ export function LeadsManagementPage() {
                             <span className="text-xs text-[#9ca3af]">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm font-semibold text-[#1c1e21]">
-                          <div className="inline-flex flex-col items-end">
-                            <span>{formatMoney(lead.value, lead.currency)}</span>
+                        <TableCell className="px-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-[#1c1e21]">
+                              {formatMoney(lead.value, lead.currency)}
+                            </span>
                             {lead.currency !== BASE_CURRENCY && (
-                              <span className="text-[10px] font-normal text-[#9ca3af]">
+                              <span className="text-xs text-[#6b7280]">
                                 {formatMoney(lead.baseValue, BASE_CURRENCY)}
                               </span>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
-                          <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
-                            <Percent size={12} />
-                            {lead.probability}%
-                          </span>
+                        <TableCell className="px-4 text-sm text-[#6b7280]">
+                          {lead.probability}%
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4">
                           <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
                             <Calendar size={12} />
                             {lead.expectedClose}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4">
                           <div className="flex items-center gap-2">
                             <Avatar className="size-6">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
                                 {initials(lead.primarySales)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="truncate text-xs text-[#374151]">
+                            <span className="truncate text-sm text-[#374151]">
                               {lead.primarySales}
                             </span>
                           </div>
@@ -1186,7 +1164,6 @@ export function LeadsManagementPage() {
                 )}
               </TableBody>
             </Table>
-          </div>
         </div>
         )}
           </>

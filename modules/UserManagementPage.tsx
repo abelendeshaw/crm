@@ -1,56 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import {
-  Users,
-  Shield,
-  UsersRound,
-  Mail,
-} from "lucide-react";
+import { Users, Shield } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
-import { TeamsTab } from "@/components/user-management/TeamsTab";
-import { InvitationAcceptance } from "@/modules/InvitationAcceptance";
 import { cn } from "@/lib/utils";
+import { roles as initialRoles, type Role } from "@/data/userManagementData";
 
-export type UserManagementTab =
-  | "users"
-  | "roles"
-  | "teams"
-  | "invitations";
+export type UserManagementTab = "users" | "roles";
 
 const tabs: { id: UserManagementTab; label: string; icon: React.ReactNode }[] = [
-  {
-    id: "users",
-    label: "Users",
-    icon: <Users size={15} />,
-  },
-  {
-    id: "roles",
-    label: "Roles & Permissions",
-    icon: <Shield size={15} />,
-  },
-  {
-    id: "teams",
-    label: "Teams",
-    icon: <UsersRound size={15} />,
-  },
-  {
-    id: "invitations",
-    label: "Invitation Management",
-    icon: <Mail size={15} />,
-  },
+  { id: "users", label: "Users", icon: <Users size={15} /> },
+  { id: "roles", label: "Roles & Permissions", icon: <Shield size={15} /> },
 ];
 
 function parseTab(raw: string | null): UserManagementTab {
-  if (
-    raw === "users" ||
-    raw === "roles" ||
-    raw === "teams" ||
-    raw === "invitations"
-  ) {
-    return raw;
-  }
+  if (raw === "users" || raw === "roles") return raw;
   return "users";
 }
 
@@ -60,6 +26,10 @@ export function UserManagementPage() {
   const pathname = usePathname();
 
   const activeTab = parseTab(searchParams.get("tab"));
+  const [roles, setRoles] = useState<Role[]>(initialRoles);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>(
+    initialRoles[0]?.id ?? ""
+  );
 
   const setActiveTab = (id: UserManagementTab) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -74,15 +44,10 @@ export function UserManagementPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Page Header */}
       <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-semibold text-[#1c1e21]">User Management</h1>
-          </div>
+        <div>
+          <h1 className="font-semibold text-[#1c1e21]">User Management</h1>
         </div>
-
-        {/* Tab Bar */}
         <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -96,7 +61,11 @@ export function UserManagementPage() {
                   : "border-transparent text-[#6b7280] hover:text-[#1c1e21] hover:border-[#e5e7eb]"
               )}
             >
-              <span className={activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"}>
+              <span
+                className={
+                  activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"
+                }
+              >
                 {tab.icon}
               </span>
               {tab.label}
@@ -105,20 +74,17 @@ export function UserManagementPage() {
         </div>
       </div>
 
-      {/* Tab Content */}
-      <div
-        className={cn(
-          "flex-1 overflow-hidden min-h-0 flex flex-col",
-          activeTab !== "invitations" && "p-3 sm:p-5"
+      <div className="flex-1 overflow-hidden min-h-0 flex flex-col p-3 sm:p-5">
+        {activeTab === "users" && (
+          <UsersTab roles={roles} setRoles={setRoles} />
         )}
-      >
-        {activeTab === "users" && <UsersTab />}
-        {activeTab === "roles" && <RolesTab />}
-        {activeTab === "teams" && <TeamsTab />}
-        {activeTab === "invitations" && (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <InvitationAcceptance />
-          </div>
+        {activeTab === "roles" && (
+          <RolesTab
+            roles={roles}
+            setRoles={setRoles}
+            selectedRoleId={selectedRoleId}
+            setSelectedRoleId={setSelectedRoleId}
+          />
         )}
       </div>
     </div>

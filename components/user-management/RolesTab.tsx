@@ -3,673 +3,426 @@
 import { useState } from "react";
 import {
   Plus,
-  MoreHorizontal,
+  UserPlus,
+  HandCoins,
+  Building2,
+  Clock,
+  FileBarChart2,
+  Settings,
   Shield,
-  Check,
-  X,
-  Edit,
-  Trash2,
-  Lock,
-  Users,
-  ChevronRight,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  roles as initialRoles,
   CRM_MODULES,
   MODULE_ACTIONS,
   type Role,
 } from "@/data/userManagementData";
+import { cn } from "@/lib/utils";
 
-const roleColorMap: Record<string, string> = {
-  "Super Admin": "bg-[#4080f0] text-white",
-  Admin: "bg-[#5b5bd6] text-white",
-  "Sales Manager": "bg-[#f97316] text-white",
-  "Sales Rep": "bg-[#10b981] text-white",
-  Viewer: "bg-[#6b7280] text-white",
-  "Support Agent": "bg-[#8b5cf6] text-white",
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface RolesTabProps {
+  roles: Role[];
+  setRoles: React.Dispatch<React.SetStateAction<Role[]>>;
+  selectedRoleId: string;
+  setSelectedRoleId: React.Dispatch<React.SetStateAction<string>>;
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+type CRMModuleKey = (typeof CRM_MODULES)[number];
+type CRMActionKey = (typeof MODULE_ACTIONS)[number];
+
+const MODULE_ICONS: Record<CRMModuleKey, React.ElementType> = {
+  Leads: UserPlus,
+  Deals: HandCoins,
+  Contacts: Building2,
+  Activities: Clock,
+  Reports: FileBarChart2,
+  Settings: Settings,
+  Users: Shield,
 };
 
-function RoleCard({
-  role,
-  isSelected,
-  onClick,
-  onEdit,
-  onDelete,
-}: {
-  role: Role;
-  isSelected: boolean;
-  onClick: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const colorClass =
-    roleColorMap[role.name] || "bg-[#4080f0] text-white";
+const ROLE_COLORS: Record<string, string> = {
+  "Super Admin": "#4080f0",
+  Admin: "#5b5bd6",
+  "Sales Manager": "#f97316",
+  "Sales Rep": "#10b981",
+  Viewer: "#94a3b8",
+  "Support Agent": "#8b5cf6",
+};
 
-  return (
-    <div
-      className={`bg-white rounded-lg border-2 cursor-pointer transition-all p-4 ${
-        isSelected ? "border-[#4080f0] shadow-sm" : "border-[#e5e7eb] hover:border-[#bfcffa]"
-      }`}
-      onClick={onClick}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClass}`}
-        >
-          <Shield size={18} />
-        </div>
-        <div className="flex items-center gap-1">
-          {role.isSystem && (
-            <span className="flex items-center gap-0.5 text-[10px] text-[#9ca3af] bg-[#f5f5f5] px-1.5 py-0.5 rounded-full">
-              <Lock size={9} />
-              System
-            </span>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 hover:bg-[#f0f2f7]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal size={13} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem
-                className="text-sm cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-              >
-                <Edit size={12} className="mr-2" /> Edit Role
-              </DropdownMenuItem>
-              {!role.isSystem && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-sm cursor-pointer text-[#dc2626]"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                  >
-                    <Trash2 size={12} className="mr-2" /> Delete
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-      <h4 className="font-semibold text-[#1c1e21] text-sm mb-0.5">
-        {role.name}
-      </h4>
-      <p className="text-xs text-[#9ca3af] mb-3 leading-relaxed line-clamp-2">
-        {role.description}
-      </p>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1 text-xs text-[#6b7280]">
-          <Users size={12} />
-          <span>{role.usersCount} users</span>
-        </div>
-        <ChevronRight
-          size={13}
-          className={`transition-colors ${isSelected ? "text-[#4080f0]" : "text-[#d1d5db]"}`}
-        />
-      </div>
-    </div>
-  );
+function getRoleColor(name: string) {
+  return ROLE_COLORS[name] ?? "#4080f0";
 }
 
-function RoleTabButton({
-  role,
-  isSelected,
-  onClick,
-  onEdit,
-  onDelete,
-}: {
-  role: Role;
-  isSelected: boolean;
-  onClick: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      className={`group min-w-[210px] rounded-lg border px-3 py-2 text-left transition-all ${
-        isSelected
-          ? "border-[#4080f0] bg-[#f8fbff] shadow-sm"
-          : "border-[#e5e7eb] bg-white hover:border-[#bfcffa]"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#1c1e21]">{role.name}</p>
-          <p className="truncate text-xs text-[#9ca3af]">{role.usersCount} users</p>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 hover:bg-[#f0f2f7]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal size={13} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem
-              className="text-sm cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-            >
-              <Edit size={12} className="mr-2" /> Edit Role
-            </DropdownMenuItem>
-            {!role.isSystem && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-sm cursor-pointer text-[#dc2626]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete();
-                  }}
-                >
-                  <Trash2 size={12} className="mr-2" /> Delete
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="mt-2 flex items-center justify-between">
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-            roleColorMap[role.name] || "bg-[#eef2fd] text-[#4080f0]"
-          }`}
-        >
-          {role.isSystem ? "System Role" : "Custom Role"}
-        </span>
-        <ChevronRight
-          size={13}
-          className={isSelected ? "text-[#4080f0]" : "text-[#d1d5db] group-hover:text-[#9ca3af]"}
-        />
-      </div>
-    </div>
-  );
-}
-
-function PermissionsMatrix({
-  permissions,
-  onChange,
-  onToggleModule,
-  readOnly = false,
-}: {
-  permissions: Record<string, Record<string, boolean>>;
-  onChange?: (mod: string, action: string, val: boolean) => void;
-  onToggleModule?: (mod: string, val: boolean) => void;
-  readOnly?: boolean;
-}) {
-  return (
-    <div className="overflow-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
-            <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide w-32">
-              Module
-            </th>
-            {MODULE_ACTIONS.map((a) => (
-              <th
-                key={a}
-                className="px-3 py-2.5 text-center text-xs font-semibold text-[#6b7280] uppercase tracking-wide"
-              >
-                {a}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {CRM_MODULES.map((mod) => (
-            <tr
-              key={mod}
-              className="border-b border-[#f0f2f7] hover:bg-[#fafbff]"
-            >
-              <td className="px-4 py-2.5 font-medium text-[#1c1e21] text-sm">
-                {!readOnly && onToggleModule ? (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={MODULE_ACTIONS.every(
-                        (action) => permissions[mod]?.[action] ?? false
-                      )}
-                      onCheckedChange={(v) => onToggleModule(mod, !!v)}
-                    />
-                    <span>{mod}</span>
-                  </div>
-                ) : (
-                  mod
-                )}
-              </td>
-              {MODULE_ACTIONS.map((action) => {
-                const checked = permissions[mod]?.[action] ?? false;
-                return (
-                  <td key={action} className="px-3 py-2.5 text-center">
-                    {readOnly ? (
-                      checked ? (
-                        <Check
-                          size={15}
-                          className="inline-block text-[#1a8a4a]"
-                        />
-                      ) : (
-                        <X size={15} className="inline-block text-[#d1d5db]" />
-                      )
-                    ) : (
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) =>
-                          onChange?.(mod, action, !!v)
-                        }
-                        className="mx-auto"
-                      />
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-export function RolesTab() {
-  const [roles, setRoles] = useState<Role[]>(initialRoles);
-  const [selectedRole, setSelectedRole] = useState<Role>(initialRoles[0]);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editRole, setEditRole] = useState<Role | null>(null);
-
-  const emptyPermissions = Object.fromEntries(
+function makeEmptyPerms(): Record<string, Record<string, boolean>> {
+  return Object.fromEntries(
     CRM_MODULES.map((mod) => [
       mod,
       Object.fromEntries(MODULE_ACTIONS.map((a) => [a, false])),
     ])
   );
+}
 
-  const [newRole, setNewRole] = useState({
-    name: "",
-    description: "",
-    permissions: emptyPermissions,
-  });
+// ─── Component ────────────────────────────────────────────────────────────────
 
-  const applyModulePermissions = (
-    permissions: Record<string, Record<string, boolean>>,
-    mod: string,
-    val: boolean
-  ) => ({
-    ...permissions,
-    [mod]: Object.fromEntries(MODULE_ACTIONS.map((action) => [action, val])),
-  });
+export function RolesTab({
+  roles,
+  setRoles,
+  selectedRoleId,
+  setSelectedRoleId,
+}: RolesTabProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleDesc, setNewRoleDesc] = useState("");
+  const [createPerms, setCreatePerms] = useState<
+    Record<string, Record<string, boolean>>
+  >(() => makeEmptyPerms());
 
-  const applyAllPermissions = (
-    permissions: Record<string, Record<string, boolean>>,
-    val: boolean
-  ) =>
-    Object.fromEntries(
-      CRM_MODULES.map((mod) => [
-        mod,
-        Object.fromEntries(MODULE_ACTIONS.map((action) => [action, val])),
-      ])
+  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? roles[0];
+
+  // ── Permission toggle ────────────────────────────────────────────────────
+
+  function togglePerm(mod: CRMModuleKey, action: CRMActionKey) {
+    setRoles((prev) =>
+      prev.map((r) =>
+        r.id === selectedRoleId
+          ? {
+              ...r,
+              permissions: {
+                ...r.permissions,
+                [mod]: {
+                  ...r.permissions[mod],
+                  [action]: !r.permissions[mod]?.[action],
+                },
+              },
+            }
+          : r
+      )
     );
+  }
 
-  const handleCreate = () => {
-    const role: Role = {
+  // ── Create role ──────────────────────────────────────────────────────────
+
+  function handleCreateRole() {
+    if (!newRoleName.trim()) return;
+    const newRole: Role = {
       id: `r${Date.now()}`,
-      ...newRole,
+      name: newRoleName.trim(),
+      description: newRoleDesc.trim(),
       usersCount: 0,
       isSystem: false,
-      createdAt: new Date().toISOString().split("T")[0],
+      permissions: createPerms,
+      createdAt: new Date().toISOString().slice(0, 10),
     };
-    setRoles((prev) => [...prev, role]);
+    setRoles((prev) => [...prev, newRole]);
+    setSelectedRoleId(newRole.id);
     setCreateOpen(false);
-    setNewRole({ name: "", description: "", permissions: emptyPermissions });
-  };
+    setNewRoleName("");
+    setNewRoleDesc("");
+    setCreatePerms(makeEmptyPerms());
+  }
 
-  const handleSaveEdit = () => {
-    if (!editRole) return;
-    setRoles((prev) =>
-      prev.map((r) => (r.id === editRole.id ? editRole : r))
-    );
-    if (selectedRole.id === editRole.id) setSelectedRole(editRole);
-    setEditRole(null);
-  };
+  function closeCreateDialog() {
+    setCreateOpen(false);
+    setNewRoleName("");
+    setNewRoleDesc("");
+    setCreatePerms(makeEmptyPerms());
+  }
 
-  const handleDeleteRole = (id: string) => {
-    setRoles((prev) => prev.filter((r) => r.id !== id));
-    if (selectedRole.id === id && roles.length > 1) {
-      setSelectedRole(roles.find((r) => r.id !== id)!);
-    }
-  };
+  // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-[#9ca3af] mb-1">Roles</p>
-          <div className="overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex items-center gap-2 pb-1">
-              {roles.map((role) => (
-                <RoleTabButton
-                  key={role.id}
-                  role={role}
-                  isSelected={selectedRole?.id === role.id}
-                  onClick={() => setSelectedRole(role)}
-                  onEdit={() => setEditRole({ ...role })}
-                  onDelete={() => handleDeleteRole(role.id)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
+        <h2 className="shrink-0 text-sm font-semibold leading-none text-[#1c1e21]">
+          Roles &amp; Permissions
+        </h2>
         <Button
           size="sm"
-          className="bg-[#4080f0] hover:bg-[#3070e0] text-white h-9 flex-shrink-0"
+          className="ml-auto h-9 gap-1.5 bg-[#4080f0] hover:bg-[#3070e0] text-white"
           onClick={() => setCreateOpen(true)}
         >
-          <Plus size={14} className="mr-1.5" />
-          Create Role
+          <Plus className="h-3.5 w-3.5" /> Create Role
         </Button>
       </div>
 
-      <div className="flex-1 bg-white rounded-lg border border-[#e5e7eb] overflow-hidden flex flex-col">
-        {selectedRole ? (
-          <>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e5e7eb]">
-              <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h3 className="font-semibold text-[#1c1e21]">{selectedRole.name}</h3>
-                  {selectedRole.isSystem && (
-                    <span className="flex items-center gap-0.5 text-[10px] text-[#9ca3af] bg-[#f5f5f5] px-1.5 py-0.5 rounded-full">
-                      <Lock size={9} />
-                      System Role
-                    </span>
-                  )}
+      {/* Split layout */}
+      <div className="grid grid-cols-[220px_1fr] gap-4">
+        {/* Left: role list */}
+        <div className="space-y-1.5">
+          {roles.map((role) => (
+            <button
+              key={role.id}
+              type="button"
+              onClick={() => setSelectedRoleId(role.id)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4080f0]/40",
+                selectedRoleId === role.id
+                  ? "border-[#bfcffa] bg-[#f4f7ff] shadow-sm"
+                  : "border-[#e5e7eb] hover:border-[#bfcffa] hover:bg-[#fafbff]"
+              )}
+            >
+              <div
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: getRoleColor(role.name) }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold leading-tight text-[#1c1e21]">
+                  {role.name}
                 </div>
-                <p className="text-xs text-[#9ca3af]">{selectedRole.description}</p>
+                <div className="text-[10px] text-[#6b7280]">
+                  {role.usersCount} users
+                </div>
               </div>
+              {role.isSystem && (
+                <Badge className="shrink-0 text-[9px] bg-[#f5f5f5] text-[#9ca3af] hover:opacity-100">
+                  Default
+                </Badge>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: permissions panel */}
+        {selectedRole && (
+          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            {/* Role header */}
+            <div className="border-b border-[#e5e7eb] px-5 py-3">
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 text-sm text-[#6b7280] bg-[#f5f6fa] px-3 py-1.5 rounded-md">
-                  <Users size={14} />
-                  <span>{selectedRole.usersCount} users with this role</span>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 border-[#e5e7eb] text-sm"
-                  onClick={() => setEditRole({ ...selectedRole })}
-                >
-                  <Edit size={13} className="mr-1.5" />
-                  Edit Role
-                </Button>
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: getRoleColor(selectedRole.name) }}
+                />
+                <span className="text-sm font-semibold text-[#1c1e21]">
+                  {selectedRole.name}
+                </span>
+                {selectedRole.isSystem && (
+                  <Badge className="text-[10px] bg-[#f5f5f5] text-[#9ca3af] hover:opacity-100">
+                    Default
+                  </Badge>
+                )}
               </div>
+              <p className="mt-0.5 text-[11px] text-[#6b7280]">
+                {selectedRole.description}
+              </p>
             </div>
-            <div className="overflow-auto flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-              <PermissionsMatrix permissions={selectedRole.permissions} readOnly={true} />
+
+            {/* Permissions table */}
+            <div className="p-4">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr>
+                    <th className="w-40 pb-2 text-left font-medium text-[#6b7280]">
+                      Module
+                    </th>
+                    {MODULE_ACTIONS.map((a) => (
+                      <th
+                        key={a}
+                        className="pb-2 text-center capitalize font-medium text-[#6b7280]"
+                      >
+                        {a}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#e5e7eb]">
+                  {CRM_MODULES.map((mod) => {
+                    const Icon = MODULE_ICONS[mod as CRMModuleKey];
+                    const perms = selectedRole.permissions[mod] ?? {};
+                    const isLocked =
+                      selectedRole.isSystem &&
+                      selectedRole.name === "Super Admin";
+                    return (
+                      <tr key={mod} className="group">
+                        <td className="py-2.5 pr-4">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-3.5 w-3.5 text-[#6b7280]" />
+                            <span className="font-medium text-[#1c1e21]">
+                              {mod}
+                            </span>
+                          </div>
+                        </td>
+                        {MODULE_ACTIONS.map((action) => (
+                          <td key={action} className="py-2.5 text-center">
+                            <div className="flex justify-center">
+                              <Checkbox
+                                checked={perms[action] ?? false}
+                                onCheckedChange={() =>
+                                  togglePerm(
+                                    mod as CRMModuleKey,
+                                    action as CRMActionKey
+                                  )
+                                }
+                                disabled={isLocked}
+                                className="h-4 w-4"
+                              />
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            <div className="px-5 py-3 border-t border-[#f0f2f7] bg-[#f9fafb] flex items-center gap-4 text-xs text-[#9ca3af]">
-              <span className="flex items-center gap-1">
-                <Check size={12} className="text-[#1a8a4a]" /> = Permission Granted
-              </span>
-              <span className="flex items-center gap-1">
-                <X size={12} className="text-[#d1d5db]" /> = No Access
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-[#9ca3af]">
-            Select a role to view permissions
+
+            {/* Locked footer */}
+            {selectedRole.isSystem && selectedRole.name === "Super Admin" && (
+              <div className="border-t border-[#e5e7eb] px-5 py-2.5">
+                <p className="text-[10px] text-[#6b7280]">
+                  Super Admin permissions cannot be modified.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Create Role Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="flex w-[800px] max-w-[95vw] flex-col sm:!max-w-[800px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
-              <Shield size={18} className="text-[#4080f0]" />
-              Create New Role
+      <Dialog open={createOpen} onOpenChange={closeCreateDialog}>
+        <DialogContent className="max-w-2xl gap-0 bg-white p-0 sm:max-w-2xl">
+          <DialogHeader className="gap-0 px-6 py-4 text-left">
+            <DialogTitle className="text-base font-semibold leading-tight text-[#1c1e21]">
+              Create Role
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6b7280]">Role Name *</Label>
+          <div className="max-h-[min(70vh,520px)] space-y-5 overflow-y-auto px-6 py-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:items-start">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="create-role-name"
+                  className="text-xs font-medium text-[#1c1e21]"
+                >
+                  Role name
+                </label>
                 <Input
-                  placeholder="e.g. Regional Manager"
-                  value={newRole.name}
-                  onChange={(e) =>
-                    setNewRole((f) => ({ ...f, name: e.target.value }))
-                  }
-                  className="h-9 border-[#e5e7eb]"
+                  id="create-role-name"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="Sales Manager"
+                  className="h-9 border-[#e5e7eb] text-xs shadow-none"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-[#6b7280]">Description</Label>
-                <Input
-                  placeholder="Brief description of this role"
-                  value={newRole.description}
-                  onChange={(e) =>
-                    setNewRole((f) => ({ ...f, description: e.target.value }))
-                  }
-                  className="h-9 border-[#e5e7eb]"
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="create-role-desc"
+                  className="text-xs font-medium text-[#1c1e21]"
+                >
+                  Description
+                </label>
+                <Textarea
+                  id="create-role-desc"
+                  value={newRoleDesc}
+                  onChange={(e) => setNewRoleDesc(e.target.value)}
+                  placeholder="Manage sales team, leads, deals and reports."
+                  className="min-h-[72px] resize-none border-[#e5e7eb] text-xs shadow-none"
+                  rows={3}
                 />
               </div>
             </div>
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <Label className="text-xs text-[#6b7280]">
-                  Permissions Matrix
-                </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-[11px] normal-case text-[#4080f0] hover:text-[#3070e0]"
-                  onClick={() =>
-                    setNewRole((f) => ({
-                      ...f,
-                      permissions: applyAllPermissions(
-                        f.permissions,
-                        !CRM_MODULES.every((mod) =>
-                          MODULE_ACTIONS.every(
-                            (action) => f.permissions[mod]?.[action] ?? false
-                          )
-                        )
-                      ),
-                    }))
-                  }
-                >
-                  {CRM_MODULES.every((mod) =>
-                    MODULE_ACTIONS.every(
-                      (action) => newRole.permissions[mod]?.[action] ?? false
-                    )
-                  )
-                    ? "Clear all"
-                    : "Select all"}
-                </Button>
-              </div>
-              <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                <PermissionsMatrix
-                  permissions={newRole.permissions}
-                  onToggleModule={(mod, val) =>
-                    setNewRole((f) => ({
-                      ...f,
-                      permissions: applyModulePermissions(f.permissions, mod, val),
-                    }))
-                  }
-                  onChange={(mod, action, val) =>
-                    setNewRole((f) => ({
-                      ...f,
-                      permissions: {
-                        ...f.permissions,
-                        [mod]: { ...f.permissions[mod], [action]: val },
-                      },
-                    }))
-                  }
-                />
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-[#1c1e21]">
+                Permissions
+              </p>
+              <p className="text-[11px] leading-snug text-[#6b7280]">
+                The selected permissions will be linked to the new role after
+                the role record is created.
+              </p>
+              <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-[#fafbff]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[#e5e7eb] bg-[#f5f6fa]">
+                      <th className="w-40 px-3 py-2.5 text-left font-medium text-[#6b7280]">
+                        Module
+                      </th>
+                      {MODULE_ACTIONS.map((a) => (
+                        <th
+                          key={a}
+                          className="px-2 py-2.5 text-center font-medium capitalize text-[#6b7280]"
+                        >
+                          {a}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e5e7eb]">
+                    {CRM_MODULES.map((mod) => {
+                      const Icon = MODULE_ICONS[mod as CRMModuleKey];
+                      const perms = createPerms[mod] ?? {};
+                      return (
+                        <tr key={mod}>
+                          <td className="px-3 py-2.5 font-medium text-[#1c1e21]">
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-3.5 w-3.5 text-[#6b7280]" />
+                              {mod}
+                            </div>
+                          </td>
+                          {MODULE_ACTIONS.map((action) => (
+                            <td
+                              key={action}
+                              className="px-2 py-2.5 text-center"
+                            >
+                              <div className="flex justify-center">
+                                <Checkbox
+                                  checked={perms[action] ?? false}
+                                  onCheckedChange={() =>
+                                    setCreatePerms((prev) => ({
+                                      ...prev,
+                                      [mod]: {
+                                        ...prev[mod],
+                                        [action]: !prev[mod]?.[action],
+                                      },
+                                    }))
+                                  }
+                                  className="h-4 w-4"
+                                />
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="mx-0 mt-0 gap-2 border-t border-[#e5e7eb] bg-white px-6 py-4">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               className="border-[#e5e7eb]"
-              onClick={() => setCreateOpen(false)}
+              onClick={closeCreateDialog}
             >
               Cancel
             </Button>
             <Button
+              type="button"
               size="sm"
               className="bg-[#4080f0] hover:bg-[#3070e0] text-white"
-              onClick={handleCreate}
-              disabled={!newRole.name}
+              disabled={!newRoleName.trim()}
+              onClick={handleCreateRole}
             >
-              Create Role
+              Create role
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Edit Role Dialog */}
-      {editRole && (
-        <Dialog open={!!editRole} onOpenChange={() => setEditRole(null)}>
-          <DialogContent className="flex w-[800px] max-w-[95vw] flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-[#1c1e21]">
-                <Edit size={18} className="text-[#4080f0]" />
-                Edit Role: {editRole.name}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6b7280]">Role Name</Label>
-                  <Input
-                    value={editRole.name}
-                    onChange={(e) =>
-                      setEditRole((r) =>
-                        r ? { ...r, name: e.target.value } : r
-                      )
-                    }
-                    disabled={editRole.isSystem}
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[#6b7280]">Description</Label>
-                  <Input
-                    value={editRole.description}
-                    onChange={(e) =>
-                      setEditRole((r) =>
-                        r ? { ...r, description: e.target.value } : r
-                      )
-                    }
-                    className="h-9 border-[#e5e7eb]"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-[#6b7280] mb-2 block">
-                  Permissions
-                </Label>
-                <div className="border border-[#e5e7eb] rounded-lg overflow-hidden">
-                  <PermissionsMatrix
-                    permissions={editRole.permissions}
-                    readOnly={editRole.isSystem}
-                    onChange={(mod, action, val) =>
-                      setEditRole((r) =>
-                        r
-                          ? {
-                              ...r,
-                              permissions: {
-                                ...r.permissions,
-                                [mod]: {
-                                  ...r.permissions[mod],
-                                  [action]: val,
-                                },
-                              },
-                            }
-                          : r
-                      )
-                    }
-                  />
-                </div>
-                {editRole.isSystem && (
-                  <p className="text-xs text-[#9ca3af] mt-2 flex items-center gap-1">
-                    <Lock size={11} />
-                    System roles have fixed permissions and cannot be modified.
-                  </p>
-                )}
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-[#e5e7eb]"
-                onClick={() => setEditRole(null)}
-              >
-                Cancel
-              </Button>
-              {!editRole.isSystem && (
-                <Button
-                  size="sm"
-                  className="bg-[#4080f0] hover:bg-[#3070e0] text-white"
-                  onClick={handleSaveEdit}
-                >
-                  Save Changes
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }
-
-

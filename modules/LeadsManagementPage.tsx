@@ -759,13 +759,13 @@ export function LeadsManagementPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Leads</h1>
-        <p className="mt-0.5 text-xs text-[#6b7280]">
+        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Leads</h1>
+        <p className="mt-0.5 text-[13px] text-[#6b7280]">
           Pipeline, scoring, and lead qualification in one view
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
         {saveFeedback && (
           <div
             className={cn(
@@ -795,7 +795,7 @@ export function LeadsManagementPage() {
           </div>
         ) : (
           <>
-        <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
+        <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:gap-3">
               <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
@@ -911,7 +911,7 @@ export function LeadsManagementPage() {
         </div>
 
         {viewMode === "kanban" ? (
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pt-4 pb-4 no-scrollbar">
           {sortedStages.length === 0 ? (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
               <div>
@@ -1063,35 +1063,35 @@ export function LeadsManagementPage() {
           )}
         </div>
         ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-3 pb-4 sm:px-5 no-scrollbar">
-          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+        <div className="min-h-0 flex-1 flex flex-col overflow-hidden bg-white">
+          <div className="flex-1 overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-[#f9fafb] hover:bg-[#f9fafb]">
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+              <TableHeader className="sticky top-0 z-10 bg-white">
+                <TableRow>
+                  <TableHead className="pl-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Lead
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Customer
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Stage
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Value
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Score
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Expected close
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Owner
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="bg-white">
                 {filteredPipelineLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
@@ -1112,7 +1112,7 @@ export function LeadsManagementPage() {
                         className="cursor-pointer"
                         onClick={() => openLeadDetail(lead)}
                       >
-                        <TableCell className="font-medium text-[#1c1e21]">
+                        <TableCell className="pl-5 py-3.5 font-medium text-[#1c1e21]">
                           <div className="flex items-center gap-2">
                             <span className="truncate">{lead.name}</span>
                             {stuck && (
@@ -1126,10 +1126,10 @@ export function LeadsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 py-3.5 text-sm text-[#374151]">
                           {customer?.name ?? "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           {stage ? (
                             <Badge
                               variant="outline"
@@ -1146,7 +1146,7 @@ export function LeadsManagementPage() {
                             <span className="text-xs text-[#9ca3af]">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm font-semibold text-[#1c1e21]">
+                        <TableCell className="px-4 py-3.5 text-right text-sm font-semibold text-[#1c1e21]">
                           <div className="inline-flex flex-col items-end">
                             <span>{formatMoney(lead.value, lead.currency)}</span>
                             {lead.currency !== BASE_CURRENCY && (
@@ -1156,19 +1156,19 @@ export function LeadsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
                             <Percent size={12} />
                             {lead.probability}%
                           </span>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
                             <Calendar size={12} />
                             {lead.expectedClose}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <Avatar className="size-6">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
@@ -1186,6 +1186,11 @@ export function LeadsManagementPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex shrink-0 items-center border-t bg-white px-6 py-3">
+            <span className="text-[12px] text-[#6b7280]">
+              Showing {filteredPipelineLeads.length} lead{filteredPipelineLeads.length !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
         )}

@@ -11,13 +11,11 @@ import {
   Clock,
   Headphones,
   Kanban,
-  LineChart,
   List as ListIcon,
   Percent,
   Plus,
   Search,
   Share2,
-  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -122,11 +120,6 @@ function daysBetween(fromIso: string, toDate = new Date()) {
   return Math.max(0, Math.floor((b - a) / 86400000));
 }
 
-function monthPrefix(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
 
 function FormField({
   label,
@@ -145,27 +138,6 @@ function FormField({
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}) {
-  return (
-    <div className="flex min-w-0 flex-1 items-center gap-3 rounded-lg border border-[#e5e7eb] bg-white px-4 py-3">
-      <div className="rounded-md bg-[#eef2fd] p-2">
-        <Icon size={16} className="text-[#4080f0]" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-[#6b7280]">{title}</p>
-        <p className="truncate text-base font-semibold text-[#1c1e21]">{value}</p>
-      </div>
-    </div>
-  );
-}
 
 export function DealsManagementPage() {
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -306,26 +278,7 @@ export function DealsManagementPage() {
     );
   }, [leads, leadSearch]);
 
-  const forecast = useMemo(() => {
-    let pipeline = 0;
-    let weighted = 0;
-    let closingMonth = 0;
-    const prefix = monthPrefix();
-    for (const deal of deals) {
-      const st = stageById.get(deal.stageId);
-      if (!st || st.category !== "open") continue;
-      pipeline += deal.baseValue;
-      weighted += deal.baseValue * (deal.probability / 100);
-      if (deal.expectedClose.startsWith(prefix)) closingMonth += 1;
-    }
-    return {
-      pipeline,
-      weighted,
-      closingMonth,
-    };
-  }, [deals, stageById]);
-
-  const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
+const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
     _setDeals((prev) => (typeof newDeals === "function" ? newDeals(prev) : newDeals));
   };
 
@@ -532,13 +485,13 @@ export function DealsManagementPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Deals</h1>
-        <p className="mt-0.5 text-xs text-[#6b7280]">
+        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Deals</h1>
+        <p className="mt-0.5 text-[13px] text-[#6b7280]">
           Pipeline, forecast, and deal execution in one view
         </p>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden bg-[#f5f6fa]">
+      <div className="flex flex-1 flex-col overflow-hidden bg-white">
         {saveFeedback && (
           <div
             className={cn(
@@ -554,11 +507,6 @@ export function DealsManagementPage() {
 
         {isPageLoading ? (
           <div className="space-y-4 p-3 sm:p-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
             <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -568,27 +516,7 @@ export function DealsManagementPage() {
           </div>
         ) : (
           <>
-        <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
-          <div className="flex flex-wrap gap-3">
-            <StatCard
-              title="Total pipeline"
-              value={formatMoney(forecast.pipeline, BASE_CURRENCY)}
-              icon={Wallet}
-            />
-            <StatCard
-              title="Weighted forecast"
-              value={formatMoney(Math.round(forecast.weighted), BASE_CURRENCY)}
-              icon={LineChart}
-            />
-            <StatCard
-              title="Deals closing this month"
-              value={String(forecast.closingMonth)}
-              icon={Calendar}
-            />
-          </div>
-
-
-
+        <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:gap-3">
               <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
@@ -705,7 +633,7 @@ export function DealsManagementPage() {
         </div>
 
         {viewMode === "kanban" ? (
-        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-3 pb-4 sm:px-5 no-scrollbar">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden px-4 pt-4 pb-4 no-scrollbar">
           {sortedStages.length === 0 ? (
             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-[#d1d5db] bg-white p-6 text-center">
               <div>
@@ -866,35 +794,35 @@ export function DealsManagementPage() {
           )}
         </div>
         ) : (
-        <div className="min-h-0 flex-1 overflow-auto px-3 pb-4 sm:px-5 no-scrollbar">
-          <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
+        <div className="min-h-0 flex-1 flex flex-col overflow-hidden bg-white">
+          <div className="flex-1 overflow-auto">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-[#f9fafb] hover:bg-[#f9fafb]">
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+              <TableHeader className="sticky top-0 z-10 bg-white">
+                <TableRow>
+                  <TableHead className="pl-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Deal
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Customer
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Stage
                   </TableHead>
-                  <TableHead className="text-right text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Value
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Probability
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Expected close
                   </TableHead>
-                  <TableHead className="text-xs font-medium uppercase tracking-wide text-[#6b7280]">
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Owner
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="bg-white">
                 {filteredDeals.length === 0 ? (
                   <TableRow>
                     <TableCell
@@ -919,7 +847,7 @@ export function DealsManagementPage() {
                         className="cursor-pointer"
                         onClick={() => openDealDetail(deal)}
                       >
-                        <TableCell className="font-medium text-[#1c1e21]">
+                        <TableCell className="pl-5 py-3.5 font-medium text-[#1c1e21]">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="truncate">{deal.name}</span>
                             {deal.sourceLeadId && (
@@ -957,10 +885,10 @@ export function DealsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-[#374151]">
+                        <TableCell className="px-4 py-3.5 text-sm text-[#374151]">
                           {customer?.name ?? "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           {stage ? (
                             <Badge
                               variant="outline"
@@ -977,7 +905,7 @@ export function DealsManagementPage() {
                             <span className="text-xs text-[#9ca3af]">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm font-semibold text-[#1c1e21]">
+                        <TableCell className="px-4 py-3.5 text-right text-sm font-semibold text-[#1c1e21]">
                           <div className="inline-flex flex-col items-end">
                             <span>{formatMoney(deal.value, deal.currency)}</span>
                             {deal.currency !== BASE_CURRENCY && (
@@ -987,19 +915,19 @@ export function DealsManagementPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
                             <Percent size={12} />
                             {deal.probability}%
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-1 text-xs text-[#6b7280]">
                             <Calendar size={12} />
                             {deal.expectedClose}
                           </span>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-4 py-3.5">
                           <div className="flex items-center gap-2">
                             <Avatar className="size-6">
                               <AvatarFallback className="bg-[#eef2fd] text-[9px] text-[#245fcb]">
@@ -1017,6 +945,11 @@ export function DealsManagementPage() {
                 )}
               </TableBody>
             </Table>
+          </div>
+          <div className="flex shrink-0 items-center border-t bg-white px-6 py-3">
+            <span className="text-[12px] text-[#6b7280]">
+              Showing {filteredDeals.length} deal{filteredDeals.length !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
         )}
@@ -1263,11 +1196,11 @@ export function DealsManagementPage() {
                   </div>
                   <div className="max-h-[400px] overflow-y-auto rounded-md border border-[#e5e7eb]">
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-[#f9fafb] text-xs uppercase text-[#6b7280]">
-                        <tr>
-                          <th className="px-4 py-2 text-left font-medium">Lead Name</th>
-                          <th className="px-4 py-2 text-left font-medium">Industry</th>
-                          <th className="px-4 py-2 text-right font-medium">Action</th>
+                      <thead className="sticky top-0 bg-white">
+                        <tr className="border-b border-[#e5e7eb]">
+                          <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Lead Name</th>
+                          <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Industry</th>
+                          <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#e5e7eb] bg-white">

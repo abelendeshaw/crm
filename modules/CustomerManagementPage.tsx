@@ -751,7 +751,7 @@ export function CustomerManagementPage({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Customer Management</h1>
+        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Customer Management</h1>
       </div>
 
       <div className="flex-1 overflow-auto p-3 sm:p-5">
@@ -2265,7 +2265,7 @@ function AccountsTable({
       <div className="overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
+            <tr className="border-b border-[#e5e7eb]">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Customer
               </th>
@@ -2398,7 +2398,7 @@ function ContactsTable({
       <div className="overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#e5e7eb] bg-[#f9fafb]">
+            <tr className="border-b border-[#e5e7eb]">
               <th className="w-1/3 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                 Contact
               </th>

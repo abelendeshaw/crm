@@ -14,7 +14,7 @@ export function ApprovalsTab() {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+            <tr className="border-b border-[#e5e7eb]">
               <th className="px-5 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Workflow</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Mode</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Assignee Type</th>
@@ -51,7 +51,7 @@ export function ApprovalsTab() {
         </div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+            <tr className="border-b border-[#e5e7eb]">
               <th className="px-5 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Subject</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Requester</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Approver</th>

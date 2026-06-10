@@ -480,17 +480,17 @@ function UserDetailPage({
                   <p className="text-[11px] font-semibold text-[#1c1e21]">
                     Permissions
                   </p>
-                  <div className="overflow-x-auto rounded-lg border border-[#e5e7eb] bg-[#fafbff]">
+                  <div className="overflow-x-auto rounded-lg border border-[#e5e7eb] bg-white">
                     <table className="w-full text-xs">
-                      <thead className="border-b border-[#e5e7eb] bg-[#f0f2f7]">
+                      <thead className="border-b border-[#e5e7eb]">
                         <tr>
-                          <th className="w-40 px-3 py-2.5 text-left font-medium text-[#6b7280]">
+                          <th className="w-40 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                             Module
                           </th>
                           {DETAIL_PERM_ACTIONS.map((a) => (
                             <th
                               key={a}
-                              className="px-2 py-2.5 text-center font-medium capitalize text-[#6b7280]"
+                              className="px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]"
                             >
                               {a}
                             </th>
@@ -901,18 +901,18 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg border border-[#e5e7eb] hover:translate-y-0 hover:bg-[#fafbff] hover:shadow-sm transition-all">
+      <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white">
         <Table>
-          <TableHeader className="bg-[#f9fafb]">
-            <TableRow className="border-[#e5e7eb]">
-              <TableHead className="text-xs text-[#6b7280]">User</TableHead>
-              <TableHead className="text-xs text-[#6b7280]">Team</TableHead>
-              <TableHead className="text-xs text-[#6b7280]">
+          <TableHeader className="sticky top-0 z-10 bg-white">
+            <TableRow>
+              <TableHead className="pl-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">User</TableHead>
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Team</TableHead>
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                 Department
               </TableHead>
-              <TableHead className="text-xs text-[#6b7280]">Role</TableHead>
-              <TableHead className="text-xs text-[#6b7280]">Status</TableHead>
-              <TableHead className="text-xs text-[#6b7280]">
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Role</TableHead>
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">Status</TableHead>
+              <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                 Last Active
               </TableHead>
             </TableRow>
@@ -931,10 +931,10 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
             {pagedUsers.map((user) => (
               <TableRow
                 key={user.id}
-                className="group cursor-pointer border-[#f0f2f7] hover:bg-[#fafbff]"
+                className="group cursor-pointer hover:bg-[#fafbff]"
                 onClick={() => setViewingUserId(user.id)}
               >
-                <TableCell>
+                <TableCell className="pl-5 py-3.5">
                   <div className="flex items-center gap-2.5">
                     <Avatar className="h-7 w-7">
                       <AvatarFallback className="bg-[#eef2fd] text-[10px] font-semibold text-[#4080f0]">
@@ -951,27 +951,27 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-xs text-[#6b7280]">
+                <TableCell className="px-4 py-3.5 text-xs text-[#6b7280]">
                   {user.team}
                 </TableCell>
-                <TableCell className="text-xs text-[#6b7280]">
+                <TableCell className="px-4 py-3.5 text-xs text-[#6b7280]">
                   {user.department}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4 py-3.5">
                   <Badge
                     className={`text-[10px] hover:opacity-100 ${roleColor(user.role)}`}
                   >
                     {user.role}
                   </Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-4 py-3.5">
                   <Badge
                     className={`text-[10px] hover:opacity-100 ${statusColor(user.status)}`}
                   >
                     {user.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs text-[#6b7280] font-mono">
+                <TableCell className="px-4 py-3.5 text-xs text-[#6b7280] font-mono">
                   {user.lastActive}
                 </TableCell>
               </TableRow>

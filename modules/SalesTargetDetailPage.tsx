@@ -142,7 +142,7 @@ export function SalesTargetDetailPage({ id }: { id: string }) {
     return (
       <div className="flex h-full flex-col overflow-hidden">
         <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-          <h1 className="font-semibold text-[#1c1e21]">Sales Targets</h1>
+          <h1 className="text-[20px] font-semibold text-[#1c1e21]">Sales Targets</h1>
         </div>
         <div className="flex flex-1 items-center justify-center bg-[#f5f6fa]">
           <div className="text-center">

@@ -114,12 +114,12 @@ export function CRMLayout({ children }: CRMLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const currentPathWithQuery =
-    typeof window !== "undefined" ? `${pathname}${window.location.search}` : pathname;
+    typeof window !== "undefined"
+      ? `${pathname}${window.location.search}`
+      : pathname;
 
   const toggleExpand = (label: string) => {
-    setExpanded((prev) =>
-      prev.includes(label) ? [] : [label]
-    );
+    setExpanded((prev) => (prev.includes(label) ? [] : [label]));
   };
 
   const isActive = (path: string) => {
@@ -137,7 +137,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
       collapsed && "justify-center",
       active
         ? "bg-white text-[#4080f0]"
-        : "text-white/80 hover:bg-white/15 hover:text-white"
+        : "text-white/80 hover:bg-white/15 hover:text-white",
     );
 
   const navIconClass = (active: boolean) =>
@@ -158,15 +158,19 @@ export function CRMLayout({ children }: CRMLayoutProps) {
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-[#4080f0] text-white transition-all duration-200 md:static md:z-10 md:translate-x-0",
-          sidebarCollapsed ? "w-[60px] min-w-[60px]" : "w-[220px] min-w-[220px]",
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          sidebarCollapsed
+            ? "w-[60px] min-w-[60px]"
+            : "w-[220px] min-w-[220px]",
+          mobileNavOpen
+            ? "translate-x-0"
+            : "-translate-x-full md:translate-x-0",
         )}
       >
         {/* Logo */}
         <div
           className={cn(
             "h-[56px] flex items-center border-b border-white/16 flex-shrink-0",
-            sidebarCollapsed ? "px-4 justify-center" : "px-5"
+            sidebarCollapsed ? "px-4 justify-center" : "px-5",
           )}
         >
           {sidebarCollapsed ? (
@@ -182,7 +186,9 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                 <div className="text-white text-sm font-semibold leading-tight truncate">
                   CRM
                 </div>
-                <div className="text-white/60 text-xs leading-tight">Workspace</div>
+                <div className="text-white/60 text-xs leading-tight">
+                  Workspace
+                </div>
               </div>
               <Grid3x3 size={16} className="text-white/60 flex-shrink-0" />
             </div>
@@ -202,7 +208,8 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               )}
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
-                  const active = isActive(item.path) || !!isChildActive(item.children);
+                  const active =
+                    isActive(item.path) || !!isChildActive(item.children);
                   // Auto-expand when the parent or any child is active; allow
                   // manual toggle for inactive parents.
                   const isExpanded = active || expanded.includes(item.label);
@@ -220,7 +227,9 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                         {active && !sidebarCollapsed && (
                           <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
                         )}
-                        <span className={navIconClass(active)}>{item.icon}</span>
+                        <span className={navIconClass(active)}>
+                          {item.icon}
+                        </span>
                         {!sidebarCollapsed && (
                           <>
                             {!item.children ? (
@@ -252,7 +261,8 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                       {item.children && isExpanded && !sidebarCollapsed && (
                         <div className="ml-[28px] pl-3 py-1">
                           {item.children.map((child) => {
-                            const childActive = currentPathWithQuery === child.path;
+                            const childActive =
+                              currentPathWithQuery === child.path;
                             return (
                               <Link
                                 key={child.path}
@@ -262,7 +272,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                                   "block py-1.5 text-[13px] transition-colors",
                                   childActive
                                     ? "text-white font-medium"
-                                    : "text-white/70 hover:text-white"
+                                    : "text-white/70 hover:text-white",
                                 )}
                               >
                                 {child.label}
@@ -281,27 +291,13 @@ export function CRMLayout({ children }: CRMLayoutProps) {
 
         {/* Bottom section */}
         <div className="border-t border-white/16 flex-shrink-0 p-2">
-          {/* Settings */}
-          <div className={navItemClass(isActive("/settings"), sidebarCollapsed)}>
-            {isActive("/settings") && !sidebarCollapsed && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
-            )}
-            <span className={navIconClass(isActive("/settings"))}>
-              <Settings size={16} />
-            </span>
-            {!sidebarCollapsed && (
-              <Link
-                href="/settings"
-                className="flex-1 text-[13px] font-medium"
-                onClick={() => setMobileNavOpen(false)}
-              >
-                Settings
-              </Link>
-            )}
-          </div>
-
           {/* User Management */}
-          <div className={navItemClass(isActive("/user-management"), sidebarCollapsed)}>
+          <div
+            className={navItemClass(
+              isActive("/user-management"),
+              sidebarCollapsed,
+            )}
+          >
             {isActive("/user-management") && !sidebarCollapsed && (
               <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
             )}
@@ -319,13 +315,34 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             )}
           </div>
 
+          {/* Settings */}
+          <div
+            className={navItemClass(isActive("/settings"), sidebarCollapsed)}
+          >
+            {isActive("/settings") && !sidebarCollapsed && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+            )}
+            <span className={navIconClass(isActive("/settings"))}>
+              <Settings size={16} />
+            </span>
+            {!sidebarCollapsed && (
+              <Link
+                href="/settings"
+                className="flex-1 text-[13px] font-medium"
+                onClick={() => setMobileNavOpen(false)}
+              >
+                Settings
+              </Link>
+            )}
+          </div>
+
           {/* Collapse toggle */}
           <button
             type="button"
             onClick={() => setSidebarCollapsed((c) => !c)}
             className={cn(
               "flex w-full items-center gap-3 rounded-md px-2 py-2 text-white/70 hover:bg-white/15 hover:text-white transition-all duration-100",
-              sidebarCollapsed && "justify-center"
+              sidebarCollapsed && "justify-center",
             )}
           >
             {sidebarCollapsed ? (
@@ -403,7 +420,9 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                     <div className="text-[#1c1e21] text-[13px] font-medium leading-tight">
                       Admin User
                     </div>
-                    <div className="text-[#9ca3af] text-[11px] leading-tight">Admin</div>
+                    <div className="text-[#9ca3af] text-[11px] leading-tight">
+                      Admin
+                    </div>
                   </div>
                 </Button>
               </DropdownMenuTrigger>
@@ -430,9 +449,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

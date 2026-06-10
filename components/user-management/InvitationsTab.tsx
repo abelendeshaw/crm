@@ -14,7 +14,7 @@ export function InvitationsTab() {
       <div className="overflow-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#f9fafb] border-b border-[#e5e7eb]">
+            <tr className="border-b border-[#e5e7eb]">
               <th className="px-5 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Invitee</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Products</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-[#6b7280] uppercase tracking-wide">Roles</th>

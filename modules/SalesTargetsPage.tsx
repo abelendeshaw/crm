@@ -321,8 +321,8 @@ export function SalesTargetsPage() {
     return (
       <div className="flex h-full flex-col overflow-hidden">
         <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-          <h1 className="font-semibold text-[#1c1e21]">Sales Targets</h1>
-          <p className="mt-0.5 text-xs text-[#6b7280]">
+          <h1 className="text-[20px] font-semibold text-[#1c1e21]">Sales Targets</h1>
+          <p className="mt-0.5 text-[13px] text-[#6b7280]">
             Track and manage sales performance against goals
           </p>
         </div>
@@ -355,7 +355,7 @@ export function SalesTargetsPage() {
     <div className="flex h-full flex-col overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="font-semibold text-[#1c1e21]">Sales Targets</h1>
+        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Sales Targets</h1>
         <p className="mt-0.5 text-xs text-[#6b7280]">
           Track and manage sales performance against goals
         </p>

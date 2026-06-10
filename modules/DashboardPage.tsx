@@ -498,8 +498,8 @@ export function DashboardPage() {
     <div className="flex h-full flex-col overflow-auto bg-[#f8fafc]">
       <div className="flex flex-col gap-2 border-b border-[#e5e7eb] bg-white px-6 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-semibold text-[#1c1e21]">Dashboard</h1>
-          <p className="mt-0.5 text-xs text-[#9ca3af]">
+          <h1 className="text-[20px] font-semibold text-[#1c1e21]">Dashboard</h1>
+          <p className="mt-0.5 text-[13px] text-[#9ca3af]">
             Pipeline, revenue, and team activity at a glance.
           </p>
         </div>

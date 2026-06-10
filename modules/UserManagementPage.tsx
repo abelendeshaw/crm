@@ -46,7 +46,7 @@ export function UserManagementPage() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
         <div>
-          <h1 className="font-semibold text-[#1c1e21]">User Management</h1>
+          <h1 className="text-[20px] font-semibold text-[#1c1e21]">User Management</h1>
         </div>
         <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
           {tabs.map((tab) => (

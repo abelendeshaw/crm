@@ -796,8 +796,8 @@ export function LeadsManagementPage() {
         ) : (
           <>
         <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2 sm:gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
               <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
                 <Search
                   size={15}
@@ -810,7 +810,7 @@ export function LeadsManagementPage() {
                   className="h-9 border-[#e5e7eb] bg-white pl-9"
                 />
               </div>
-              <FormField label="Stage" className="w-[150px]">
+              <div className="w-[150px]">
                 <Select value={filterStageId} onValueChange={setFilterStageId}>
                   <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
                     <SelectValue placeholder="Stage" />
@@ -824,8 +824,8 @@ export function LeadsManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </FormField>
-              <FormField label="Teams" className="w-[150px]">
+              </div>
+              <div className="w-[150px]">
                 <Select value={filterOwner} onValueChange={setFilterOwner}>
                   <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
                     <SelectValue placeholder="Teams" />
@@ -839,14 +839,14 @@ export function LeadsManagementPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </FormField>
-              <FormField label="Qualification score" className="w-[160px]">
+              </div>
+              <div className="w-[160px]">
                 <Select
                   value={filterProbability}
                   onValueChange={(v) => setFilterProbability(v as ProbabilityFilter)}
                 >
                   <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Qualification score" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
@@ -855,7 +855,7 @@ export function LeadsManagementPage() {
                     <SelectItem value="low">Low (under 40%)</SelectItem>
                   </SelectContent>
                 </Select>
-              </FormField>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div

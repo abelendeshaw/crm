@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Users,
   Plus,
@@ -66,6 +66,7 @@ import {
 export interface UsersTabProps {
   roles: Role[];
   setRoles: React.Dispatch<React.SetStateAction<Role[]>>;
+  onViewingChange?: (viewing: boolean) => void;
 }
 
 // ─── Mock pool for Add User ───────────────────────────────────────────────────
@@ -271,7 +272,7 @@ function UserDetailPage({
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <p className="text-base font-semibold text-[#1c1e21]">User detail</p>
+          <p className="text-base font-semibold text-[#1c1e21]">{user.name}</p>
         </div>
         <Button
           variant="outline"
@@ -629,7 +630,7 @@ function UserDetailPage({
 
 // ─── UsersTab (UsersScreen) ───────────────────────────────────────────────────
 
-export function UsersTab({ roles, setRoles }: UsersTabProps) {
+export function UsersTab({ roles, setRoles, onViewingChange }: UsersTabProps) {
   const [users, setUsers] = useState<CRMUser[]>(initialUsers);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -643,6 +644,9 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
   );
   const [comboboxOpen, setComboboxOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CRMUser | null>(null);
+  const [inviteName, setInviteName] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [inviteDepartment, setInviteDepartment] = useState("");
 
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
@@ -652,6 +656,10 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
       viewingUserId ? users.find((u) => u.id === viewingUserId) ?? null : null,
     [users, viewingUserId]
   );
+
+  useEffect(() => {
+    onViewingChange?.(viewingUserId !== null);
+  }, [viewingUserId, onViewingChange]);
 
   const existingEmails = useMemo(
     () => new Set(users.map((u) => u.id)),
@@ -678,7 +686,8 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
 
   const looksLikeEmail = (v: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
-  const canAddUser = !!selectedPoolId || looksLikeEmail(addSearch);
+  const isUnknownInvite = !selectedPoolId && looksLikeEmail(addSearch);
+  const canAddUser = !!selectedPoolId || (isUnknownInvite && inviteName.trim().length > 0);
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -713,20 +722,13 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
       };
     } else {
       const email = addSearch.trim();
-      const localPart = email.split("@")[0] ?? "";
-      const derivedName =
-        localPart
-          .split(/[._-]+/)
-          .filter(Boolean)
-          .map((p) => p[0]!.toUpperCase() + p.slice(1))
-          .join(" ") || "Invited User";
       newUser = {
         id: `invited-${Date.now()}`,
-        name: derivedName,
+        name: inviteName.trim(),
         email,
-        phone: "",
+        phone: invitePhone.trim(),
         role: addRole as UserRole,
-        department: "—",
+        department: inviteDepartment.trim() || "—",
         branch: "",
         team: "—",
         manager: "—",
@@ -745,6 +747,9 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
     setAddSearch("");
     setComboboxOpen(false);
     setAddRole(defaultRoleName);
+    setInviteName("");
+    setInvitePhone("");
+    setInviteDepartment("");
   }
 
   function handleDelete() {
@@ -774,11 +779,56 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-[#1c1e21]">
-            Team Members
-          </h2>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-[#9ca3af]" />
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search users…"
+            className="h-9 w-full pl-8 shadow-none border-[#e5e7eb] bg-[#f5f6fa] text-xs"
+          />
+        </div>
+        <Select
+          value={roleFilter}
+          onValueChange={(v) => {
+            setRoleFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-9 w-40 text-xs shadow-none border-[#e5e7eb] bg-[#f5f6fa]">
+            <SelectValue placeholder="All roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All roles</SelectItem>
+            {roles.map((r) => (
+              <SelectItem key={r.id} value={r.name} className="text-xs">
+                {r.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="h-9 w-36 text-xs shadow-none border-[#e5e7eb] bg-[#f5f6fa]">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All statuses</SelectItem>
+            {(["Active", "Inactive", "Pending", "Suspended"] as UserStatus[]).map((s) => (
+              <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="ml-auto">
           <Button
             size="sm"
             className="h-9 gap-1.5 bg-[#4080f0] hover:bg-[#3070e0] text-white"
@@ -786,71 +836,6 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
           >
             <Plus className="h-3.5 w-3.5" /> Add User
           </Button>
-        </div>
-        <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-2.5 left-3 h-3.5 w-3.5 text-[#9ca3af]" />
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search users…"
-              className="h-9 w-56 pl-8 shadow-none border-[#e5e7eb] text-xs"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={roleFilter}
-              onValueChange={(v) => {
-                setRoleFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9 w-40 text-xs shadow-none border-[#e5e7eb]">
-                <SelectValue placeholder="All roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All roles
-                </SelectItem>
-                {roles.map((r) => (
-                  <SelectItem key={r.id} value={r.name} className="text-xs">
-                    {r.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9 w-32 text-xs shadow-none border-[#e5e7eb]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all" className="text-xs">
-                  All
-                </SelectItem>
-                {(
-                  [
-                    "Active",
-                    "Inactive",
-                    "Pending",
-                    "Suspended",
-                  ] as UserStatus[]
-                ).map((s) => (
-                  <SelectItem key={s} value={s} className="text-xs">
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
@@ -1061,32 +1046,34 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
           else setAddDialogOpen(true);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add User</DialogTitle>
+            <p className="mt-1 text-xs text-[#6b7280]">
+              Search for a known employee or enter an email address to invite
+              someone new.
+            </p>
           </DialogHeader>
-          <div className="space-y-3">
+
+          <div className="space-y-5 py-1">
+            {/* Employee search */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[#1c1e21]">
                 Employee{" "}
-                <span className="text-[#dc2626]" aria-hidden="true">
-                  *
-                </span>
+                <span className="text-[#dc2626]" aria-hidden="true">*</span>
               </label>
               <div
                 className="relative"
                 onBlurCapture={(e) => {
-                  if (
-                    !e.currentTarget.contains(e.relatedTarget as Node | null)
-                  ) {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
                     window.setTimeout(() => setComboboxOpen(false), 120);
                   }
                 }}
               >
                 <Input
                   value={addSearch}
-                  placeholder="Select"
-                  className="h-9 pr-8 text-xs shadow-none border-[#e5e7eb]"
+                  placeholder="Search by name or type an email address…"
+                  className="h-10 pr-9 text-sm shadow-none border-[#e5e7eb]"
                   onFocus={() => setComboboxOpen(true)}
                   onClick={() => setComboboxOpen(true)}
                   onChange={(e) => {
@@ -1095,14 +1082,14 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
                     setComboboxOpen(true);
                   }}
                 />
-                <Search className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6b7280]" />
-                {comboboxOpen ? (
-                  <div className="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-[#e5e7eb] bg-white p-1 shadow-md">
+                <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b7280]" />
+                {comboboxOpen && (
+                  <div className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-[#e5e7eb] bg-white p-1 shadow-md">
                     {poolCandidates.length === 0 ? (
-                      <div className="px-2 py-2 text-xs text-[#6b7280]">
+                      <div className="px-3 py-2.5 text-xs text-[#6b7280]">
                         {looksLikeEmail(addSearch)
-                          ? `Press "Add User" to invite ${addSearch.trim()}.`
-                          : "No matching users. Type an email to invite someone new."}
+                          ? `No match found — fill in the details below to invite ${addSearch.trim()}.`
+                          : "No matching employees. Type an email address to invite someone new."}
                       </div>
                     ) : (
                       poolCandidates.map((u) => (
@@ -1115,50 +1102,99 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
                             setAddSearch(u.name);
                             setComboboxOpen(false);
                           }}
-                          className={`flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-[#f9fafb] ${
+                          className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-[#f9fafb] ${
                             selectedPoolId === u.id
                               ? "bg-[#eef2fd] ring-1 ring-[#bfcffa]"
                               : ""
                           }`}
                         >
-                          <Avatar className="h-7 w-7 shrink-0">
-                            <AvatarFallback className="bg-[#eef2fd] text-[10px] font-semibold text-[#4080f0]">
+                          <Avatar className="h-8 w-8 shrink-0">
+                            <AvatarFallback className="bg-[#eef2fd] text-[11px] font-semibold text-[#4080f0]">
                               {initials(u.name)}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <div className="text-xs font-medium leading-tight text-[#1c1e21]">
+                            <div className="text-sm font-medium leading-tight text-[#1c1e21]">
                               {u.name}
                             </div>
-                            <div className="text-[10px] text-[#6b7280]">
+                            <div className="text-xs text-[#6b7280]">
                               {u.email} · {u.department}
                             </div>
                           </div>
                           {selectedPoolId === u.id && (
-                            <Check className="ml-auto h-3.5 w-3.5 shrink-0 text-[#4080f0]" />
+                            <Check className="ml-auto h-4 w-4 shrink-0 text-[#4080f0]" />
                           )}
                         </button>
                       ))
                     )}
                   </div>
-                ) : null}
+                )}
               </div>
-              <p className="mt-1 text-[10px] text-[#6b7280]">
-                Pick a known employee or type an email address to invite someone
-                new.
-              </p>
             </div>
+
+            {/* Unknown invitee details — shown only when the typed value is an email not in the pool */}
+            {isUnknownInvite && (
+              <div className="rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-4">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-px flex-1 bg-[#e5e7eb]" />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
+                    New invitee details
+                  </span>
+                  <div className="h-px flex-1 bg-[#e5e7eb]" />
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-[#1c1e21]">
+                      Full Name{" "}
+                      <span className="text-[#dc2626]" aria-hidden="true">*</span>
+                    </label>
+                    <Input
+                      value={inviteName}
+                      onChange={(e) => setInviteName(e.target.value)}
+                      placeholder="e.g. John Smith"
+                      className="h-10 bg-white text-sm shadow-none border-[#e5e7eb]"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[#1c1e21]">
+                        Phone
+                      </label>
+                      <Input
+                        value={invitePhone}
+                        onChange={(e) => setInvitePhone(e.target.value)}
+                        placeholder="+1 000 000 0000"
+                        className="h-10 bg-white text-sm shadow-none border-[#e5e7eb]"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-[#1c1e21]">
+                        Department
+                      </label>
+                      <Input
+                        value={inviteDepartment}
+                        onChange={(e) => setInviteDepartment(e.target.value)}
+                        placeholder="e.g. Sales"
+                        className="h-10 bg-white text-sm shadow-none border-[#e5e7eb]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Role */}
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[#1c1e21]">
                 Assign Role
               </label>
               <Select value={addRole} onValueChange={(v) => setAddRole(v)}>
-                <SelectTrigger className="h-9 w-full text-xs shadow-none border-[#e5e7eb]">
+                <SelectTrigger className="h-10 w-full text-sm shadow-none border-[#e5e7eb]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.name} className="text-xs">
+                    <SelectItem key={r.id} value={r.name} className="text-sm">
                       {r.name}
                     </SelectItem>
                   ))}
@@ -1166,7 +1202,8 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
               </Select>
             </div>
           </div>
-          <DialogFooter className="border-t-0 pt-0">
+
+          <DialogFooter className="border-t border-[#e5e7eb] pt-4">
             <Button
               variant="outline"
               size="sm"
@@ -1181,7 +1218,7 @@ export function UsersTab({ roles, setRoles }: UsersTabProps) {
               disabled={!canAddUser}
               onClick={handleAddUser}
             >
-              Add User
+              {isUnknownInvite ? "Send Invite" : "Add User"}
             </Button>
           </DialogFooter>
         </DialogContent>

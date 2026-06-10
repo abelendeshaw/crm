@@ -30,6 +30,7 @@ export function UserManagementPage() {
   const [selectedRoleId, setSelectedRoleId] = useState<string>(
     initialRoles[0]?.id ?? ""
   );
+  const [isViewingUser, setIsViewingUser] = useState(false);
 
   const setActiveTab = (id: UserManagementTab) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -44,39 +45,38 @@ export function UserManagementPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[#1c1e21]">User Management</h1>
-        </div>
-        <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                activeTab === tab.id
-                  ? "border-[#4080f0] text-[#4080f0]"
-                  : "border-transparent text-[#6b7280] hover:text-[#1c1e21] hover:border-[#e5e7eb]"
-              )}
-            >
-              <span
-                className={
-                  activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"
-                }
+      {!(activeTab === "users" && isViewingUser) && (
+        <div className="bg-white border-b border-[#e5e7eb] px-6 flex-shrink-0">
+          <div className="flex items-center gap-1 overflow-x-auto">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                  activeTab === tab.id
+                    ? "border-[#4080f0] text-[#4080f0]"
+                    : "border-transparent text-[#6b7280] hover:text-[#1c1e21] hover:border-[#e5e7eb]"
+                )}
               >
-                {tab.icon}
-              </span>
-              {tab.label}
-            </button>
-          ))}
+                <span
+                  className={
+                    activeTab === tab.id ? "text-[#4080f0]" : "text-[#9ca3af]"
+                  }
+                >
+                  {tab.icon}
+                </span>
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-hidden min-h-0 flex flex-col p-3 sm:p-5">
         {activeTab === "users" && (
-          <UsersTab roles={roles} setRoles={setRoles} />
+          <UsersTab roles={roles} setRoles={setRoles} onViewingChange={setIsViewingUser} />
         )}
         {activeTab === "roles" && (
           <RolesTab

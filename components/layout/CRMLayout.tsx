@@ -14,7 +14,6 @@ import {
   UserCog,
   ChevronDown,
   ChevronRight,
-  Grid3x3,
   Menu,
   X,
   Target,
@@ -170,13 +169,18 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         <div
           className={cn(
             "h-[56px] flex items-center border-b border-white/16 flex-shrink-0",
-            sidebarCollapsed ? "px-4 justify-center" : "px-5",
+            sidebarCollapsed ? "px-3 justify-center" : "px-4",
           )}
         >
           {sidebarCollapsed ? (
-            <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/20">
-              <span className="text-white font-bold text-xs">A</span>
-            </div>
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(false)}
+              className="flex items-center justify-center rounded-md p-1.5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-[18px] w-[18px]" />
+            </button>
           ) : (
             <div className="flex items-center gap-2.5 min-w-0 w-full">
               <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/20 flex-shrink-0">
@@ -190,7 +194,14 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                   Workspace
                 </div>
               </div>
-              <Grid3x3 size={16} className="text-white/60 flex-shrink-0" />
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(true)}
+                className="flex-shrink-0 rounded-md p-1 text-white/60 hover:bg-white/15 hover:text-white transition-colors"
+                aria-label="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-[18px] w-[18px]" />
+              </button>
             </div>
           )}
         </div>
@@ -336,24 +347,6 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             )}
           </div>
 
-          {/* Collapse toggle */}
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed((c) => !c)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-md px-2 py-2 text-white/70 hover:bg-white/15 hover:text-white transition-all duration-100",
-              sidebarCollapsed && "justify-center",
-            )}
-          >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
-            ) : (
-              <>
-                <PanelLeftClose className="w-4 h-4" />
-                <span className="text-[13px]">Collapse</span>
-              </>
-            )}
-          </button>
         </div>
       </aside>
 

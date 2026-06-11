@@ -66,6 +66,10 @@ export type CrmLead = {
   exceptionJustification?: string;
   exceptionApprovedBy?: string;
   checklistValidationStatus?: string;
+  /** Revenue target assigned to this lead (base currency, seeded from external targeting system) */
+  salesTarget?: number;
+  /** Amount achieved toward the sales target (base currency) */
+  targetAchieved?: number;
   /** Optional Lead Discovery & PQQ worksheet captured at creation or on the lead record */
   pqq?: DealPqq;
   /** Values for template-driven PQQ fields when the active template uses a custom form definition */
@@ -107,10 +111,18 @@ export const DEFAULT_LEAD_PIPELINE_STAGES: PipelineStage[] = [
     borderClass: "border-[#e8e2d0]",
   },
   {
+    id: "lead-stage-contract-signed",
+    name: "Contract Signed",
+    category: "won",
+    order: 4,
+    columnClass: "bg-[#f0fdf4]",
+    borderClass: "border-[#86efac]",
+  },
+  {
     id: "lead-stage-converted",
     name: "Converted",
     category: "won",
-    order: 4,
+    order: 5,
     columnClass: "bg-[#f8fcf9]",
     borderClass: "border-[#d4e6dc]",
   },
@@ -118,7 +130,7 @@ export const DEFAULT_LEAD_PIPELINE_STAGES: PipelineStage[] = [
     id: "lead-stage-disqualified",
     name: "Disqualified",
     category: "lost",
-    order: 5,
+    order: 6,
     columnClass: "bg-[#fdf8f8]",
     borderClass: "border-[#e8dada]",
   },
@@ -195,6 +207,17 @@ const leadBlueprints: Array<{
   { topic: "Field service app", solutionCategory: "Mobile", department: "Service" },
 ];
 
+// Leads at these indices will be seeded as "Contract Signed" for targeting demo
+const CONTRACT_SIGNED_SEED_INDICES = new Set([1, 4, 7, 8]);
+
+// Quarter → expected-close date mapping for seeded "Contract Signed" leads
+const CONTRACT_SIGNED_CLOSE_DATES: Record<number, string> = {
+  1: "2026-02-15",
+  4: "2026-04-20",
+  7: "2026-05-10",
+  8: "2026-06-05",
+};
+
 function seedLeads(): CrmLead[] {
   const accounts = customerAccounts;
   const stages = DEFAULT_LEAD_PIPELINE_STAGES;
@@ -204,13 +227,23 @@ function seedLeads(): CrmLead[] {
 
   return leadBlueprints.slice(0, total).map((bp, i) => {
     const acc = accounts[i % accounts.length]!;
-    const stage = stages[i % stages.length]!;
+    const isContractSigned = CONTRACT_SIGNED_SEED_INDICES.has(i);
+    const stage = isContractSigned
+      ? DEFAULT_LEAD_PIPELINE_STAGES.find(s => s.id === "lead-stage-contract-signed")!
+      : stages[i % stages.length]!;
     const source = DEFAULT_LEAD_SOURCES[i % DEFAULT_LEAD_SOURCES.length]!;
     const currency: DealCurrency = i % 3 === 0 ? "USD" : i % 3 === 1 ? "ETB" : "EUR";
     const value = 12000 + i * 6200;
     const probability = [20, 35, 45, 55, 70, 85, 40, 60, 25, 50][i % 10]!;
     const stuckDays = [1, 3, 5, 8, 12, 2, 6, 14, 4, 9][i % 10]!;
     const isFirst = i === 0;
+    const baseValue = computeBaseValue(value, currency);
+    const salesTarget = Math.round(baseValue * (1.15 + (i % 3) * 0.1));
+    const targetAchieved = isContractSigned
+      ? Math.min(salesTarget, Math.max(baseValue, Math.round(salesTarget * 0.65)))
+      : i % 5 === 0
+        ? Math.round(salesTarget * 0.25)
+        : undefined;
     return {
       id: `lead-seed-${i + 1}-${acc.id}`,
       name: `${acc.name.split(" ")[0] ?? "Account"} ${bp.topic}`,
@@ -218,9 +251,11 @@ function seedLeads(): CrmLead[] {
       sourceId: source.id,
       value,
       currency,
-      baseValue: computeBaseValue(value, currency),
+      baseValue,
+      salesTarget,
+      targetAchieved,
       probability,
-      expectedClose: i % 2 === 0 ? targetThisMonth : targetNextMonth,
+      expectedClose: CONTRACT_SIGNED_CLOSE_DATES[i] ?? (i % 2 === 0 ? targetThisMonth : targetNextMonth),
       stageId: stage.id,
       stageEnteredAt: isoDaysAgo(stuckDays),
       primarySales: ownersPool[i % ownersPool.length]!,

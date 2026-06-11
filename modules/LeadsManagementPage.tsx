@@ -88,7 +88,10 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
+import { applyContractSignedAchievement } from "@/data/leadsTargetsData";
+import type { LeadTargetingSettings } from "@/data/leadsTargetsData";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
+import { LeadTargetProgressBar } from "@/modules/LeadTargetProgress";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -192,6 +195,9 @@ export function LeadsManagementPage() {
     ...mockLeadStore.pqqSettings,
   }));
   const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
+  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() => ({
+    ...mockLeadStore.targetingSettings,
+  }));
 
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
@@ -215,6 +221,9 @@ export function LeadsManagementPage() {
     const unsubPqqSettings = mockLeadStore.subscribePqqSettings((newSettings) => {
       setPqqSettings({ ...newSettings });
     });
+    const unsubTargeting = mockLeadStore.subscribeTargetingSettings((next) => {
+      setTargetingSettings({ ...next });
+    });
 
     return () => {
       clearTimeout(loadingTimer);
@@ -223,6 +232,7 @@ export function LeadsManagementPage() {
       unsubSources();
       unsubPqqTemplates();
       unsubPqqSettings();
+      unsubTargeting();
     };
   }, []);
 
@@ -448,15 +458,19 @@ export function LeadsManagementPage() {
   const moveLeadToStage = (leadId: string, stageId: string) => {
     const today = new Date().toISOString().split("T")[0]!;
     setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              stageId,
-              stageEnteredAt: l.stageId === stageId ? l.stageEnteredAt : today,
-            }
-          : l,
-      ),
+      prev.map((l) => {
+        if (l.id !== leadId) return l;
+        const stageChanged = l.stageId !== stageId;
+        const targetAchieved = stageChanged
+          ? applyContractSignedAchievement(l, stageId)
+          : l.targetAchieved;
+        return {
+          ...l,
+          stageId,
+          stageEnteredAt: stageChanged ? today : l.stageEnteredAt,
+          targetAchieved,
+        };
+      }),
     );
   };
 
@@ -1051,6 +1065,13 @@ export function LeadsManagementPage() {
                                 {lead.expectedClose}
                               </span>
                             </div>
+                            {lead.salesTarget != null && lead.salesTarget > 0 && (
+                              <LeadTargetProgressBar
+                                lead={lead}
+                                currency={targetingSettings.displayCurrency}
+                                compact
+                              />
+                            )}
                           </CardContent>
                         </Card>
                       );
@@ -1081,6 +1102,9 @@ export function LeadsManagementPage() {
                     Value
                   </TableHead>
                   <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
+                    Target
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Score
                   </TableHead>
                   <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
@@ -1095,7 +1119,7 @@ export function LeadsManagementPage() {
                 {filteredPipelineLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="px-4 py-10 text-center text-sm text-[#6b7280]"
                     >
                       No leads match the current filters.
@@ -1155,6 +1179,17 @@ export function LeadsManagementPage() {
                               </span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 min-w-[140px]">
+                          {lead.salesTarget != null && lead.salesTarget > 0 ? (
+                            <LeadTargetProgressBar
+                              lead={lead}
+                              currency={targetingSettings.displayCurrency}
+                              compact
+                            />
+                          ) : (
+                            <span className="text-xs text-[#9ca3af]">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">

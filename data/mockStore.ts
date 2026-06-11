@@ -6,6 +6,10 @@ import {
   DEFAULT_LEAD_SOURCES,
   type LeadSource,
 } from "./leadsManagementData";
+import {
+  DEFAULT_LEAD_TARGETING_SETTINGS,
+  type LeadTargetingSettings,
+} from "./leadsTargetsData";
 import { initialTargets, type SalesTarget } from "./salesTargetsData";
 import {
   DEFAULT_PQQ_TEMPLATES,
@@ -188,6 +192,9 @@ class MockLeadStore {
   private _pqqTemplatesSubscribers: ((templates: DealPqqTemplate[]) => void)[] = [];
   private _pqqSettingsSubscribers: ((settings: LeadPqqSettings) => void)[] = [];
 
+  private _targetingSettings: LeadTargetingSettings = { ...DEFAULT_LEAD_TARGETING_SETTINGS };
+  private _targetingSettingsSubscribers: ((settings: LeadTargetingSettings) => void)[] = [];
+
   private _leadSources: LeadSource[] = [...DEFAULT_LEAD_SOURCES];
   private _pqqTemplates: DealPqqTemplate[] = DEFAULT_PQQ_TEMPLATES.map((template) => ({
     ...template,
@@ -286,6 +293,28 @@ class MockLeadStore {
   public set pqqSettings(newSettings: LeadPqqSettings) {
     this._pqqSettings = { ...newSettings };
     this._notifyPqqSettings();
+  }
+
+  public get targetingSettings(): LeadTargetingSettings {
+    return this._targetingSettings;
+  }
+
+  public set targetingSettings(newSettings: LeadTargetingSettings) {
+    this._targetingSettings = { ...newSettings };
+    this._notifyTargetingSettings();
+  }
+
+  public subscribeTargetingSettings(callback: (settings: LeadTargetingSettings) => void) {
+    this._targetingSettingsSubscribers.push(callback);
+    return () => {
+      this._targetingSettingsSubscribers = this._targetingSettingsSubscribers.filter(
+        (s) => s !== callback,
+      );
+    };
+  }
+
+  private _notifyTargetingSettings() {
+    this._targetingSettingsSubscribers.forEach((s) => s(this._targetingSettings));
   }
 
   public getLead(id: string): CrmLead | undefined {

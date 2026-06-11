@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Tag,
   FileText,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +67,7 @@ import {
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
 import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
+import { LeadTargetingSettingsSection } from "@/modules/LeadTargetingSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -128,7 +130,7 @@ function IconRenderer({ name, className }: { name: string; className?: string })
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring";
+type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring" | "targeting";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -155,6 +157,11 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: "scoring",
     label: "Lead Scoring",
     icon: <Gauge size={15} />,
+  },
+  {
+    id: "targeting",
+    label: "Targeting",
+    icon: <Target size={15} />,
   },
 ];
 
@@ -657,9 +664,11 @@ export function LeadsSettingsPage() {
         <p className="mt-0.5 text-[13px] text-[#6b7280]">
           {activeSection === "scoring"
             ? "Define rules to prioritize and qualify leads automatically."
-            : activeSection === "sources"
-              ? "Define the sources your team can assign when creating and qualifying leads."
-              : "Configure lead pipeline stages and interaction types"}
+            : activeSection === "targeting"
+              ? "Configure display currency and annual revenue objectives for lead performance tracking."
+              : activeSection === "sources"
+                ? "Define the sources your team can assign when creating and qualifying leads."
+                : "Configure lead pipeline stages and interaction types"}
         </p>
 
         {/* Tab Bar - same pattern as UserManagement */}
@@ -1577,6 +1586,7 @@ export function LeadsSettingsPage() {
               <LeadPqqTemplateSettingsSection />
             )}
             {activeSection === "scoring" && <LeadScoringSettingsSection />}
+            {activeSection === "targeting" && <LeadTargetingSettingsSection />}
           </div>
         </div>
       </div>

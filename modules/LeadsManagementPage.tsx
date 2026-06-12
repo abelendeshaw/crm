@@ -1042,19 +1042,23 @@ export function LeadsManagementPage() {
                       return (
                         <Card
                           key={lead.id}
+                          size="sm"
                           draggable
                           onDragStart={(e) => handleDragStart(e, lead.id)}
                           onDragEnd={handleDragEnd}
                           className={cn(
-                            "cursor-grab border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-all duration-150",
+                            "gap-0 py-0 data-[size=sm]:py-0 cursor-grab border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-all duration-150",
                             draggingLeadId === lead.id && "opacity-40 scale-[0.97] cursor-grabbing",
                             droppedLeadId === lead.id && "animate-kanban-drop-in",
                           )}
                           onClick={() => openLeadDetail(lead)}
                         >
-                          <CardContent className="space-y-2 p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium leading-snug text-[#1c1e21]">
+                          <CardContent className="space-y-1.5 px-3 py-4">
+                            <div className="flex items-start gap-2">
+                              <Badge className="shrink-0 border-[#3070e0] bg-[#4080f0] px-2 py-0.5 text-[11px] font-bold tracking-wide text-white hover:bg-[#4080f0]">
+                                {lead.quarter ?? quarterLabel(getLeadQuarter(lead))}
+                              </Badge>
+                              <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-[#1c1e21]">
                                 {lead.name}
                               </p>
                               <div className="flex shrink-0 flex-col items-end gap-1">
@@ -1074,19 +1078,10 @@ export function LeadsManagementPage() {
                                     Non-qualified
                                   </Badge>
                                 )}
-                                {stuck && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-900"
-                                  >
-                                    <AlertTriangle className="mr-0.5 size-3" />
-                                    {stuck}
-                                  </Badge>
-                                )}
                               </div>
                             </div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {lead.team && (
+                            {lead.team ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <Badge
                                   variant="outline"
                                   className={cn(
@@ -1096,14 +1091,8 @@ export function LeadsManagementPage() {
                                 >
                                   {lead.team}
                                 </Badge>
-                              )}
-                              <Badge
-                                variant="outline"
-                                className="border-[#e5e7eb] bg-white text-[10px] font-medium text-[#6b7280]"
-                              >
-                                {lead.quarter ?? quarterLabel(getLeadQuarter(lead))}
-                              </Badge>
-                            </div>
+                              </div>
+                            ) : null}
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
                               <span className="font-semibold text-[#1c1e21]">
@@ -1115,16 +1104,20 @@ export function LeadsManagementPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-                              <span className="inline-flex items-center gap-0.5">
-                                <Percent size={12} />
-                                {lead.probability}%
-                              </span>
-                              <span className="text-[#d1d5db]">·</span>
-                              <span className="inline-flex items-center gap-0.5">
-                                <Calendar size={12} />
+                            <div className="flex items-center justify-between gap-2 text-xs text-[#6b7280]">
+                              <span className="inline-flex min-w-0 items-center gap-0.5">
+                                <Calendar size={12} className="shrink-0" />
                                 {lead.expectedClose}
                               </span>
+                              {stuck ? (
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-900"
+                                >
+                                  <AlertTriangle className="mr-0.5 size-3" />
+                                  {stuck}
+                                </Badge>
+                              ) : null}
                             </div>
                           </CardContent>
                         </Card>

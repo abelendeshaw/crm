@@ -1,15 +1,21 @@
 import { CURRENCY_OPTIONS, type DealCurrency } from "./dealsManagementData";
 import type { CrmLead } from "./leadsManagementData";
 import {
+  cloneFiscalYearConfig,
+  defaultFiscalYearCatalog,
   defaultQuarterDefinitions,
   type FiscalQuarterDefinition,
+  type FiscalYearConfig,
   type LeadQuarter,
 } from "./fiscalQuarterData";
 import { teams as orgTeams } from "./userManagementData";
 
-export type { FiscalQuarterDefinition, LeadQuarter } from "./fiscalQuarterData";
+export type { FiscalQuarterDefinition, FiscalYearConfig, LeadQuarter } from "./fiscalQuarterData";
 export {
+  cloneFiscalYearConfig,
+  defaultFiscalYearCatalog,
   defaultQuarterDefinitions,
+  formatFiscalYearQuartersSummary,
   getQuarterPeriodLabel,
   QUARTER_SHORT_LABELS,
 } from "./fiscalQuarterData";
@@ -35,8 +41,79 @@ export type CurrencyQuarterlyTargets = {
 export type LeadTargetingSettings = {
   fiscalYear: number;
   quarterDefinitions: FiscalQuarterDefinition[];
+  fiscalYears: FiscalYearConfig[];
   currencyTargets: CurrencyQuarterlyTargets[];
 };
+
+function migrateFiscalYears(settings: LeadTargetingSettings): FiscalYearConfig[] {
+  if (settings.fiscalYears?.length) {
+    return settings.fiscalYears.map((row) => cloneFiscalYearConfig(row));
+  }
+
+  return [
+    {
+      year: settings.fiscalYear,
+      quarterDefinitions: (settings.quarterDefinitions?.length
+        ? settings.quarterDefinitions
+        : defaultQuarterDefinitions()
+      ).map((row) => ({ ...row })),
+    },
+  ];
+}
+
+export function applyActiveFiscalYear(
+  settings: LeadTargetingSettings,
+  year: number,
+): LeadTargetingSettings {
+  const config = settings.fiscalYears.find((row) => row.year === year);
+  if (!config) return settings;
+  return {
+    ...settings,
+    fiscalYear: year,
+    quarterDefinitions: config.quarterDefinitions.map((row) => ({ ...row })),
+  };
+}
+
+export function updateFiscalYearPeriod(
+  settings: LeadTargetingSettings,
+  year: number,
+  q: LeadQuarter,
+  periodLabel: string,
+): LeadTargetingSettings {
+  const fiscalYears = settings.fiscalYears.map((row) =>
+    row.year === year
+      ? {
+          ...row,
+          quarterDefinitions: row.quarterDefinitions.map((definition) =>
+            definition.q === q ? { ...definition, periodLabel } : definition,
+          ),
+        }
+      : row,
+  );
+  const isActive = settings.fiscalYear === year;
+  const activeDefinitions = fiscalYears.find((row) => row.year === year)?.quarterDefinitions;
+  return {
+    ...settings,
+    fiscalYears,
+    quarterDefinitions: isActive && activeDefinitions
+      ? activeDefinitions.map((row) => ({ ...row }))
+      : settings.quarterDefinitions,
+  };
+}
+
+export function addFiscalYearConfig(
+  settings: LeadTargetingSettings,
+  year: number,
+): LeadTargetingSettings {
+  if (settings.fiscalYears.some((row) => row.year === year)) return settings;
+  return {
+    ...settings,
+    fiscalYears: [
+      ...settings.fiscalYears,
+      { year, quarterDefinitions: defaultQuarterDefinitions() },
+    ].sort((a, b) => a.year - b.year),
+  };
+}
 
 export const SALES_ORG_TEAMS = orgTeams.filter((t) => t.department === "Sales");
 
@@ -152,9 +229,12 @@ function defaultQuarters(annual: number): LeadQuarterTarget[] {
 
 const DEFAULT_ETB_ANNUAL = 260_000_000;
 
+const DEFAULT_FISCAL_YEAR = 2026;
+
 export const DEFAULT_LEAD_TARGETING_SETTINGS: LeadTargetingSettings = {
-  fiscalYear: 2026,
+  fiscalYear: DEFAULT_FISCAL_YEAR,
   quarterDefinitions: defaultQuarterDefinitions(),
+  fiscalYears: defaultFiscalYearCatalog(DEFAULT_FISCAL_YEAR),
   currencyTargets: [
     {
       currency: "ETB",
@@ -167,12 +247,14 @@ export const DEFAULT_LEAD_TARGETING_SETTINGS: LeadTargetingSettings = {
 export function cloneLeadTargetingSettings(
   settings: LeadTargetingSettings,
 ): LeadTargetingSettings {
+  const fiscalYears = migrateFiscalYears(settings);
+  const activeConfig =
+    fiscalYears.find((row) => row.year === settings.fiscalYear) ?? fiscalYears[0]!;
+
   return {
     fiscalYear: settings.fiscalYear,
-    quarterDefinitions: (settings.quarterDefinitions?.length
-      ? settings.quarterDefinitions
-      : defaultQuarterDefinitions()
-    ).map((row) => ({ ...row })),
+    fiscalYears,
+    quarterDefinitions: activeConfig.quarterDefinitions.map((row) => ({ ...row })),
     currencyTargets: settings.currencyTargets.map((ct) => ({
       currency: ct.currency,
       quarters: ct.quarters.map((q) => ({ ...q })),

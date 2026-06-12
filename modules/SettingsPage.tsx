@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { FiscalYearQuartersSettingsSection } from "@/modules/FiscalYearQuartersSettingsSection";
 
@@ -160,27 +159,6 @@ function AppearanceSection() {
               <Icon />
               {label}
             </Button>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Display</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          {[
-            { label: "Compact Mode",           description: "Reduce spacing throughout the interface" },
-            { label: "Show Lead & Deal IDs",   description: "Display record IDs in all pipeline views" },
-            { label: "Auto-refresh Dashboard", description: "Refresh dashboard metrics every 5 minutes" },
-          ].map(({ label, description }) => (
-            <div key={label} className="flex items-center justify-between rounded-md border p-3">
-              <div>
-                <p className="font-medium">{label}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
-              </div>
-              <Switch className="data-checked:bg-[#4080f0]" />
-            </div>
           ))}
         </CardContent>
       </Card>

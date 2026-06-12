@@ -50,7 +50,7 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: "Overview",
+    label: "",
     items: [
       { label: "Dashboard", icon: <LayoutDashboard size={16} />, path: "/" },
     ],
@@ -209,14 +209,14 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         {/* Nav groups */}
         <nav className="flex flex-1 flex-col gap-4 overflow-y-auto py-3 px-2">
           {navGroups.map((group) => (
-            <div key={group.label}>
-              {!sidebarCollapsed && (
+            <div key={group.label || "ungrouped"}>
+              {!sidebarCollapsed && group.label ? (
                 <div className="mb-1 px-2">
                   <span className="text-white/60 text-[10px] uppercase tracking-widest font-semibold">
                     {group.label}
                   </span>
                 </div>
-              )}
+              ) : null}
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
                   const active =

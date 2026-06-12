@@ -7,6 +7,7 @@ import {
   type LeadSource,
 } from "./leadsManagementData";
 import {
+  cloneLeadTargetingSettings,
   DEFAULT_LEAD_TARGETING_SETTINGS,
   type LeadTargetingSettings,
 } from "./leadsTargetsData";
@@ -192,7 +193,9 @@ class MockLeadStore {
   private _pqqTemplatesSubscribers: ((templates: DealPqqTemplate[]) => void)[] = [];
   private _pqqSettingsSubscribers: ((settings: LeadPqqSettings) => void)[] = [];
 
-  private _targetingSettings: LeadTargetingSettings = { ...DEFAULT_LEAD_TARGETING_SETTINGS };
+  private _targetingSettings: LeadTargetingSettings = cloneLeadTargetingSettings(
+    DEFAULT_LEAD_TARGETING_SETTINGS,
+  );
   private _targetingSettingsSubscribers: ((settings: LeadTargetingSettings) => void)[] = [];
 
   private _leadSources: LeadSource[] = [...DEFAULT_LEAD_SOURCES];
@@ -300,7 +303,7 @@ class MockLeadStore {
   }
 
   public set targetingSettings(newSettings: LeadTargetingSettings) {
-    this._targetingSettings = { ...newSettings };
+    this._targetingSettings = cloneLeadTargetingSettings(newSettings);
     this._notifyTargetingSettings();
   }
 

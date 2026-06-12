@@ -68,6 +68,7 @@ import {
   AUTOMATION_DEFAULT_LEAD_STAGE_ID,
   BASE_CURRENCY,
   CURRENCY_OPTIONS,
+  SALES_TEAMS,
   type CrmLead,
   type DealCurrency,
   type LeadSource,
@@ -88,10 +89,16 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore } from "@/data/mockStore";
-import { applyContractSignedAchievement } from "@/data/leadsTargetsData";
-import type { LeadTargetingSettings } from "@/data/leadsTargetsData";
+import {
+  applyContractSignedStageUpdate,
+  cloneLeadTargetingSettings,
+  getCurrentOrgQuarter,
+  getLeadQuarter,
+  quarterLabel,
+  type LeadTargetingSettings,
+} from "@/data/leadsTargetsData";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
-import { LeadTargetProgressBar } from "@/modules/LeadTargetProgress";
+import { LeadsPipelineKpiCards } from "@/modules/LeadsPipelineKpiCards";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -195,10 +202,9 @@ export function LeadsManagementPage() {
     ...mockLeadStore.pqqSettings,
   }));
   const [leads, _setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
-  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() => ({
-    ...mockLeadStore.targetingSettings,
-  }));
-
+  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() =>
+    cloneLeadTargetingSettings(mockLeadStore.targetingSettings),
+  );
   const [draggingLeadId, setDraggingLeadId] = useState<string | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
   const [droppedLeadId, setDroppedLeadId] = useState<string | null>(null);
@@ -222,9 +228,8 @@ export function LeadsManagementPage() {
       setPqqSettings({ ...newSettings });
     });
     const unsubTargeting = mockLeadStore.subscribeTargetingSettings((next) => {
-      setTargetingSettings({ ...next });
+      setTargetingSettings(cloneLeadTargetingSettings(next));
     });
-
     return () => {
       clearTimeout(loadingTimer);
       unsubLeads();
@@ -245,6 +250,7 @@ export function LeadsManagementPage() {
   const [search, setSearch] = useState("");
   const [filterStageId, setFilterStageId] = useState<string>("all");
   const [filterOwner, setFilterOwner] = useState<string>("all");
+  const [filterQuarter, setFilterQuarter] = useState<string>("all");
   const [filterProbability, setFilterProbability] =
     useState<ProbabilityFilter>("all");
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
@@ -281,13 +287,25 @@ export function LeadsManagementPage() {
     associationRole: associationRoles[0] ?? "Decision Maker",
   });
 
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<{
+    name: string;
+    customerId: string;
+    contactId: string;
+    sourceId: string;
+    value: string;
+    currency: DealCurrency;
+    team: string;
+    primarySales: string;
+    presales: string;
+    channel: string;
+  }>({
     name: "",
     customerId: "",
     contactId: "",
     sourceId: AUTOMATION_DEFAULT_LEAD_SOURCE_ID,
     value: "",
-    currency: "ETB" as DealCurrency,
+    currency: "ETB",
+    team: SALES_TEAMS[0] ?? "",
     primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
     presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
     channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
@@ -414,6 +432,20 @@ export function LeadsManagementPage() {
     return Array.from(set).sort();
   }, [leads]);
 
+  const salesTeamOptions = useMemo(() => {
+    const fromSettings = targetingSettings.currencyTargets.flatMap(
+      (ct) => ct.teamAllocations?.map((team) => team.teamName) ?? [],
+    );
+    const unique = [...new Set(fromSettings)];
+    if (unique.length) return unique;
+    return [...SALES_TEAMS];
+  }, [targetingSettings]);
+
+  const createLeadQuarterLabel = useMemo(
+    () => quarterLabel(getCurrentOrgQuarter()),
+    [],
+  );
+
   const filteredPipelineLeads = useMemo(() => {
     const q = search.trim().toLowerCase();
     return leads.filter((lead) => {
@@ -424,13 +456,16 @@ export function LeadsManagementPage() {
       }
       if (filterStageId !== "all" && lead.stageId !== filterStageId) return false;
       if (filterOwner !== "all" && lead.primarySales !== filterOwner) return false;
+      if (filterQuarter !== "all" && quarterLabel(getLeadQuarter(lead)) !== filterQuarter) {
+        return false;
+      }
       const p = lead.probability;
       if (filterProbability === "high" && p < 70) return false;
       if (filterProbability === "medium" && (p < 40 || p > 69)) return false;
       if (filterProbability === "low" && p >= 40) return false;
       return true;
     });
-  }, [leads, search, filterStageId, filterOwner, filterProbability, accountById]);
+  }, [leads, search, filterStageId, filterOwner, filterQuarter, filterProbability, accountById]);
 
   const sortedStages = useMemo(
     () => [...stages].sort((a, b) => a.order - b.order),
@@ -460,16 +495,9 @@ export function LeadsManagementPage() {
     setLeads((prev) =>
       prev.map((l) => {
         if (l.id !== leadId) return l;
-        const stageChanged = l.stageId !== stageId;
-        const targetAchieved = stageChanged
-          ? applyContractSignedAchievement(l, stageId)
-          : l.targetAchieved;
-        return {
-          ...l,
-          stageId,
-          stageEnteredAt: stageChanged ? today : l.stageEnteredAt,
-          targetAchieved,
-        };
+        if (l.stageId === stageId) return l;
+        const updated = applyContractSignedStageUpdate(l, stageId);
+        return { ...updated, stageEnteredAt: today };
       }),
     );
   };
@@ -529,6 +557,13 @@ export function LeadsManagementPage() {
       }));
       return;
     }
+    if (!createForm.team.trim()) {
+      setFormErrors((prev) => ({
+        ...prev,
+        manual: "Choose a sales team for this lead.",
+      }));
+      return;
+    }
     const valueNum = Number(createForm.value.replace(/,/g, "")) || 0;
     const value = Math.max(0, valueNum);
 
@@ -538,6 +573,7 @@ export function LeadsManagementPage() {
     const currency = createForm.currency;
     const probability = quickCapture ? 40 : 50;
     const initialStageId = sortedStages[0]?.id ?? AUTOMATION_DEFAULT_LEAD_STAGE_ID;
+    const currentQuarter = quarterLabel(getCurrentOrgQuarter());
     const newLeadId = `lead-${crypto.randomUUID()}`;
     const newLead: CrmLead = {
       id: newLeadId,
@@ -552,6 +588,9 @@ export function LeadsManagementPage() {
       expectedClose: today,
       stageId: initialStageId,
       stageEnteredAt: today,
+      team: createForm.team.trim(),
+      quarter: currentQuarter,
+      fiscalYear: String(targetingSettings.fiscalYear),
       primarySales: quickCapture
         ? AUTOMATION_DEFAULT_LEAD_ROLES.primarySales
         : createForm.primarySales,
@@ -577,6 +616,7 @@ export function LeadsManagementPage() {
         AUTOMATION_DEFAULT_LEAD_SOURCE_ID,
       value: "",
       currency: "ETB",
+      team: salesTeamOptions[0] ?? SALES_TEAMS[0] ?? "",
       primarySales: AUTOMATION_DEFAULT_LEAD_ROLES.primarySales,
       presales: AUTOMATION_DEFAULT_LEAD_ROLES.presales,
       channel: AUTOMATION_DEFAULT_LEAD_ROLES.channel,
@@ -795,11 +835,7 @@ export function LeadsManagementPage() {
 
         {isPageLoading ? (
           <div className="space-y-4 p-3 sm:p-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
+            <div className="h-20 w-full animate-pulse rounded-lg bg-[#e5e7eb]" />
             <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -810,6 +846,10 @@ export function LeadsManagementPage() {
         ) : (
           <>
         <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
+          <LeadsPipelineKpiCards
+            leads={leads}
+            targetingSettings={targetingSettings}
+          />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
               <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
@@ -849,6 +889,21 @@ export function LeadsManagementPage() {
                     {ownerOptions.map((o) => (
                       <SelectItem key={o} value={o}>
                         {o}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-[130px]">
+                <Select value={filterQuarter} onValueChange={setFilterQuarter}>
+                  <SelectTrigger className="h-9 border-[#e5e7eb] bg-white text-xs">
+                    <SelectValue placeholder="Quarter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All quarters</SelectItem>
+                    {(["Q1", "Q2", "Q3", "Q4"] as const).map((q) => (
+                      <SelectItem key={q} value={q}>
+                        {q}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1042,6 +1097,12 @@ export function LeadsManagementPage() {
                                   {lead.team}
                                 </Badge>
                               )}
+                              <Badge
+                                variant="outline"
+                                className="border-[#e5e7eb] bg-white text-[10px] font-medium text-[#6b7280]"
+                              >
+                                {lead.quarter ?? quarterLabel(getLeadQuarter(lead))}
+                              </Badge>
                             </div>
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -1065,13 +1126,6 @@ export function LeadsManagementPage() {
                                 {lead.expectedClose}
                               </span>
                             </div>
-                            {lead.salesTarget != null && lead.salesTarget > 0 && (
-                              <LeadTargetProgressBar
-                                lead={lead}
-                                currency={targetingSettings.displayCurrency}
-                                compact
-                              />
-                            )}
                           </CardContent>
                         </Card>
                       );
@@ -1102,9 +1156,6 @@ export function LeadsManagementPage() {
                     Value
                   </TableHead>
                   <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
-                    Target
-                  </TableHead>
-                  <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
                     Score
                   </TableHead>
                   <TableHead className="px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]">
@@ -1119,7 +1170,7 @@ export function LeadsManagementPage() {
                 {filteredPipelineLeads.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={7}
                       className="px-4 py-10 text-center text-sm text-[#6b7280]"
                     >
                       No leads match the current filters.
@@ -1179,17 +1230,6 @@ export function LeadsManagementPage() {
                               </span>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell className="px-4 py-3.5 min-w-[140px]">
-                          {lead.salesTarget != null && lead.salesTarget > 0 ? (
-                            <LeadTargetProgressBar
-                              lead={lead}
-                              currency={targetingSettings.displayCurrency}
-                              compact
-                            />
-                          ) : (
-                            <span className="text-xs text-[#9ca3af]">—</span>
-                          )}
                         </TableCell>
                         <TableCell className="px-4 py-3.5">
                           <span className="inline-flex items-center gap-0.5 text-xs text-[#6b7280]">
@@ -1457,6 +1497,33 @@ export function LeadsManagementPage() {
                 <Input
                   readOnly
                   value={sortedStages[0]?.name ?? "New"}
+                  className="h-9 border-[#e5e7eb] bg-[#fafbff] text-[#374151]"
+                />
+              </FormField>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField label="Sales team">
+                <Select
+                  value={createForm.team}
+                  onValueChange={(v) => setCreateForm((p) => ({ ...p, team: v }))}
+                >
+                  <SelectTrigger className="h-9 border-[#e5e7eb]">
+                    <SelectValue placeholder="Select sales team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {salesTeamOptions.map((team) => (
+                      <SelectItem key={team} value={team}>
+                        {team}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Quarter">
+                <Input
+                  readOnly
+                  value={`${createLeadQuarterLabel} · FY ${targetingSettings.fiscalYear}`}
                   className="h-9 border-[#e5e7eb] bg-[#fafbff] text-[#374151]"
                 />
               </FormField>

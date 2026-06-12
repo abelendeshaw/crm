@@ -16,6 +16,7 @@ export {
 import type { DealCurrency, DealPqq, PipelineStage } from "@/data/dealsManagementData";
 import type { PqqFormValues } from "@/data/pqqTemplateData";
 import { computeBaseValue } from "@/data/dealsManagementData";
+import { quarterFromIsoDate, quarterLabel } from "@/data/leadsTargetsData";
 
 export type LeadActivityKind = string;
 
@@ -66,10 +67,6 @@ export type CrmLead = {
   exceptionJustification?: string;
   exceptionApprovedBy?: string;
   checklistValidationStatus?: string;
-  /** Revenue target assigned to this lead (base currency, seeded from external targeting system) */
-  salesTarget?: number;
-  /** Amount achieved toward the sales target (base currency) */
-  targetAchieved?: number;
   /** Optional Lead Discovery & PQQ worksheet captured at creation or on the lead record */
   pqq?: DealPqq;
   /** Values for template-driven PQQ fields when the active template uses a custom form definition */
@@ -238,12 +235,11 @@ function seedLeads(): CrmLead[] {
     const stuckDays = [1, 3, 5, 8, 12, 2, 6, 14, 4, 9][i % 10]!;
     const isFirst = i === 0;
     const baseValue = computeBaseValue(value, currency);
-    const salesTarget = Math.round(baseValue * (1.15 + (i % 3) * 0.1));
-    const targetAchieved = isContractSigned
-      ? Math.min(salesTarget, Math.max(baseValue, Math.round(salesTarget * 0.65)))
-      : i % 5 === 0
-        ? Math.round(salesTarget * 0.25)
-        : undefined;
+    const expectedClose =
+      CONTRACT_SIGNED_CLOSE_DATES[i] ?? (i % 2 === 0 ? targetThisMonth : targetNextMonth);
+    const leadQuarter = isContractSigned
+      ? quarterLabel(quarterFromIsoDate(expectedClose))
+      : (["Q1", "Q2", "Q3", "Q4"] as const)[i % 4];
     return {
       id: `lead-seed-${i + 1}-${acc.id}`,
       name: `${acc.name.split(" ")[0] ?? "Account"} ${bp.topic}`,
@@ -252,10 +248,8 @@ function seedLeads(): CrmLead[] {
       value,
       currency,
       baseValue,
-      salesTarget,
-      targetAchieved,
       probability,
-      expectedClose: CONTRACT_SIGNED_CLOSE_DATES[i] ?? (i % 2 === 0 ? targetThisMonth : targetNextMonth),
+      expectedClose,
       stageId: stage.id,
       stageEnteredAt: isoDaysAgo(stuckDays),
       primarySales: ownersPool[i % ownersPool.length]!,
@@ -265,7 +259,7 @@ function seedLeads(): CrmLead[] {
       team: SALES_TEAMS[i % SALES_TEAMS.length]!,
       solutionCategory: bp.solutionCategory,
       fiscalYear: isFirst ? "2018" : `${2025 + (i % 3)}`,
-      quarter: (["Q1", "Q2", "Q3", "Q4"] as const)[i % 4],
+      quarter: leadQuarter,
       currentState: isFirst ? "LEAD" : undefined,
       nextStep: isFirst ? "Nurturing" : undefined,
       quarterStartDate: isFirst ? "Q4" : undefined,

@@ -2,12 +2,9 @@
 
 import { useState } from "react";
 import {
-  AlertTriangle,
-  Bell,
+  CalendarRange,
   Camera,
   CheckCircle2,
-  Database,
-  Download,
   Mail,
   Monitor,
   Moon,
@@ -15,7 +12,6 @@ import {
   Phone,
   Save,
   Sun,
-  Trash2,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,32 +26,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type NotifType = "email" | "push";
+import { FiscalYearQuartersSettingsSection } from "@/modules/FiscalYearQuartersSettingsSection";
 
 // ─── Section list ─────────────────────────────────────────────────────────────
 
 const sections = [
-  { key: "profile",       icon: User,    label: "Profile",        description: "Personal information & account" },
-  { key: "notifications", icon: Bell,    label: "Notifications",  description: "Email and alert preferences" },
-  { key: "appearance",    icon: Palette, label: "Appearance",     description: "Theme and display" },
-  { key: "data",          icon: Database,label: "Data & Privacy", description: "Export and deletion" },
+  { key: "profile",    icon: User,          label: "Profile",              description: "Personal information & account" },
+  { key: "fiscal",     icon: CalendarRange, label: "Fiscal Year & Quarters", description: "Fiscal year and quarter periods" },
+  { key: "appearance", icon: Palette,       label: "Appearance",           description: "Theme and display" },
 ] as const;
 
 type Section = typeof sections[number]["key"];
-
-// ─── Notification config ──────────────────────────────────────────────────────
-
-const notifItems = [
-  { key: "new_lead",      label: "New Lead Created",          description: "When a new lead is submitted",            email: true,  push: true  },
-  { key: "lead_assigned", label: "Lead Assigned to Me",       description: "When a lead is assigned to your account", email: true,  push: true  },
-  { key: "deal_won",      label: "Deal Won",                  description: "When a deal is marked as won",            email: true,  push: false },
-  { key: "deal_lost",     label: "Deal Lost",                 description: "When a deal is marked as lost",           email: false, push: false },
-  { key: "weekly_report", label: "Weekly Performance Report", description: "Summary delivered every Monday",          email: true,  push: false },
-  { key: "followup_due",  label: "Follow-up Due",             description: "When a scheduled follow-up is overdue",   email: true,  push: true  },
-];
 
 // ─── Section: Profile ─────────────────────────────────────────────────────────
 
@@ -151,54 +132,6 @@ function ProfileSection({ onSave }: { onSave: () => void }) {
   );
 }
 
-// ─── Section: Notifications ───────────────────────────────────────────────────
-
-function NotificationsSection() {
-  const [notifState, setNotifState] = useState<Record<string, { email: boolean; push: boolean }>>(
-    Object.fromEntries(notifItems.map((item) => [item.key, { email: item.email, push: item.push }]))
-  );
-
-  const toggle = (key: string, type: NotifType) =>
-    setNotifState((prev) => ({ ...prev, [key]: { ...prev[key], [type]: !prev[key][type] } }));
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Notification Preferences</CardTitle>
-        <CardDescription>Control which events send email or push notifications.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        {notifItems.map((item) => (
-          <div key={item.key} className="grid grid-cols-3 items-center gap-4 rounded-md border p-3">
-            <div>
-              <p className="font-medium">{item.label}</p>
-              <p className="text-xs text-muted-foreground">{item.description}</p>
-            </div>
-            <div className="mx-auto flex items-center gap-2">
-              <Label htmlFor={`${item.key}-email`} className="text-xs text-muted-foreground">Email</Label>
-              <Switch
-                id={`${item.key}-email`}
-                checked={notifState[item.key].email}
-                onCheckedChange={() => toggle(item.key, "email")}
-              className="data-checked:bg-[#4080f0]"
-              />
-            </div>
-            <div className="mx-auto flex items-center gap-2">
-              <Label htmlFor={`${item.key}-push`} className="text-xs text-muted-foreground">Push</Label>
-              <Switch
-                id={`${item.key}-push`}
-                checked={notifState[item.key].push}
-                onCheckedChange={() => toggle(item.key, "push")}
-              className="data-checked:bg-[#4080f0]"
-              />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 // ─── Section: Appearance ──────────────────────────────────────────────────────
 
 function AppearanceSection() {
@@ -251,59 +184,6 @@ function AppearanceSection() {
           ))}
         </CardContent>
       </Card>
-    </>
-  );
-}
-
-// ─── Section: Data & Privacy ──────────────────────────────────────────────────
-
-function DataSection() {
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Export Data</CardTitle>
-          <CardDescription>Download your data in standard formats.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          {["Leads (CSV)", "Deals (CSV)", "Contacts (CSV)", "Full Backup (JSON)"].map((item) => (
-            <div key={item} className="flex items-center justify-between rounded-md border p-3">
-              <span>{item}</span>
-              <Button variant="outline" size="sm">
-                <Download data-icon="inline-start" />
-                Export
-              </Button>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4">
-        <div className="mb-1 flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-          <p className="font-semibold text-destructive">Danger Zone</p>
-        </div>
-        <p className="mb-3 text-sm text-muted-foreground">
-          These actions are permanent and cannot be undone.
-        </p>
-        <div className="grid gap-2">
-          {[
-            { label: "Delete all leads", desc: "Permanently remove all lead records" },
-            { label: "Reset workspace",  desc: "Clear all CRM data and start fresh" },
-          ].map(({ label, desc }) => (
-            <div key={label} className="flex items-center justify-between rounded-md border border-destructive/30 bg-background/50 p-3">
-              <div>
-                <p className="font-medium">{label}</p>
-                <p className="text-xs text-muted-foreground">{desc}</p>
-              </div>
-              <Button variant="destructive" size="sm">
-                <Trash2 data-icon="inline-start" />
-                Delete
-              </Button>
-            </div>
-          ))}
-        </div>
-      </div>
     </>
   );
 }
@@ -372,10 +252,9 @@ export function SettingsPage() {
               )}
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              {active === "profile"       && <ProfileSection onSave={handleSave} />}
-              {active === "notifications" && <NotificationsSection />}
-              {active === "appearance"    && <AppearanceSection />}
-              {active === "data"          && <DataSection />}
+              {active === "profile"    && <ProfileSection onSave={handleSave} />}
+              {active === "fiscal"     && <FiscalYearQuartersSettingsSection onSave={handleSave} />}
+              {active === "appearance" && <AppearanceSection />}
             </CardContent>
           </Card>
         </div>

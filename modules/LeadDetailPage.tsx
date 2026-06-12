@@ -61,6 +61,7 @@ import {
   BASE_CURRENCY,
   CURRENCY_OPTIONS,
   FX_TO_ETB,
+  SALES_TEAMS,
   type CrmLead,
   type LeadActivity,
   type LeadActivityKind,
@@ -93,14 +94,13 @@ import {
 } from "@/data/pqqTemplateData";
 import { mockLeadStore, mockDealStore } from "@/data/mockStore";
 import {
-  applyContractSignedAchievement,
-  convertFromBase,
-  convertToBase,
-  formatTargetMoney,
+  applyContractSignedStageUpdate,
+  cloneLeadTargetingSettings,
+  hasOrgSalesTargets,
   type LeadTargetingSettings,
 } from "@/data/leadsTargetsData";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
-import { getLeadTargetProgress } from "@/modules/LeadTargetProgress";
+import { LeadSalesTargetDetail } from "@/modules/LeadSalesTargetDisplay";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -167,10 +167,9 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [pqqSettings, setPqqSettings] = useState<LeadPqqSettings>(() => ({
     ...mockLeadStore.pqqSettings,
   }));
-  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() => ({
-    ...mockLeadStore.targetingSettings,
-  }));
-
+  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() =>
+    cloneLeadTargetingSettings(mockLeadStore.targetingSettings),
+  );
   const defaultPqqFormDefinition = useMemo(
     () => getDefaultPqqFormDefinition(pqqTemplates),
     [pqqTemplates],
@@ -196,7 +195,7 @@ export function LeadDetailPage({ id }: { id: string }) {
       setPqqSettings({ ...nextSettings });
     });
     const unsubTargeting = mockLeadStore.subscribeTargetingSettings((next) => {
-      setTargetingSettings({ ...next });
+      setTargetingSettings(cloneLeadTargetingSettings(next));
     });
     return () => {
       unsubActivities();
@@ -226,8 +225,6 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [isEditingDealInfo, setIsEditingDealInfo] = useState(false);
   const [dealInfoSnapshot, setDealInfoSnapshot] = useState<CrmLead | null>(null);
 
-  const [achievementOpen, setAchievementOpen] = useState(false);
-  const [achievementDraft, setAchievementDraft] = useState("");
   const [isConversionOpen, setIsConversionOpen] = useState(false);
   const [dealStages, setDealStages] = useState(() =>
     [...mockDealStore.stages].sort((a, b) => a.order - b.order),
@@ -545,17 +542,9 @@ export function LeadDetailPage({ id }: { id: string }) {
                           onValueChange={(v) => {
                             const today = new Date().toISOString().split("T")[0]!;
                             setDetailDraft((d) => {
-                              if (!d) return d;
-                              const stageChanged = d.stageId !== v;
-                              const targetAchieved = stageChanged
-                                ? applyContractSignedAchievement(d, v)
-                                : d.targetAchieved;
-                              return {
-                                ...d,
-                                stageId: v,
-                                stageEnteredAt: stageChanged ? today : d.stageEnteredAt,
-                                targetAchieved,
-                              };
+                              if (!d || d.stageId === v) return d;
+                              const updated = applyContractSignedStageUpdate(d, v);
+                              return { ...updated, stageEnteredAt: today };
                             });
                           }}
                         >
@@ -627,18 +616,27 @@ export function LeadDetailPage({ id }: { id: string }) {
                         </Select>
                       </ProfileField>
                       <ProfileField
-                        label="Teams"
-                        value={detailDraft.department ?? "—"}
+                        label="Sales team"
+                        value={detailDraft.team ?? "—"}
                         isEditing={isEditingDealInfo}
                       >
-                        <Input
-                          value={detailDraft.department ?? ""}
-                          onChange={(e) =>
-                            setDetailDraft((d) => (d ? { ...d, department: e.target.value } : d))
+                        <Select
+                          value={detailDraft.team ?? ""}
+                          onValueChange={(v) =>
+                            setDetailDraft((d) => (d ? { ...d, team: v } : d))
                           }
-                          className="h-9 border-[#e5e7eb]"
-                          placeholder="field is empty"
-                        />
+                        >
+                          <SelectTrigger className="h-9 border-[#e5e7eb]">
+                            <SelectValue placeholder="Select sales team" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SALES_TEAMS.map((team) => (
+                              <SelectItem key={team} value={team}>
+                                {team}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </ProfileField>
                       <ProfileField
                         label="Fiscal Year"
@@ -681,133 +679,23 @@ export function LeadDetailPage({ id }: { id: string }) {
                   </CardContent>
                 </Card>
 
-                {detailDraft.salesTarget != null && detailDraft.salesTarget > 0 && (() => {
-                  const progress = getLeadTargetProgress(detailDraft);
-                  if (!progress) return null;
-                  const currency = targetingSettings.displayCurrency;
-                  const fmt = (v: number) => formatTargetMoney(v, currency);
-                  const openAchievementDialog = () => {
-                    const displayValue = convertFromBase(
-                      detailDraft.targetAchieved ?? 0,
-                      currency,
-                    );
-                    setAchievementDraft(String(Math.round(displayValue)));
-                    setAchievementOpen(true);
-                  };
-                  const saveAchievement = () => {
-                    const displayAmount = Number(achievementDraft) || 0;
-                    const baseAmount = convertToBase(displayAmount, currency);
-                    const capped = Math.min(detailDraft.salesTarget!, Math.max(0, baseAmount));
-                    const next = { ...detailDraft, targetAchieved: capped };
-                    setDetailDraft(next);
-                    setLeads((prev) => prev.map((l) => (l.id === next.id ? next : l)));
-                    setAchievementOpen(false);
-                  };
-                  return (
-                    <Card className="border-[#e5e7eb] shadow-none">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                        <CardTitle className="flex items-center gap-2 text-sm font-medium text-[#1c1e21]">
-                          <Target size={15} className="text-[#4080f0]" />
-                          Sales Target
-                        </CardTitle>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7 border-[#e5e7eb] text-xs"
-                          onClick={openAchievementDialog}
-                        >
-                          Update achievement
-                        </Button>
-                      </CardHeader>
-                      <CardContent className="space-y-5">
-                        <div className="flex flex-col gap-8 lg:flex-row lg:items-stretch lg:gap-12">
-                          <div className="min-w-0 flex-[1.4] space-y-5 lg:py-1 lg:pr-8">
-                            <div className="flex items-end justify-between gap-6">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
-                                  Achievement
-                                </p>
-                                <p className="mt-1 text-3xl font-black text-[#1c1e21]">
-                                  {progress.pct}%
-                                </p>
-                              </div>
-                              <p className="shrink-0 text-right text-[13px] leading-relaxed text-[#6b7280]">
-                                {fmt(progress.achieved)} of {fmt(progress.target)}
-                              </p>
-                            </div>
-                            <div className="h-3 w-full overflow-hidden rounded-full bg-[#f0f0f5]">
-                              <div
-                                className="h-full rounded-full bg-[#4080f0] transition-all"
-                                style={{ width: `${progress.pct}%` }}
-                              />
-                            </div>
-                            <p className="max-w-md text-[11px] leading-relaxed text-[#9ca3af]">
-                              Target assigned via Sales Targeting system. Achievement updates
-                              automatically on Contract Signed.
-                            </p>
-                          </div>
-                          <div className="flex flex-1 flex-col justify-center gap-5 border-t border-[#e5e7eb] pt-6 lg:min-w-[180px] lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0">
-                            {[
-                              { label: "Target", value: fmt(progress.target) },
-                              { label: "Achieved", value: fmt(progress.achieved) },
-                              { label: "Remaining", value: fmt(progress.remaining) },
-                            ].map((m) => (
-                              <div key={m.label}>
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9ca3af]">
-                                  {m.label}
-                                </p>
-                                <p className="mt-0.5 text-[15px] font-semibold text-[#1c1e21]">
-                                  {m.value}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </CardContent>
-                      <Dialog open={achievementOpen} onOpenChange={setAchievementOpen}>
-                        <DialogContent className="max-w-sm border-[#e5e7eb]">
-                          <DialogHeader>
-                            <DialogTitle className="text-[#1c1e21]">
-                              Update target achievement
-                            </DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-2 py-2">
-                            <Label className="text-xs text-[#6b7280]">
-                              Achieved amount ({currency})
-                            </Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={convertFromBase(detailDraft.salesTarget, currency)}
-                              value={achievementDraft}
-                              onChange={(e) => setAchievementDraft(e.target.value)}
-                              className="h-9 border-[#e5e7eb]"
-                            />
-                            <p className="text-[11px] text-[#9ca3af]">
-                              Target: {fmt(progress.target)} · Max {progress.pct}% currently
-                            </p>
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              variant="outline"
-                              className="border-[#e5e7eb]"
-                              onClick={() => setAchievementOpen(false)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              className="bg-[#4080f0] text-white hover:bg-[#3070e0]"
-                              onClick={saveAchievement}
-                            >
-                              Save
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </Card>
-                  );
-                })()}
+                {hasOrgSalesTargets(targetingSettings) ? (
+                  <Card className="border-[#e5e7eb] shadow-none">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-sm font-medium text-[#1c1e21]">
+                        <Target size={15} className="text-[#4080f0]" />
+                        Sales Target
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <LeadSalesTargetDetail
+                        lead={detailDraft}
+                        allLeads={leads}
+                        settings={targetingSettings}
+                      />
+                    </CardContent>
+                  </Card>
+                ) : null}
                   </div>
 
                   <div className="space-y-4 lg:col-span-4">

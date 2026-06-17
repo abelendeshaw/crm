@@ -136,11 +136,14 @@ export function CRMLayout({ children }: CRMLayoutProps) {
       collapsed && "justify-center",
       active
         ? "bg-white text-[#4080f0]"
-        : "text-white/80 hover:bg-white/15 hover:text-white",
+        : "text-[#1c1e21] hover:bg-white/60 hover:text-[#1c1e21]",
     );
 
   const navIconClass = (active: boolean) =>
-    cn("flex-shrink-0", active ? "text-[#4080f0]" : "group-hover:text-white");
+    cn(
+      "flex-shrink-0",
+      active ? "text-[#4080f0]" : "text-[#1c1e21] group-hover:text-[#1c1e21]",
+    );
 
   return (
     <div className="flex h-screen w-full overflow-hidden">
@@ -156,7 +159,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-[#4080f0] text-white transition-all duration-200 md:static md:z-10 md:translate-x-0",
+          "fixed inset-y-0 left-0 z-30 flex h-full flex-col bg-[#e7f2ff] text-[#1c1e21] transition-all duration-200 md:static md:z-10 md:translate-x-0",
           sidebarCollapsed
             ? "w-[60px] min-w-[60px]"
             : "w-[220px] min-w-[220px]",
@@ -168,7 +171,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         {/* Logo */}
         <div
           className={cn(
-            "h-[56px] flex items-center border-b border-white/16 flex-shrink-0",
+            "h-[56px] flex items-center border-b border-[#dbeafe] flex-shrink-0",
             sidebarCollapsed ? "px-3 justify-center" : "px-4",
           )}
         >
@@ -176,28 +179,28 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             <button
               type="button"
               onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center justify-center rounded-md p-1.5 text-white/70 hover:bg-white/15 hover:text-white transition-colors"
+              className="flex items-center justify-center rounded-md p-1.5 text-[#6b7280] hover:bg-white/60 hover:text-[#1c1e21] transition-colors"
               aria-label="Expand sidebar"
             >
               <PanelLeftOpen className="h-[18px] w-[18px]" />
             </button>
           ) : (
             <div className="flex items-center gap-2.5 min-w-0 w-full">
-              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-white/20 flex-shrink-0">
+              <div className="flex items-center justify-center w-7 h-7 rounded-md bg-[#4080f0] flex-shrink-0">
                 <span className="text-white font-bold text-xs">A</span>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-white text-sm font-semibold leading-tight truncate">
+                <div className="text-[#1c1e21] text-sm font-semibold leading-tight truncate">
                   CRM
                 </div>
-                <div className="text-white/60 text-xs leading-tight">
+                <div className="text-[#6b7280] text-xs leading-tight">
                   Workspace
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(true)}
-                className="flex-shrink-0 rounded-md p-1 text-white/60 hover:bg-white/15 hover:text-white transition-colors"
+                className="flex-shrink-0 rounded-md p-1 text-[#6b7280] hover:bg-white/60 hover:text-[#1c1e21] transition-colors"
                 aria-label="Collapse sidebar"
               >
                 <PanelLeftClose className="h-[18px] w-[18px]" />
@@ -212,7 +215,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
             <div key={group.label || "ungrouped"}>
               {!sidebarCollapsed && group.label ? (
                 <div className="mb-1 px-2">
-                  <span className="text-white/60 text-[10px] uppercase tracking-widest font-semibold">
+                  <span className="text-[#6b7280] text-[10px] uppercase tracking-widest font-semibold">
                     {group.label}
                   </span>
                 </div>
@@ -282,8 +285,8 @@ export function CRMLayout({ children }: CRMLayoutProps) {
                                 className={cn(
                                   "block py-1.5 text-[13px] transition-colors",
                                   childActive
-                                    ? "text-white font-medium"
-                                    : "text-white/70 hover:text-white",
+                                    ? "text-[#4080f0] font-medium"
+                                    : "text-[#1c1e21] hover:text-[#4080f0]",
                                 )}
                               >
                                 {child.label}
@@ -301,7 +304,7 @@ export function CRMLayout({ children }: CRMLayoutProps) {
         </nav>
 
         {/* Bottom section */}
-        <div className="border-t border-white/16 flex-shrink-0 p-2">
+        <div className="border-t border-[#dbeafe] flex-shrink-0 p-2">
           {/* User Management */}
           <div
             className={navItemClass(

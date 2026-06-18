@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { TabbedSettingsPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { useRouter } from "next/navigation";
 import {
   AlignLeft,
@@ -75,6 +77,7 @@ type Selected =
   | null;
 
 export function PqqFormBuilderPage({ templateId }: { templateId?: string }) {
+  const isPageLoading = usePageLoading();
   const router = useRouter();
   const isEditing = Boolean(templateId);
 
@@ -232,6 +235,10 @@ export function PqqFormBuilderPage({ templateId }: { templateId?: string }) {
 
   const totalFields = formDef.fields.length;
   const totalSections = formDef.sections.length;
+
+  if (isPageLoading) {
+    return <TabbedSettingsPageSkeleton />;
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

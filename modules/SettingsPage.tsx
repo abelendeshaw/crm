@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { SettingsLayoutPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import {
   CalendarRange,
   Camera,
@@ -169,6 +171,7 @@ function AppearanceSection() {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  const isPageLoading = usePageLoading();
   const [active, setActive] = useState<Section>("profile");
   const [saved, setSaved] = useState(false);
 
@@ -178,6 +181,10 @@ export function SettingsPage() {
   };
 
   const current = sections.find((s) => s.key === active)!;
+
+  if (isPageLoading) {
+    return <SettingsLayoutPageSkeleton />;
+  }
 
   return (
     <div className="min-h-full bg-muted/30 p-6">

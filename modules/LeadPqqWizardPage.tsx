@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { WizardPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -234,6 +236,7 @@ interface WizardSection {
 }
 
 export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
+  const isPageLoading = usePageLoading();
   const router = useRouter();
 
   const lead = useMemo<CrmLead | undefined>(
@@ -327,6 +330,10 @@ export function LeadPqqWizardPage({ leadId }: { leadId: string }) {
     persist(values);
     router.push(`/leads/${leadId}`);
   };
+
+  if (isPageLoading) {
+    return <WizardPageSkeleton />;
+  }
 
   if (!lead) {
     return (

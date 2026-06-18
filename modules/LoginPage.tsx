@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { LoginPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import Link from "next/link";
 import {
   Eye,
@@ -30,6 +32,7 @@ const FEATURES = [
 ];
 
 export function LoginPage() {
+  const isPageLoading = usePageLoading();
   const [email, setEmail]           = useState("");
   const [password, setPassword]     = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,6 +43,10 @@ export function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setTimeout(() => setLoading(false), 1500);
+  }
+
+  if (isPageLoading) {
+    return <LoginPageSkeleton />;
   }
 
   return (

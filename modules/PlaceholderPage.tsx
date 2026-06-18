@@ -1,4 +1,8 @@
+"use client";
+
 import { ReactNode } from "react";
+import { SimplePageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 
 export function PlaceholderPage({
   title,
@@ -7,6 +11,12 @@ export function PlaceholderPage({
   title: string;
   icon?: ReactNode;
 }) {
+  const isPageLoading = usePageLoading();
+
+  if (isPageLoading) {
+    return <SimplePageSkeleton />;
+  }
+
   return (
     <div className="flex flex-col h-full overflow-auto">
       <div className="bg-white border-b border-[#e5e7eb] px-6 py-3">

@@ -14,6 +14,8 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DashboardPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { mockDealStore, mockLeadStore } from "@/data/mockStore";
 import {
   BASE_CURRENCY,
@@ -312,6 +314,7 @@ function startOfWeek(d: Date) {
 }
 
 export function DashboardPage() {
+  const isPageLoading = usePageLoading();
   const [deals, setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
   const [leads, setLeads] = useState<CrmLead[]>(() => mockLeadStore.leads);
   const [dealStages, setDealStages] = useState<PipelineStage[]>(() => mockDealStore.stages);
@@ -493,6 +496,10 @@ export function DashboardPage() {
     items.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     return items.slice(0, 8);
   }, [deals, leads]);
+
+  if (isPageLoading) {
+    return <DashboardPageSkeleton />;
+  }
 
   return (
     <div className="flex h-full flex-col overflow-auto bg-[#f8fafc]">

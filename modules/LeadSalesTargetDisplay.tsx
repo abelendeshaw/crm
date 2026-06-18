@@ -17,7 +17,7 @@ import {
 
 type LeadFields = Pick<
   CrmLead,
-  "stageId" | "currency" | "value" | "quarter" | "expectedClose" | "team"
+  "stageId" | "currency" | "value" | "quarter" | "expectedClose" | "team" | "primarySales"
 >;
 
 function activeQuarterRow(progress: CurrencyTargetProgress, activeQ: LeadQuarter) {

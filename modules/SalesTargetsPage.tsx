@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TabbedModulePageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -153,7 +155,7 @@ const ownersPool = [
 
 export function SalesTargetsPage() {
   const router = useRouter();
-  const [isPageLoading, setIsPageLoading] = useState(true);
+  const isPageLoading = usePageLoading();
   const [isSavingTarget, setIsSavingTarget] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{
     type: "success" | "error";
@@ -164,7 +166,6 @@ export function SalesTargetsPage() {
   const [deals, setDeals] = useState<CrmDeal[]>(() => [...mockDealStore.deals]);
 
   useEffect(() => {
-    const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
     const unsubTargets = mockDealStore.subscribeTargets((newTargets) => {
       setTargets([...newTargets]);
     });
@@ -172,7 +173,6 @@ export function SalesTargetsPage() {
       setDeals([...newDeals]);
     });
     return () => {
-      clearTimeout(loadingTimer);
       unsubTargets();
       unsubDeals();
     };
@@ -316,6 +316,10 @@ export function SalesTargetsPage() {
     setCreateOpen(true);
   };
 
+  if (isPageLoading) {
+    return <TabbedModulePageSkeleton />;
+  }
+
   /* Empty State */
   if (targets.length === 0) {
     return (
@@ -374,22 +378,7 @@ export function SalesTargetsPage() {
             {saveFeedback.message}
           </div>
         )}
-        {isPageLoading ? (
-          <div className="space-y-4 p-3 sm:p-5">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-20 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-56 animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
         <div className="flex-shrink-0 space-y-4 p-3 sm:p-5">
           {/* Summary Cards */}
           <div className="flex flex-wrap gap-3">
@@ -574,8 +563,7 @@ export function SalesTargetsPage() {
             </div>
           )}
         </div>
-          </>
-        )}
+        </>
       </div>
 
       {/* Create / Edit Modal */}

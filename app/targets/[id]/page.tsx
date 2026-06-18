@@ -1,15 +1,5 @@
-// import { CRMLayout } from "@/components/layout/CRMLayout";
-// import { SalesTargetDetailPage } from "@/modules/SalesTargetDetailPage";
+import { redirect } from "next/navigation";
 
-// export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-//   const { id } = await params;
-//   return (
-//     <CRMLayout>
-//       <SalesTargetDetailPage id={id} />
-//     </CRMLayout>
-//   );
-// }
-
-export default async function Page() {
-  return null;
+export default function Page() {
+  redirect("/sales-targeting");
 }

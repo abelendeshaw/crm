@@ -6,6 +6,8 @@ import { Users, Shield } from "lucide-react";
 import { UsersTab } from "@/components/user-management/UsersTab";
 import { RolesTab } from "@/components/user-management/RolesTab";
 import { cn } from "@/lib/utils";
+import { TabbedModulePageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { roles as initialRoles, type Role } from "@/data/userManagementData";
 
 export type UserManagementTab = "users" | "roles";
@@ -21,6 +23,7 @@ function parseTab(raw: string | null): UserManagementTab {
 }
 
 export function UserManagementPage() {
+  const isPageLoading = usePageLoading();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +45,10 @@ export function UserManagementPage() {
     const qs = next.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
+
+  if (isPageLoading) {
+    return <TabbedModulePageSkeleton />;
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">

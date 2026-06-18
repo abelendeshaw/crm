@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { DetailPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,6 +113,7 @@ function FormField({
 }
 
 export function DealDetailPage({ id }: { id: string }) {
+  const isPageLoading = usePageLoading();
   const router = useRouter();
   
   const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
@@ -198,6 +201,10 @@ export function DealDetailPage({ id }: { id: string }) {
     }
     return Array.from(set).sort();
   }, [deals]);
+
+  if (isPageLoading) {
+    return <DetailPageSkeleton />;
+  }
 
   if (!detailDraft) {
     return (

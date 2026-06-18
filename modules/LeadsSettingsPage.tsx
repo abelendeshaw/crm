@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Check,
   CheckCheck,
   X,
@@ -27,7 +28,6 @@ import {
   ChevronRight,
   Tag,
   FileText,
-  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { TabbedSettingsPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { mockLeadStore } from "@/data/mockStore";
 import {
   PipelineStage,
@@ -67,7 +69,6 @@ import {
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
 import { LeadScoringSettingsSection } from "@/modules/LeadScoringSettingsSection";
 import { LeadPqqTemplateSettingsSection } from "@/modules/LeadPqqTemplateSettingsSection";
-import { LeadTargetingSettingsSection } from "@/modules/LeadTargetingSettingsSection";
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -130,7 +131,7 @@ function IconRenderer({ name, className }: { name: string; className?: string })
   return <Icon className={className} />;
 }
 
-type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring" | "targeting";
+type Tab = "stages" | "activities" | "sources" | "pqqTemplates" | "scoring";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -158,11 +159,6 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     label: "Lead Scoring",
     icon: <Gauge size={15} />,
   },
-  {
-    id: "targeting",
-    label: "Targeting",
-    icon: <Target size={15} />,
-  },
 ];
 
 const settingsTabs = PQQ_UI_ENABLED
@@ -170,6 +166,7 @@ const settingsTabs = PQQ_UI_ENABLED
   : tabs.filter((tab) => tab.id !== "pqqTemplates");
 
 export function LeadsSettingsPage() {
+  const isPageLoading = usePageLoading();
   const router = useRouter();
   const [activeSection, setActiveSection] = useState<Tab>("stages");
   const [editingStageId, setEditingStageId] = useState<string | null>(null);
@@ -657,19 +654,35 @@ export function LeadsSettingsPage() {
     stageLeadCountById.set(lead.stageId, (stageLeadCountById.get(lead.stageId) ?? 0) + 1);
   }
 
+  if (isPageLoading) {
+    return <TabbedSettingsPageSkeleton />;
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="bg-white border-b border-[#e5e7eb] px-6 py-3 flex-shrink-0">
-        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Leads Settings</h1>
-        <p className="mt-0.5 text-[13px] text-[#6b7280]">
-          {activeSection === "scoring"
-            ? "Define rules to prioritize and qualify leads automatically."
-            : activeSection === "targeting"
-              ? "Configure display currency and annual revenue objectives for lead performance tracking."
-              : activeSection === "sources"
-                ? "Define the sources your team can assign when creating and qualifying leads."
-                : "Configure lead pipeline stages and interaction types"}
-        </p>
+        <div className="flex items-start gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-0.5 h-9 shrink-0 border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+            onClick={() => router.push("/leads")}
+          >
+            <ArrowLeft size={14} className="mr-1.5" />
+            Pipeline
+          </Button>
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold text-[#1c1e21]">Leads Settings</h1>
+            <p className="mt-0.5 text-[13px] text-[#6b7280]">
+              {activeSection === "scoring"
+                ? "Define rules to prioritize and qualify leads automatically."
+                : activeSection === "sources"
+                  ? "Define the sources your team can assign when creating and qualifying leads."
+                  : "Configure lead pipeline stages and interaction types"}
+            </p>
+          </div>
+        </div>
 
         {/* Tab Bar - same pattern as UserManagement */}
         <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
@@ -1586,7 +1599,6 @@ export function LeadsSettingsPage() {
               <LeadPqqTemplateSettingsSection />
             )}
             {activeSection === "scoring" && <LeadScoringSettingsSection />}
-            {activeSection === "targeting" && <LeadTargetingSettingsSection />}
           </div>
         </div>
       </div>

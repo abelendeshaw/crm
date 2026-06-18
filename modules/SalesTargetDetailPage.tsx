@@ -13,6 +13,8 @@ import {
   Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DetailPageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,6 +116,7 @@ function dealStatusBadge(deal: CrmDeal) {
 /* ─── component ─── */
 
 export function SalesTargetDetailPage({ id }: { id: string }) {
+  const isPageLoading = usePageLoading();
   const router = useRouter();
 
   const [target, setTarget] = useState<SalesTarget | undefined>(() => mockDealStore.getTarget(id));
@@ -137,6 +140,10 @@ export function SalesTargetDetailPage({ id }: { id: string }) {
     () => new Map(dealCustomerAccounts.map((a) => [a.id, a])),
     [],
   );
+
+  if (isPageLoading) {
+    return <DetailPageSkeleton />;
+  }
 
   if (!target) {
     return (

@@ -33,6 +33,8 @@ import {
   Minus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TablePageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -151,6 +153,7 @@ export function CustomerManagementPage({
   defaultTab = "accounts",
   lockedTab,
 }: CustomerManagementPageProps = {}) {
+  const isPageLoading = usePageLoading();
   const [tabState] = useState<Tab>(() => {
     if (typeof window === "undefined") return defaultTab;
     const tabQuery = new URLSearchParams(window.location.search).get("tab");
@@ -710,6 +713,10 @@ export function CustomerManagementPage({
     }
     return map;
   }, [accounts]);
+
+  if (isPageLoading) {
+    return <TablePageSkeleton />;
+  }
 
   if (selectedAccount) {
     const selectedAccountContacts = associations

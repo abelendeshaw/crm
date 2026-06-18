@@ -8,15 +8,11 @@ import {
   Users,
   Building2,
   Handshake,
-  Activity,
-  BarChart2,
   Settings,
+  Target,
   UserCog,
-  ChevronDown,
-  ChevronRight,
   Menu,
   X,
-  Target,
   Bell,
   HelpCircle,
   Search,
@@ -40,7 +36,6 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   path: string;
-  children?: { label: string; path: string }[];
 }
 
 interface NavGroup {
@@ -56,48 +51,17 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: "Sales",
-    items: [
-      {
-        label: "Leads",
-        icon: <Users size={16} />,
-        path: "/leads",
-        children: [
-          { label: "Pipeline", path: "/leads" },
-          { label: "Settings", path: "/leads/settings" },
-        ],
-      },
-      {
-        label: "Deals",
-        icon: <Handshake size={16} />,
-        path: "/deals",
-        children: [
-          { label: "Pipeline", path: "/deals" },
-          { label: "Settings", path: "/deals/settings" },
-        ],
-      },
-      // { label: "Targets", icon: <Target size={16} />, path: "/targets" },
-    ],
-  },
-  {
     label: "Customers",
     items: [
-      {
-        label: "Customer",
-        icon: <Building2 size={16} />,
-        path: "/customers",
-        children: [
-          { label: "Customers", path: "/customers" },
-          { label: "Contacts", path: "/contacts" },
-        ],
-      },
+      { label: "Customers", icon: <Building2 size={16} />, path: "/customers" },
     ],
   },
   {
-    label: "Analytics",
+    label: "Sales",
     items: [
-      { label: "Activity", icon: <Activity size={16} />, path: "/activity" },
-      { label: "Report", icon: <BarChart2 size={16} />, path: "/report" },
+      { label: "Leads", icon: <Users size={16} />, path: "/leads" },
+      { label: "Deals", icon: <Handshake size={16} />, path: "/deals" },
+      { label: "Sales Targeting", icon: <Target size={16} />, path: "/sales-targeting" },
     ],
   },
 ];
@@ -109,25 +73,12 @@ interface CRMLayoutProps {
 export function CRMLayout({ children }: CRMLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [expanded, setExpanded] = useState<string[]>([]);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const currentPathWithQuery =
-    typeof window !== "undefined"
-      ? `${pathname}${window.location.search}`
-      : pathname;
-
-  const toggleExpand = (label: string) => {
-    setExpanded((prev) => (prev.includes(label) ? [] : [label]));
-  };
 
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
     return pathname.startsWith(path);
-  };
-
-  const isChildActive = (children?: { label: string; path: string }[]) => {
-    return children?.some((c) => currentPathWithQuery === c.path);
   };
 
   const navItemClass = (active: boolean, collapsed = false) =>
@@ -222,78 +173,36 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               ) : null}
               <div className="flex flex-col gap-0.5">
                 {group.items.map((item) => {
-                  const active =
-                    isActive(item.path) || !!isChildActive(item.children);
-                  // Auto-expand when the parent or any child is active; allow
-                  // manual toggle for inactive parents.
-                  const isExpanded = active || expanded.includes(item.label);
+                  const active = isActive(item.path);
 
                   return (
-                    <div key={item.label}>
-                      <div
-                        className={navItemClass(active, sidebarCollapsed)}
-                        onClick={() => {
-                          if (!item.children) return;
-                          // Only allow collapsing when this section isn't active
-                          if (!active) toggleExpand(item.label);
-                        }}
-                      >
-                        {active && !sidebarCollapsed && (
-                          <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
-                        )}
-                        <span className={navIconClass(active)}>
+                    <div
+                      key={item.label}
+                      className={navItemClass(active, sidebarCollapsed)}
+                    >
+                      {active && !sidebarCollapsed && (
+                        <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-0.5 bg-[#4080f0]/40 rounded-full" />
+                      )}
+                      {sidebarCollapsed ? (
+                        <Link
+                          href={item.path}
+                          className={navIconClass(active)}
+                          onClick={() => setMobileNavOpen(false)}
+                          aria-label={item.label}
+                        >
                           {item.icon}
-                        </span>
-                        {!sidebarCollapsed && (
-                          <>
-                            {!item.children ? (
-                              <Link
-                                href={item.path}
-                                className="flex-1 text-[13px] font-medium truncate"
-                                onClick={() => setMobileNavOpen(false)}
-                              >
-                                {item.label}
-                              </Link>
-                            ) : (
-                              <span className="flex-1 text-[13px] font-medium truncate">
-                                {item.label}
-                              </span>
-                            )}
-                            {item.children && (
-                              <span className="ml-auto flex-shrink-0 opacity-60">
-                                {isExpanded ? (
-                                  <ChevronDown size={14} />
-                                ) : (
-                                  <ChevronRight size={14} />
-                                )}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      {item.children && isExpanded && !sidebarCollapsed && (
-                        <div className="ml-[28px] pl-3 py-1">
-                          {item.children.map((child) => {
-                            const childActive =
-                              currentPathWithQuery === child.path;
-                            return (
-                              <Link
-                                key={child.path}
-                                href={child.path}
-                                onClick={() => setMobileNavOpen(false)}
-                                className={cn(
-                                  "block py-1.5 text-[13px] transition-colors",
-                                  childActive
-                                    ? "text-[#4080f0] font-medium"
-                                    : "text-[#1c1e21] hover:text-[#4080f0]",
-                                )}
-                              >
-                                {child.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
+                        </Link>
+                      ) : (
+                        <>
+                          <span className={navIconClass(active)}>{item.icon}</span>
+                          <Link
+                            href={item.path}
+                            className="flex-1 text-[13px] font-medium truncate"
+                            onClick={() => setMobileNavOpen(false)}
+                          >
+                            {item.label}
+                          </Link>
+                        </>
                       )}
                     </div>
                   );

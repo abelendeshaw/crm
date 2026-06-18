@@ -15,10 +15,13 @@ import { CURRENCY_OPTIONS, type DealCurrency } from "@/data/dealsManagementData"
 import {
   buildQuarterlyTargets,
   cloneLeadTargetingSettings,
+  createEmptyDepartmentAllocations,
+  createEmptyPersonAllocations,
   createEmptyTeamAllocations,
   formatCompactMoney,
   formatMoneyInCurrency,
   getQuarterTarget,
+  migrateCurrencyTarget,
   quarterSum,
   syncCompanyQuartersFromTeams,
   updateQuarterTarget,
@@ -200,11 +203,15 @@ export function LeadTargetingSettingsSection() {
     setSettings((s) => {
       if (s.currencyTargets.some((t) => t.currency === currency)) return s;
       const next = cloneLeadTargetingSettings(s);
-      next.currencyTargets.push({
-        currency,
-        quarters: buildQuarterlyTargets(0),
-        teamAllocations: createEmptyTeamAllocations(),
-      });
+      next.currencyTargets.push(
+        migrateCurrencyTarget({
+          currency,
+          quarters: buildQuarterlyTargets(0),
+          departmentAllocations: createEmptyDepartmentAllocations(),
+          teamAllocations: createEmptyTeamAllocations(),
+          personAllocations: createEmptyPersonAllocations(),
+        }),
+      );
       return next;
     });
     setActiveCurrency(currency);

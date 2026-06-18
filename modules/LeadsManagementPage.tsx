@@ -14,11 +14,14 @@ import {
   Percent,
   Plus,
   Search,
+  Settings,
   ShieldCheck,
   SkipForward,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { PipelinePageSkeleton } from "@/components/loading/skeleton-screens";
+import { usePageLoading } from "@/hooks/usePageLoading";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -183,7 +186,7 @@ function FormField({
 }
 
 export function LeadsManagementPage() {
-  const [isPageLoading, setIsPageLoading] = useState(true);
+  const isPageLoading = usePageLoading();
   const [isSavingLead, setIsSavingLead] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<{
     type: "success" | "error";
@@ -210,8 +213,6 @@ export function LeadsManagementPage() {
   const [droppedLeadId, setDroppedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadingTimer = setTimeout(() => setIsPageLoading(false), 500);
-
     const unsubLeads = mockLeadStore.subscribeLeads((newLeads) => {
       _setLeads([...newLeads]);
     });
@@ -231,7 +232,6 @@ export function LeadsManagementPage() {
       setTargetingSettings(cloneLeadTargetingSettings(next));
     });
     return () => {
-      clearTimeout(loadingTimer);
       unsubLeads();
       unsubStages();
       unsubSources();
@@ -810,13 +810,31 @@ export function LeadsManagementPage() {
     return `Stuck for ${days} days`;
   };
 
+  if (isPageLoading) {
+    return <PipelinePageSkeleton withKpi />;
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
-        <h1 className="text-[20px] font-semibold text-[#1c1e21]">Leads</h1>
-        <p className="mt-0.5 text-[13px] text-[#6b7280]">
-          Pipeline, scoring, and lead qualification in one view
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-semibold text-[#1c1e21]">Leads</h1>
+            <p className="mt-0.5 text-[13px] text-[#6b7280]">
+              Pipeline, scoring, and lead qualification in one view
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]"
+            onClick={() => router.push("/leads/settings")}
+          >
+            <Settings size={14} className="mr-1.5" />
+            Settings
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
@@ -833,18 +851,7 @@ export function LeadsManagementPage() {
           </div>
         )}
 
-        {isPageLoading ? (
-          <div className="space-y-4 p-3 sm:p-5">
-            <div className="h-20 w-full animate-pulse rounded-lg bg-[#e5e7eb]" />
-            <div className="h-10 animate-pulse rounded-lg bg-[#e5e7eb]" />
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-[280px] animate-pulse rounded-lg bg-[#e5e7eb]" />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
         <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
           <LeadsPipelineKpiCards
             leads={leads}
@@ -1262,8 +1269,7 @@ export function LeadsManagementPage() {
           </div>
         </div>
         )}
-          </>
-        )}
+        </>
       </div>
 
       <Dialog

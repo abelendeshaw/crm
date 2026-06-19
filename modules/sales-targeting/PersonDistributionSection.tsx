@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  distributeTeamTargetsToPersons,
-  updateQuarterTarget,
-} from "@/data/leadsTargetsData";
+import { updateQuarterTarget } from "@/data/leadsTargetsData";
 import {
   CompactQuarterTable,
   CurrencyToolbar,
   PillSelect,
-  SaveBar,
+  SearchableFilter,
   SectionShell,
   addCurrencyToSettings,
   removeCurrencyFromSettings,
@@ -22,9 +17,6 @@ export function PersonDistributionSection() {
   const {
     settings,
     setSettings,
-    saved,
-    hasChanges,
-    save,
     activeCurrency,
     setActiveCurrency,
     activeCurrencyTarget,
@@ -45,10 +37,10 @@ export function PersonDistributionSection() {
     return all.filter((person) => person.teamName === activeTeamName);
   }, [activeCurrencyTarget, activeTeamName]);
 
-  const selectedTeam =
-    teams.find((team) => team.teamName === activeTeamName) ?? teams[0];
-  const selectedPerson =
-    persons.find((person) => person.personName === activePersonName) ?? persons[0];
+  const selectedPerson = useMemo(
+    () => persons.find((person) => person.personName === activePersonName),
+    [persons, activePersonName],
+  );
 
   useEffect(() => {
     if (!teams.some((team) => team.teamName === activeTeamName)) {
@@ -57,29 +49,21 @@ export function PersonDistributionSection() {
   }, [teams, activeTeamName]);
 
   useEffect(() => {
-    if (!persons.some((person) => person.personName === activePersonName)) {
-      setActivePersonName(persons[0]?.personName ?? "");
+    setActivePersonName("");
+  }, [activeTeamName]);
+
+  useEffect(() => {
+    if (activePersonName && !persons.some((person) => person.personName === activePersonName)) {
+      setActivePersonName("");
     }
   }, [persons, activePersonName]);
 
   if (!activeCurrencyTarget) return null;
 
-  const distributeToPersons = () => {
-    if (!selectedTeam) return;
-    updateCurrencyTargets(activeCurrency, (row) => {
-      row.personAllocations = distributeTeamTargetsToPersons(
-        selectedTeam.teamName,
-        selectedTeam.quarters,
-        row.personAllocations,
-      );
-    });
-  };
-
   return (
     <SectionShell
       title="Person distribution"
       description="Assign team targets to individual reps."
-      actions={<SaveBar hasChanges={hasChanges} saved={saved} onSave={save} />}
     >
       <CurrencyToolbar
         settings={settings}
@@ -99,67 +83,65 @@ export function PersonDistributionSection() {
       />
 
       <div className="space-y-5 p-4">
-        <div className="space-y-3">
-          <p className="text-[12px] font-medium text-[#6b7280]">Team</p>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <PillSelect
-              items={teams.map((t) => t.teamName)}
-              value={activeTeamName}
-              onChange={setActiveTeamName}
-              getKey={(name) => name}
-              getLabel={(name) => name}
-            />
-            {selectedTeam ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 border-[#e5e7eb] text-xs"
-                onClick={distributeToPersons}
-              >
-                <Share2 size={13} className="mr-1.5" />
-                Split evenly
-              </Button>
-            ) : null}
+        <div className="space-y-2 border-t border-[#e5e7eb] pt-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <aside className="w-full shrink-0 sm:w-44">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+                Team
+              </p>
+              <PillSelect
+                items={teams.map((t) => t.teamName)}
+                value={activeTeamName}
+                onChange={setActiveTeamName}
+                getKey={(name) => name}
+                getLabel={(name) => name}
+              />
+            </aside>
+
+            <div className="min-w-0 flex-1 space-y-4">
+              {persons.length > 0 ? (
+                <SearchableFilter
+                  label="Rep"
+                  items={persons.map((p) => p.personName)}
+                  value={activePersonName}
+                  onChange={setActivePersonName}
+                  getKey={(name) => name}
+                  getLabel={(name) => name}
+                  placeholder="Select sales rep..."
+                />
+              ) : null}
+
+              {selectedPerson ? (
+                <CompactQuarterTable
+                  key={selectedPerson.personName}
+                  quarters={selectedPerson.quarters}
+                  quarterDefinitions={settings.quarterDefinitions}
+                  currency={activeCurrency}
+                  onQuarterChange={(q, value) => {
+                    updateCurrencyTargets(
+                      activeCurrency,
+                      (row) => {
+                        row.personAllocations = row.personAllocations.map((person) =>
+                          person.personName === selectedPerson.personName
+                            ? {
+                                ...person,
+                                quarters: updateQuarterTarget(person.quarters, q, value),
+                              }
+                            : person,
+                        );
+                      },
+                      { persist: true },
+                    );
+                  }}
+                />
+              ) : (
+                <p className="py-6 text-center text-sm text-[#9ca3af]">
+                  Please select sales rep.
+                </p>
+              )}
+            </div>
           </div>
         </div>
-
-        {persons.length > 0 ? (
-          <div className="space-y-3">
-            <p className="text-[12px] font-medium text-[#6b7280]">Rep</p>
-            <PillSelect
-              items={persons.map((p) => p.personName)}
-              value={activePersonName}
-              onChange={setActivePersonName}
-              getKey={(name) => name}
-              getLabel={(name) => name}
-            />
-          </div>
-        ) : null}
-
-        {selectedPerson ? (
-          <CompactQuarterTable
-            quarters={selectedPerson.quarters}
-            quarterDefinitions={settings.quarterDefinitions}
-            onQuarterChange={(q, raw) => {
-              const value = Number(raw) || 0;
-              updateCurrencyTargets(activeCurrency, (row) => {
-                row.personAllocations = row.personAllocations.map((person) =>
-                  person.personName === selectedPerson.personName
-                    ? {
-                        ...person,
-                        quarters: updateQuarterTarget(person.quarters, q, value),
-                      }
-                    : person,
-                );
-              });
-            }}
-          />
-        ) : (
-          <p className="py-6 text-center text-sm text-[#9ca3af]">
-            Select a team member to set targets
-          </p>
-        )}
       </div>
     </SectionShell>
   );

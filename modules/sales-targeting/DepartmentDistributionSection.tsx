@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Share2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  distributeDepartmentTargetsToTeams,
   syncDepartmentQuartersFromTeams,
+  quarterSum,
   teamsInDepartment,
   updateQuarterTarget,
 } from "@/data/leadsTargetsData";
 import {
+  AnnualTargetGlance,
   CompactQuarterTable,
   CurrencyToolbar,
   PillSelect,
-  SaveBar,
   SectionShell,
   addCurrencyToSettings,
   removeCurrencyFromSettings,
@@ -24,9 +22,6 @@ export function DepartmentDistributionSection() {
   const {
     settings,
     setSettings,
-    saved,
-    hasChanges,
-    save,
     activeCurrency,
     setActiveCurrency,
     activeCurrencyTarget,
@@ -70,22 +65,10 @@ export function DepartmentDistributionSection() {
 
   if (!activeCurrencyTarget || !selectedDepartment) return null;
 
-  const distributeToTeams = () => {
-    if (activeDepartment !== "Sales") return;
-    updateCurrencyTargets(activeCurrency, (row) => {
-      row.teamAllocations = distributeDepartmentTargetsToTeams(
-        selectedDepartment.quarters,
-        row.teamAllocations,
-      );
-      Object.assign(row, syncDepartmentQuartersFromTeams(row, "Sales"));
-    });
-  };
-
   return (
     <SectionShell
       title="Department distribution"
       description="Split company targets across departments and sales teams."
-      actions={<SaveBar hasChanges={hasChanges} saved={saved} onSave={save} />}
     >
       <CurrencyToolbar
         settings={settings}
@@ -105,76 +88,72 @@ export function DepartmentDistributionSection() {
       />
 
       <div className="space-y-5 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <PillSelect
-            items={departments.map((d) => d.departmentName)}
-            value={activeDepartment}
-            onChange={setActiveDepartment}
-            getKey={(name) => name}
-            getLabel={(name) => name}
-          />
-          {activeDepartment === "Sales" ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 border-[#e5e7eb] text-xs"
-              onClick={distributeToTeams}
-            >
-              <Share2 size={13} className="mr-1.5" />
-              Split to teams
-            </Button>
-          ) : null}
-        </div>
-
-        <CompactQuarterTable
-          quarters={selectedDepartment.quarters}
-          quarterDefinitions={settings.quarterDefinitions}
-          onQuarterChange={(q, raw) => {
-            const value = Number(raw) || 0;
-            updateCurrencyTargets(activeCurrency, (row) => {
-              row.departmentAllocations = row.departmentAllocations.map((department) =>
-                department.departmentName === activeDepartment
-                  ? {
-                      ...department,
-                      quarters: updateQuarterTarget(department.quarters, q, value),
-                    }
-                  : department,
-              );
-            });
-          }}
-        />
-
-        {activeDepartment === "Sales" && salesTeams.length > 0 ? (
-          <div className="space-y-4 border-t border-[#e5e7eb] pt-5">
-            <p className="text-[12px] font-medium text-[#6b7280]">Sales teams</p>
+        <div className="space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+            Department
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <PillSelect
-              items={salesTeams.map((t) => t.teamName)}
-              value={selectedTeam?.teamName ?? ""}
-              onChange={setActiveTeamName}
+              layout="row"
+              items={departments.map((d) => d.departmentName)}
+              value={activeDepartment}
+              onChange={setActiveDepartment}
               getKey={(name) => name}
               getLabel={(name) => name}
             />
-            {selectedTeam ? (
-              <CompactQuarterTable
-                quarters={selectedTeam.quarters}
-                quarterDefinitions={settings.quarterDefinitions}
-                onQuarterChange={(q, raw) => {
-                  const value = Number(raw) || 0;
-                  updateCurrencyTargets(activeCurrency, (row) => {
-                    row.teamAllocations = row.teamAllocations.map((team) =>
-                      team.teamName === selectedTeam.teamName
-                        ? {
-                            ...team,
-                            quarters: updateQuarterTarget(team.quarters, q, value),
-                          }
-                        : team,
-                    );
-                    Object.assign(row, syncDepartmentQuartersFromTeams(row, "Sales"));
-                  });
-                }}
+            {activeDepartment === "Sales" && selectedTeam ? (
+              <AnnualTargetGlance
+                teamName={selectedTeam.teamName}
+                currency={activeCurrency}
+                annual={quarterSum(selectedTeam)}
               />
             ) : null}
+          </div>
+        </div>
+
+        {activeDepartment === "Sales" && salesTeams.length > 0 ? (
+          <div className="space-y-2 border-t border-[#e5e7eb] pt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
+              Team
+            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+              <aside className="w-full shrink-0 sm:w-44">
+                <PillSelect
+                  items={salesTeams.map((t) => t.teamName)}
+                  value={selectedTeam?.teamName ?? ""}
+                  onChange={setActiveTeamName}
+                  getKey={(name) => name}
+                  getLabel={(name) => name}
+                />
+              </aside>
+              {selectedTeam ? (
+                <div className="min-w-0 flex-1">
+                  <CompactQuarterTable
+                    key={selectedTeam.teamName}
+                    quarters={selectedTeam.quarters}
+                    quarterDefinitions={settings.quarterDefinitions}
+                    currency={activeCurrency}
+                    onQuarterChange={(q, value) => {
+                      updateCurrencyTargets(
+                        activeCurrency,
+                        (row) => {
+                          row.teamAllocations = row.teamAllocations.map((team) =>
+                            team.teamName === selectedTeam.teamName
+                              ? {
+                                  ...team,
+                                  quarters: updateQuarterTarget(team.quarters, q, value),
+                                }
+                              : team,
+                          );
+                          Object.assign(row, syncDepartmentQuartersFromTeams(row, "Sales"));
+                        },
+                        { persist: true },
+                      );
+                    }}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

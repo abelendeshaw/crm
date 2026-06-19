@@ -375,6 +375,25 @@ export function distributeCompanyTargetsToTeams(
   );
 }
 
+export function distributeCompanyTargetsToSalesTeams(
+  ct: CurrencyQuarterlyTargets,
+): CurrencyQuarterlyTargets {
+  const allocations =
+    ct.teamAllocations?.length
+      ? ct.teamAllocations.map((team) => ({
+          teamName: team.teamName,
+          quarters: team.quarters.map((row) => ({ ...row })),
+        }))
+      : createEmptyTeamAllocations();
+
+  const next: CurrencyQuarterlyTargets = {
+    ...ct,
+    teamAllocations: distributeCompanyTargetsToTeams(ct.quarters, allocations),
+  };
+
+  return syncDepartmentQuartersFromTeams(next, "Sales");
+}
+
 function seedTeamAllocations(companyQuarters: LeadQuarterTarget[]): SalesTeamAllocation[] {
   return distributeCompanyTargetsToTeams(companyQuarters, createEmptyTeamAllocations());
 }

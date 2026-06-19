@@ -412,11 +412,14 @@ function defaultQuarters(annual: number): LeadQuarterTarget[] {
 }
 
 const DEFAULT_ETB_ANNUAL = 260_000_000;
+const DEFAULT_USD_ANNUAL = 2_000_000;
 
 const DEFAULT_FISCAL_YEAR = 2026;
 
 const DEFAULT_ETB_QUARTERS = defaultQuarters(DEFAULT_ETB_ANNUAL);
+const DEFAULT_USD_QUARTERS = defaultQuarters(DEFAULT_USD_ANNUAL);
 const DEFAULT_ETB_TEAMS = seedTeamAllocations(DEFAULT_ETB_QUARTERS);
+const DEFAULT_USD_TEAMS = seedTeamAllocations(DEFAULT_USD_QUARTERS);
 
 export const DEFAULT_LEAD_TARGETING_SETTINGS: LeadTargetingSettings = {
   fiscalYear: DEFAULT_FISCAL_YEAR,
@@ -429,6 +432,13 @@ export const DEFAULT_LEAD_TARGETING_SETTINGS: LeadTargetingSettings = {
       departmentAllocations: seedDepartmentAllocations(DEFAULT_ETB_QUARTERS),
       teamAllocations: DEFAULT_ETB_TEAMS,
       personAllocations: seedPersonAllocations(DEFAULT_ETB_TEAMS),
+    },
+    {
+      currency: "USD",
+      quarters: DEFAULT_USD_QUARTERS,
+      departmentAllocations: seedDepartmentAllocations(DEFAULT_USD_QUARTERS),
+      teamAllocations: DEFAULT_USD_TEAMS,
+      personAllocations: seedPersonAllocations(DEFAULT_USD_TEAMS),
     },
   ],
 };

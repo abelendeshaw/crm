@@ -23,16 +23,6 @@ const levelStatusLabels: Record<Level, string> = {
   persons: "Rep performance status",
 };
 
-function groupRowsByCurrency(rows: PerformanceEntityRow[]) {
-  const map = new Map<PerformanceEntityRow["currency"], PerformanceEntityRow[]>();
-  for (const row of rows) {
-    const list = map.get(row.currency) ?? [];
-    list.push(row);
-    map.set(row.currency, list);
-  }
-  return [...map.entries()];
-}
-
 export function SalesPerformanceSection({
   settings,
   leads,
@@ -42,47 +32,65 @@ export function SalesPerformanceSection({
 }) {
   const [level, setLevel] = useState<Level>("teams");
   const [activeTeamName, setActiveTeamName] = useState("");
+  const [activeCurrency, setActiveCurrency] =
+    useState<PerformanceEntityRow["currency"]>("ETB");
 
   const overview = useMemo(
     () => computeSalesPerformanceOverview(settings, leads, getCurrentOrgQuarter()),
     [settings, leads],
   );
 
+  const currencies = useMemo(
+    () => settings.currencyTargets.map((row) => row.currency),
+    [settings.currencyTargets],
+  );
+
   const personTeams = useMemo(() => {
-    const teamOrder = overview.teams.map((team) => team.label);
     const teamsWithReps = new Set(
-      overview.persons.map((person) => person.subtitle).filter((name): name is string => !!name),
+      overview.persons
+        .filter((person) => person.currency === activeCurrency)
+        .map((person) => person.subtitle)
+        .filter((name): name is string => !!name),
     );
-    return teamOrder.filter((teamName) => teamsWithReps.has(teamName));
-  }, [overview.teams, overview.persons]);
+
+    const orderedTeamNames = [
+      ...new Set(
+        overview.teams
+          .filter((team) => team.currency === activeCurrency)
+          .map((team) => team.label),
+      ),
+    ];
+
+    return orderedTeamNames.filter((teamName) => teamsWithReps.has(teamName));
+  }, [overview.teams, overview.persons, activeCurrency]);
 
   const activeRows = useMemo(() => {
-    const rows = overview[level];
+    const rows = overview[level].filter((row) => row.currency === activeCurrency);
     if (level !== "persons" || !activeTeamName) return rows;
     return rows.filter((row) => row.subtitle === activeTeamName);
-  }, [overview, level, activeTeamName]);
+  }, [overview, level, activeTeamName, activeCurrency]);
 
-  const rowsByCurrency = useMemo(() => groupRowsByCurrency(activeRows), [activeRows]);
+  useEffect(() => {
+    if (!currencies.some((currency) => currency === activeCurrency)) {
+      setActiveCurrency(currencies[0] ?? "ETB");
+    }
+  }, [currencies, activeCurrency]);
 
   useEffect(() => {
     if (level !== "persons") return;
     if (!personTeams.some((teamName) => teamName === activeTeamName)) {
       setActiveTeamName(personTeams[0] ?? "");
     }
-  }, [level, personTeams, activeTeamName]);
+  }, [level, personTeams, activeTeamName, activeCurrency]);
 
-  const renderPerformanceStatus = (
-    currency: PerformanceEntityRow["currency"],
-    rows: PerformanceEntityRow[],
-    section: "all" | "summary" | "table",
-  ) => (
+  const renderPerformanceStatus = (section: "all" | "summary" | "table") => (
     <PerformanceStatus
-      key={`${currency}-${section}`}
+      key={`${activeCurrency}-${section}`}
       sections={section}
-      label={`${levelStatusLabels[level]} · ${currency}`}
-      currency={currency}
-      totalTarget={rows.reduce((sum, row) => sum + row.target, 0)}
-      items={rows.map((row) => ({
+      label={`${levelStatusLabels[level]} · ${activeCurrency}`}
+      currency={activeCurrency}
+      totalTarget={activeRows.reduce((sum, row) => sum + row.target, 0)}
+      items={activeRows.map((row) => ({
         name: row.label,
         target: row.target,
         achieved: row.achieved,
@@ -96,15 +104,15 @@ export function SalesPerformanceSection({
   );
 
   const performanceContent =
-    rowsByCurrency.length === 0 ? (
+    activeRows.length === 0 ? (
       <p className="py-8 text-center text-sm text-[#9ca3af]">
-        {level === "persons" ? "No rep targets set for this team." : "No targets set for this level."}
+        {level === "persons"
+          ? "No rep targets set for this team."
+          : `No targets set for ${activeCurrency} at this level.`}
       </p>
     ) : level === "persons" && personTeams.length > 0 ? (
       <div className="space-y-5">
-        <div className="space-y-6">
-          {rowsByCurrency.map(([currency, rows]) => renderPerformanceStatus(currency, rows, "summary"))}
-        </div>
+        {renderPerformanceStatus("summary")}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           <aside className="w-full shrink-0 sm:w-44">
@@ -125,15 +133,11 @@ export function SalesPerformanceSection({
             />
           </aside>
 
-          <div className="min-w-0 flex-1 space-y-6">
-            {rowsByCurrency.map(([currency, rows]) => renderPerformanceStatus(currency, rows, "table"))}
-          </div>
+          <div className="min-w-0 flex-1">{renderPerformanceStatus("table")}</div>
         </div>
       </div>
     ) : (
-      <div className="space-y-6">
-        {rowsByCurrency.map(([currency, rows]) => renderPerformanceStatus(currency, rows, "all"))}
-      </div>
+      renderPerformanceStatus("all")
     );
 
   return (
@@ -148,22 +152,44 @@ export function SalesPerformanceSection({
       </div>
 
       <div className="rounded-lg border border-[#e5e7eb] bg-white shadow-sm">
-        <div className="flex gap-1 overflow-x-auto border-b border-[#e5e7eb] px-4 py-2">
-          {levels.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setLevel(item.id)}
-              className={cn(
-                "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                level === item.id
-                  ? "bg-[#eef2fd] text-[#4080f0]"
-                  : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2 border-b border-[#e5e7eb] px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-1 overflow-x-auto">
+            {levels.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setLevel(item.id)}
+                className={cn(
+                  "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                  level === item.id
+                    ? "bg-[#eef2fd] text-[#4080f0]"
+                    : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+
+          {currencies.length > 0 ? (
+            <div className="flex gap-1 overflow-x-auto">
+              {currencies.map((currency) => (
+                <button
+                  key={currency}
+                  type="button"
+                  onClick={() => setActiveCurrency(currency)}
+                  className={cn(
+                    "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                    activeCurrency === currency
+                      ? "bg-[#eef2fd] text-[#4080f0]"
+                      : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
+                  )}
+                >
+                  {currency}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-5 p-4">{performanceContent}</div>

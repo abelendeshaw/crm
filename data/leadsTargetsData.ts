@@ -623,6 +623,22 @@ export function formatCompactMoney(amount: number, currency: DealCurrency): stri
   return formatMoneyInCurrency(amount, currency);
 }
 
+export function formatCompactAmount(amount: number): string {
+  const value = Number.isFinite(amount) ? amount : 0;
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(0)}K`;
+  }
+  return value.toLocaleString(undefined, { maximumFractionDigits: 0, useGrouping: false });
+}
+
+/** Compact amount with currency suffix, e.g. `13.5M ETB` */
+export function formatCompactMoneySuffix(amount: number, currency: DealCurrency): string {
+  return `${formatCompactAmount(amount)} ${currency}`;
+}
+
 export function computeLeadTargetPct(achieved: number, target: number): number {
   if (target <= 0) return 0;
   return Math.min(100, Math.round((achieved / target) * 100));

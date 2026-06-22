@@ -1,4 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { DASHBOARD_KPI_TILE_HEIGHT_CLASS } from "@/components/kpi/dashboard-kpi-tile";
+import { QUARTERLY_KPI_TILE_HEIGHT_CLASS } from "@/components/kpi/kpi-tile";
+import { cn } from "@/lib/utils";
 import { QuarterlyTargetKpiSkeleton } from "@/modules/LeadsPipelineKpiCards";
 
 export function PageHeaderSkeleton({
@@ -63,24 +66,23 @@ export function PipelinePageSkeleton({ withKpi = false }: { withKpi?: boolean })
 
 export function DashboardPageSkeleton() {
   return (
-    <div className="min-h-full bg-[#f5f6fa] p-4 sm:p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-40" />
-          <Skeleton className="h-4 w-72" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-[120px] rounded-xl" />
+    <div className="flex h-full flex-col overflow-hidden">
+      <PageHeaderSkeleton withAction />
+      <div className="flex flex-1 flex-col overflow-auto bg-white">
+        <div className="mx-auto w-full max-w-[1400px] space-y-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton
+              key={index}
+              className={cn("w-full rounded-lg", DASHBOARD_KPI_TILE_HEIGHT_CLASS)}
+            />
           ))}
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Skeleton className="h-[320px] rounded-xl lg:col-span-2" />
-          <Skeleton className="h-[320px] rounded-xl" />
+        <div className="rounded-lg border border-[#e5e7eb] bg-white p-4 sm:p-6">
+          <Skeleton className="mb-4 h-6 w-40" />
+          <QuarterlyTargetKpiSkeleton />
+          <Skeleton className="mt-6 h-[180px] w-full rounded-lg" />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="h-[280px] rounded-xl" />
-          <Skeleton className="h-[280px] rounded-xl" />
         </div>
       </div>
     </div>

@@ -11,8 +11,10 @@ import {
   quarterSum,
   syncDepartmentQuartersFromTeams,
   teamsInDepartment,
+  updateQuarterTarget,
 } from "@/data/leadsTargetsData";
 import { mockLeadStore } from "@/data/mockStore";
+import { QuarterlyCompanyPlanSection } from "@/modules/sales-targeting/QuarterlyCompanyPlanSection";
 import {
   AnnualSummary,
   CurrencyToolbar,
@@ -214,6 +216,43 @@ export function TargetDefinitionSection() {
                 Team targets are configured under Sales.
               </p>
             )}
+          </div>
+
+          <div className="space-y-5 border-t border-[#e5e7eb] pt-5">
+            <QuarterlyCompanyPlanSection
+              fiscalYear={settings.fiscalYear}
+              quarterDefinitions={settings.quarterDefinitions}
+              currency={activeCurrency}
+              companyQuarters={activeCurrencyTarget.quarters}
+              teams={salesTeams}
+              leads={leads}
+              onCompanyQuarterChange={(q, value) => {
+                updateCurrencyTargets(
+                  activeCurrency,
+                  (row) => {
+                    row.quarters = updateQuarterTarget(row.quarters, q, value);
+                  },
+                  { persist: true },
+                );
+              }}
+              onTeamQuarterChange={(teamName, q, value) => {
+                updateCurrencyTargets(
+                  activeCurrency,
+                  (row) => {
+                    row.teamAllocations = row.teamAllocations.map((team) =>
+                      team.teamName === teamName
+                        ? {
+                            ...team,
+                            quarters: updateQuarterTarget(team.quarters, q, value),
+                          }
+                        : team,
+                    );
+                    Object.assign(row, syncDepartmentQuartersFromTeams(row, "Sales"));
+                  },
+                  { persist: true },
+                );
+              }}
+            />
           </div>
         </div>
       </div>

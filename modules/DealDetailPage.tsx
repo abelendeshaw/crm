@@ -23,9 +23,11 @@ import {
   MessageSquare,
   X,
 } from "lucide-react";
+import { findPresalesTeamByMember } from "@/data/presalesTeamsData";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { DetailPageSkeleton } from "@/components/loading/skeleton-screens";
+import { PresalesMemberSelect } from "@/components/presales/PresalesMemberSelect";
 import { usePageLoading } from "@/hooks/usePageLoading";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -560,6 +562,7 @@ export function DealDetailPage({ id }: { id: string }) {
                           setDetailDraft((d) => (d ? { ...d, presales: v } : d))
                         }
                         owners={ownerOptions}
+                        variant="presales"
                       />
                       <RoleRow
                         label="Channel"
@@ -975,6 +978,7 @@ function RoleRow({
   owners,
   onChange,
   isEditing,
+  variant = "default",
 }: {
   label: string;
   name: string;
@@ -982,7 +986,10 @@ function RoleRow({
   owners: string[];
   onChange: (value: string) => void;
   isEditing: boolean;
+  variant?: "default" | "presales";
 }) {
+  const presalesTeam = variant === "presales" ? findPresalesTeamByMember(name) : null;
+
   return (
     <div className="flex flex-col gap-2 rounded-md border border-[#e5e7eb] bg-white p-3">
       <div className="flex items-center gap-2">
@@ -992,40 +999,61 @@ function RoleRow({
         <span className="text-xs text-[#6b7280]">{label}</span>
       </div>
       {isEditing ? (
-        <Select value={name} onValueChange={onChange}>
-          <SelectTrigger className="h-9 border-[#f0f2f7] bg-[#f9fafb]">
-            <div className="flex items-center gap-2">
-              <Avatar className="size-5">
-                <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-                  {initials(name)}
-                </AvatarFallback>
-              </Avatar>
-              <SelectValue />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            {owners.map((o) => (
-              <SelectItem key={o} value={o}>
-                <div className="flex items-center gap-2">
-                  <Avatar className="size-5">
-                    <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-                      {initials(o)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span>{o}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        variant === "presales" ? (
+          <PresalesMemberSelect
+            value={name}
+            onValueChange={onChange}
+            triggerClassName="h-9 border-[#f0f2f7] bg-[#f9fafb]"
+          />
+        ) : (
+          <Select value={name} onValueChange={onChange}>
+            <SelectTrigger className="h-9 border-[#f0f2f7] bg-[#f9fafb]">
+              <div className="flex items-center gap-2">
+                <Avatar className="size-5">
+                  <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                    {initials(name)}
+                  </AvatarFallback>
+                </Avatar>
+                <SelectValue />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {owners.map((o) => (
+                <SelectItem key={o} value={o}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="size-5">
+                      <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                        {initials(o)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{o}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )
       ) : (
-        <div className="flex min-h-[38px] items-center gap-2 rounded-md border border-[#f0f2f7] bg-[#f9fafb] px-3 py-2 text-sm text-[#1c1e21]">
-          <Avatar className="size-5">
-            <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
-              {initials(name)}
-            </AvatarFallback>
-          </Avatar>
-          <span className="truncate">{name || "—"}</span>
+        <div className="flex min-h-[38px] flex-col justify-center gap-0.5 rounded-md border border-[#f0f2f7] bg-[#f9fafb] px-3 py-2 text-sm text-[#1c1e21]">
+          <div className="flex items-center gap-2">
+            <Avatar className="size-5">
+              <AvatarFallback className="bg-[#eef2fd] text-[9px] font-semibold text-[#4080f0]">
+                {initials(name)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate">{name || "—"}</span>
+            {presalesTeam && name === presalesTeam.manager ? (
+              <Badge
+                variant="outline"
+                className="h-4 border-[#bfdbfe] bg-[#eff6ff] px-1 text-[9px] font-semibold uppercase tracking-wide text-[#1d4ed8]"
+              >
+                TL
+              </Badge>
+            ) : null}
+          </div>
+          {presalesTeam ? (
+            <p className="pl-7 text-[11px] text-[#9ca3af]">{presalesTeam.name}</p>
+          ) : null}
         </div>
       )}
     </div>

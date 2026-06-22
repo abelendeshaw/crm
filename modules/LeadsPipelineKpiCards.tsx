@@ -7,11 +7,14 @@ import { cn } from "@/lib/utils";
 import type { CrmDeal, PipelineStage } from "@/data/dealsManagementData";
 import type { CrmLead } from "@/data/leadsManagementData";
 import {
+  QUARTERLY_KPI_TILE_HEIGHT_CLASS,
+  TeamQuarterKpiTile,
+} from "@/components/kpi/kpi-tile";
+import {
   computeCurrentQuarterOverallPct,
   computeDealTeamQuarterKpis,
   computeLeadTargetPct,
   computeTeamQuarterKpis,
-  formatCompactMoney,
   hasOrgSalesTargets,
   type CurrentQuarterKpiRow,
   type LeadTargetingSettings,
@@ -19,22 +22,7 @@ import {
   type TeamQuarterKpiTeam,
 } from "@/data/leadsTargetsData";
 
-export const QUARTERLY_KPI_TILE_HEIGHT_CLASS = "h-[12.75rem]";
-
-function sortTeamRows(rows: CurrentQuarterKpiRow[]) {
-  return [...rows].sort((a, b) => {
-    if (a.currency === "ETB") return -1;
-    if (b.currency === "ETB") return 1;
-    return a.currency.localeCompare(b.currency);
-  });
-}
-
-function formatTeamLabel(teamName: string) {
-  return teamName
-    .replace("International", "Intl")
-    .replace(" and ", " & ")
-    .replace(/ Sales$/i, "");
-}
+export { QUARTERLY_KPI_TILE_HEIGHT_CLASS };
 
 function computeOverallRowsByCurrency(teams: TeamQuarterKpiTeam[]) {
   const byCurrency = new Map<
@@ -85,124 +73,12 @@ function withSampleMultiCurrencyTeam(teams: TeamQuarterKpiTeam[]): TeamQuarterKp
   });
 }
 
-function getKpiDensity(currencyCount: number): "comfortable" | "compact" | "dense" {
-  if (currencyCount <= 1) return "comfortable";
-  if (currencyCount === 2) return "compact";
-  return "dense";
-}
-
-const KPI_DENSITY_STYLES = {
-  comfortable: {
-    achieved: { first: "text-[22px]", rest: "text-[15px]" },
-    target: { first: "mt-2 text-[12px]", rest: "mt-1 text-[11px]" },
-    bar: { first: "h-2.5", rest: "h-2" },
-    pct: { first: "text-[12px]", rest: "text-[11px]" },
-    block: { first: "", rest: "mt-2.5 border-t border-[#f3f4f6] pt-2.5" },
-    progress: "mt-2",
-  },
-  compact: {
-    achieved: { first: "text-[20px]", rest: "text-[14px]" },
-    target: { first: "mt-1.5 text-[11px]", rest: "mt-1 text-[10px]" },
-    bar: { first: "h-2", rest: "h-1.5" },
-    pct: { first: "text-[11px]", rest: "text-[10px]" },
-    block: { first: "", rest: "mt-2 border-t border-[#f3f4f6] pt-2" },
-    progress: "mt-1.5",
-  },
-  dense: {
-    achieved: { first: "text-[16px]", rest: "text-[13px]" },
-    target: { first: "mt-1 text-[10px]", rest: "mt-0.5 text-[9px]" },
-    bar: { first: "h-1.5", rest: "h-1" },
-    pct: { first: "text-[10px]", rest: "text-[9px]" },
-    block: { first: "", rest: "mt-1.5 border-t border-[#f3f4f6] pt-1.5" },
-    progress: "mt-1",
-  },
-} as const;
-
-function CurrencyKpiBlock({
-  row,
-  density,
-  isFirst,
-}: {
-  row: CurrentQuarterKpiRow;
-  density: keyof typeof KPI_DENSITY_STYLES;
-  isFirst: boolean;
-}) {
-  const styles = KPI_DENSITY_STYLES[density];
-  const slot = isFirst ? "first" : "rest";
-
-  return (
-    <div className={styles.block[slot]}>
-      <p
-        className={cn(
-          "truncate font-semibold leading-none tabular-nums text-[#1c1e21]",
-          styles.achieved[slot],
-        )}
-      >
-        {formatCompactMoney(row.achieved, row.currency)}
-      </p>
-      <p className={cn("truncate text-[#9ca3af]", styles.target[slot])}>
-        Target: {formatCompactMoney(row.target, row.currency)}
-      </p>
-
-      <div className={cn("flex items-center gap-2", styles.progress)}>
-        <div
-          className={cn(
-            "min-w-0 flex-1 overflow-hidden rounded-full bg-[#eef2fd]",
-            styles.bar[slot],
-          )}
-        >
-          <div
-            className="h-full rounded-full bg-[#4080f0] transition-all duration-300"
-            style={{ width: `${Math.min(row.pct, 100)}%` }}
-          />
-        </div>
-        <p
-          className={cn(
-            "shrink-0 font-semibold tabular-nums text-[#4080f0]",
-            styles.pct[slot],
-          )}
-        >
-          {row.target > 0 ? `${row.pct}%` : "—"}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function TeamQuarterKpiTile({
-  team,
-  title,
-}: {
-  team: TeamQuarterKpiTeam;
-  title?: string;
-}) {
-  const rows = sortTeamRows(team.rows);
-  if (!rows.length) return null;
-
-  const density = getKpiDensity(rows.length);
-  const displayTitle = title ?? formatTeamLabel(team.teamName);
-
-  return (
-    <div
-      className={cn(
-        "flex flex-col rounded-lg border border-[#e5e7eb] bg-white px-4 py-3.5",
-        QUARTERLY_KPI_TILE_HEIGHT_CLASS,
-      )}
-    >
-      <p className="shrink-0 truncate text-[12px] font-medium text-[#6b7280]">{displayTitle}</p>
-
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto no-scrollbar">
-        {rows.map((row, index) => (
-          <CurrencyKpiBlock
-            key={row.currency}
-            row={row}
-            density={density}
-            isFirst={index === 0}
-          />
-        ))}
-      </div>
-    </div>
-  );
+function sortTeamRows(rows: CurrentQuarterKpiRow[]) {
+  return [...rows].sort((a, b) => {
+    if (a.currency === "ETB") return -1;
+    if (b.currency === "ETB") return 1;
+    return a.currency.localeCompare(b.currency);
+  });
 }
 
 function QuarterlyTargetKpiCard({ q, fiscalYear, teams }: TeamQuarterKpi) {

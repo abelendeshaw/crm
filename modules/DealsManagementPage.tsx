@@ -9,14 +9,12 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
-  Headphones,
   Kanban,
   List as ListIcon,
   Percent,
   Plus,
   Search,
   Settings,
-  Share2,
 } from "lucide-react";
 import { PipelinePageSkeleton } from "@/components/loading/skeleton-screens";
 import { usePageLoading } from "@/hooks/usePageLoading";
@@ -74,9 +72,27 @@ import {
   type PipelineStage,
   computeBaseValue,
 } from "@/data/dealsManagementData";
-import { mockDealStore } from "@/data/mockStore";
+import { cloneLeadTargetingSettings, getDealQuarter, getDealSalesTeam, quarterLabel, type LeadTargetingSettings } from "@/data/leadsTargetsData";
+import { mockDealStore, mockLeadStore } from "@/data/mockStore";
+import { DealsPipelineKpiCards } from "@/modules/LeadsPipelineKpiCards";
 
 type ProbabilityFilter = "all" | "high" | "medium" | "low";
+
+const SALES_TEAM_BADGE_STYLES: Record<string, string> = {
+  "Public and Telecom Sales":
+    "border-[#bfdbfe] bg-[#eff6ff] text-[#1d4ed8]",
+  "International and Corporate Sales":
+    "border-[#a7f3d0] bg-[#ecfdf5] text-[#059669]",
+  BFSI: "border-[#ddd6fe] bg-[#f5f3ff] text-[#6d28d9]",
+};
+
+function salesTeamBadgeClass(team?: string) {
+  if (!team) return "border-[#e5e7eb] bg-[#f9fafb] text-[#374151]";
+  return (
+    SALES_TEAM_BADGE_STYLES[team] ??
+    "border-[#e5e7eb] bg-[#f9fafb] text-[#374151]"
+  );
+}
 
 const STAGE_COLOR_PRESETS: {
   label: string;
@@ -159,6 +175,12 @@ export function DealsManagementPage() {
   );
   const [deals, _setDeals] = useState<CrmDeal[]>(() => mockDealStore.deals);
   const [agingWarningDays, setAgingWarningDays] = useState(() => mockDealStore.dealAgingWarningDays);
+  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() =>
+    cloneLeadTargetingSettings(mockLeadStore.targetingSettings),
+  );
+  const [draggingDealId, setDraggingDealId] = useState<string | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
+  const [droppedDealId, setDroppedDealId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubDeals = mockDealStore.subscribeDeals((newDeals) => {
@@ -169,11 +191,15 @@ export function DealsManagementPage() {
       setStages([...newStages].sort((a, b) => a.order - b.order));
     });
     const unsubAging = mockDealStore.subscribeDealAgingWarningDays(setAgingWarningDays);
+    const unsubTargeting = mockLeadStore.subscribeTargetingSettings((next) => {
+      setTargetingSettings(cloneLeadTargetingSettings(next));
+    });
 
     return () => {
       unsubDeals();
       unsubStages();
       unsubAging();
+      unsubTargeting();
     };
   }, []);
 
@@ -316,6 +342,12 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
   const handleDragStart = (e: React.DragEvent, dealId: string) => {
     e.dataTransfer.setData("application/deal-id", dealId);
     e.dataTransfer.effectAllowed = "move";
+    setDraggingDealId(dealId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingDealId(null);
+    setDragOverStageId(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -323,11 +355,26 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
     e.dataTransfer.dropEffect = "move";
   };
 
+  const handleDragEnterStage = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    setDragOverStageId(stageId);
+  };
+
+  const handleDragLeaveStage = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverStageId(null);
+    }
+  };
+
   const handleDropOnStage = (e: React.DragEvent, stageId: string) => {
     e.preventDefault();
     const id = e.dataTransfer.getData("application/deal-id");
+    setDraggingDealId(null);
+    setDragOverStageId(null);
     if (!id) return;
     moveDealToStage(id, stageId);
+    setDroppedDealId(id);
+    setTimeout(() => setDroppedDealId(null), 400);
   };
 
   const saveNewDeal = () => {
@@ -524,6 +571,11 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
 
         <>
         <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
+          <DealsPipelineKpiCards
+            deals={deals}
+            stages={stages}
+            targetingSettings={targetingSettings}
+          />
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
               <div className="relative w-full min-w-[200px] sm:max-w-[320px]">
@@ -659,11 +711,14 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                 <div
                   key={stage.id}
                   className={cn(
-                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border",
+                    "flex h-full w-[280px] shrink-0 flex-col rounded-lg border transition-all duration-150",
                     stage.columnClass,
                     stage.borderClass,
+                    dragOverStageId === stage.id && "ring-2 ring-inset ring-blue-300/50 brightness-[0.985]",
                   )}
                   onDragOver={handleDragOver}
+                  onDragEnter={(e) => handleDragEnterStage(e, stage.id)}
+                  onDragLeave={handleDragLeaveStage}
                   onDrop={(e) => handleDropOnStage(e, stage.id)}
                 >
                   <div className="border-b border-black/5 px-3 py-2.5">
@@ -685,33 +740,30 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                     {columnDeals.map((deal) => {
                       const customer = accountById.get(deal.customerId);
                       const stuck = agingLabel(deal);
-                      const today = new Date().toISOString().split("T")[0]!;
-                      const pending = deal.activities.filter((a) => !a.completedAt);
-                      const overdue = pending.filter((a) => a.dueDate && a.dueDate < today);
-                      const allDone = deal.activities.length > 0 && pending.length === 0;
+                      const salesTeam = getDealSalesTeam(deal, targetingSettings);
                       return (
                         <Card
                           key={deal.id}
+                          size="sm"
                           draggable
                           onDragStart={(e) => handleDragStart(e, deal.id)}
-                          className="cursor-pointer border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-colors"
+                          onDragEnd={handleDragEnd}
+                          className={cn(
+                            "gap-0 py-0 data-[size=sm]:py-0 cursor-grab border-[#e5e7eb] bg-white shadow-sm hover:border-[#4080f0] transition-all duration-150",
+                            draggingDealId === deal.id && "opacity-40 scale-[0.97] cursor-grabbing",
+                            droppedDealId === deal.id && "animate-kanban-drop-in",
+                          )}
                           onClick={() => openDealDetail(deal)}
                         >
-                          <CardContent className="space-y-2 p-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-medium leading-snug text-[#1c1e21]">
+                          <CardContent className="space-y-1.5 px-3 py-4">
+                            <div className="flex items-start gap-2">
+                              <Badge className="shrink-0 border-[#3070e0] bg-[#4080f0] px-2 py-0.5 text-[11px] font-bold tracking-wide text-white hover:bg-[#4080f0]">
+                                {quarterLabel(getDealQuarter(deal))}
+                              </Badge>
+                              <p className="min-w-0 flex-1 text-sm font-medium leading-snug text-[#1c1e21]">
                                 {deal.name}
                               </p>
                               <div className="flex shrink-0 flex-col items-end gap-1">
-                                {stuck && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-900"
-                                  >
-                                    <AlertTriangle className="mr-0.5 size-3" />
-                                    {stuck}
-                                  </Badge>
-                                )}
                                 {deal.sourceLeadId && (
                                   <Badge
                                     variant="outline"
@@ -723,6 +775,19 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                                 )}
                               </div>
                             </div>
+                            {salesTeam ? (
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] font-medium",
+                                    salesTeamBadgeClass(salesTeam),
+                                  )}
+                                >
+                                  {salesTeam}
+                                </Badge>
+                              </div>
+                            ) : null}
                             <p className="text-xs text-[#6b7280]">{customer?.name ?? "—"}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
                               <span className="font-semibold text-[#1c1e21]">
@@ -734,60 +799,20 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-[#6b7280]">
-                              <span className="inline-flex items-center gap-0.5">
-                                <Percent size={12} />
-                                {deal.probability}%
-                              </span>
-                              <span className="text-[#d1d5db]">·</span>
-                              <span className="inline-flex items-center gap-0.5">
-                                <Calendar size={12} />
+                            <div className="flex items-center justify-between gap-2 text-xs text-[#6b7280]">
+                              <span className="inline-flex min-w-0 items-center gap-0.5">
+                                <Calendar size={12} className="shrink-0" />
                                 {deal.expectedClose}
                               </span>
-                            </div>
-                            {(pending.length > 0 || allDone) && (
-                              <div className="flex items-center gap-1.5">
-                                {allDone ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-[#16a34a]">
-                                    <CheckCircle2 size={11} />
-                                    All activities done
-                                  </span>
-                                ) : (
-                                  <span className={cn(
-                                    "inline-flex items-center gap-1 text-[10px] font-medium",
-                                    overdue.length > 0 ? "text-[#b45309]" : "text-[#6b7280]",
-                                  )}>
-                                    <Clock size={11} />
-                                    {pending.length} pending{overdue.length > 0 && ` · ${overdue.length} overdue`}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1 border-t border-[#f3f4f6] pt-2">
-                              <span title="Sales" className="inline-flex rounded-md bg-[#eef2fd] p-1 text-[#4080f0]">
-                                <Briefcase size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#eef2fd] text-[#245fcb]">
-                                  {initials(deal.primarySales)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span title="Pre-sales" className="inline-flex rounded-md bg-[#f0fdf4] p-1 text-[#15803d]">
-                                <Headphones size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#f0fdf4] text-[#166534]">
-                                  {initials(deal.presales)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span title="Channel" className="inline-flex rounded-md bg-[#fff7ed] p-1 text-[#c2410c]">
-                                <Share2 size={12} />
-                              </span>
-                              <Avatar className="size-6 border border-white">
-                                <AvatarFallback className="text-[9px] bg-[#fff7ed] text-[#9a3412]">
-                                  {initials(deal.channel)}
-                                </AvatarFallback>
-                              </Avatar>
+                              {stuck ? (
+                                <Badge
+                                  variant="outline"
+                                  className="shrink-0 border-amber-200 bg-amber-50 text-[10px] text-amber-900"
+                                >
+                                  <AlertTriangle className="mr-0.5 size-3" />
+                                  {stuck}
+                                </Badge>
+                              ) : null}
                             </div>
                           </CardContent>
                         </Card>

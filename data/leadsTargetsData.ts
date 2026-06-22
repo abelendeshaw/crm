@@ -1,4 +1,4 @@
-import { CURRENCY_OPTIONS, type DealCurrency } from "./dealsManagementData";
+import { CURRENCY_OPTIONS, type CrmDeal, type DealCurrency } from "./dealsManagementData";
 import type { CrmLead } from "./leadsManagementData";
 import {
   cloneFiscalYearConfig,
@@ -892,6 +892,99 @@ export function computeTeamQuarterKpis(
         teamAlloc.teamName,
         ct.currency,
         q,
+      );
+      const rows = teamsByName.get(teamAlloc.teamName) ?? [];
+      rows.push({
+        currency: ct.currency,
+        target,
+        achieved,
+        pct: computeLeadTargetPct(achieved, target),
+        remaining: Math.max(0, target - achieved),
+      });
+      teamsByName.set(teamAlloc.teamName, rows);
+    }
+  }
+
+  const teams = [...teamsByName.entries()].map(([teamName, rows]) => ({
+    teamName,
+    rows,
+    overallPct: computeCurrentQuarterOverallPct(rows),
+  }));
+
+  if (!teams.length) return null;
+
+  return {
+    q,
+    fiscalYear: settings.fiscalYear,
+    teams,
+  };
+}
+
+type DealTargetFields = Pick<
+  CrmDeal,
+  "stageId" | "currency" | "value" | "expectedClose" | "primarySales"
+>;
+
+export function getDealQuarter(deal: Pick<CrmDeal, "expectedClose">): LeadQuarter {
+  const month = new Date(deal.expectedClose).getMonth() + 1;
+  if (month <= 3) return 1;
+  if (month <= 6) return 2;
+  if (month <= 9) return 3;
+  return 4;
+}
+
+export function getDealSalesTeam(
+  deal: Pick<CrmDeal, "primarySales">,
+  settings: LeadTargetingSettings,
+): string | null {
+  for (const ct of settings.currencyTargets) {
+    const person = ct.personAllocations?.find(
+      (row) => row.personName === deal.primarySales,
+    );
+    if (person) return person.teamName;
+  }
+  for (const [teamName, reps] of Object.entries(TEAM_REP_SEED)) {
+    if (reps.includes(deal.primarySales)) return teamName;
+  }
+  return null;
+}
+
+/** Sum closed-won deal values for a sales team, currency, and quarter */
+export function computeDealTeamQuarterAchieved(
+  deals: DealTargetFields[],
+  settings: LeadTargetingSettings,
+  teamName: string,
+  currency: DealCurrency,
+  q: LeadQuarter,
+  wonStageIds: ReadonlySet<string>,
+): number {
+  return deals.reduce((sum, deal) => {
+    if (!wonStageIds.has(deal.stageId)) return sum;
+    if (deal.currency !== currency) return sum;
+    if (getDealSalesTeam(deal, settings) !== teamName) return sum;
+    return getDealQuarter(deal) === q ? sum + deal.value : sum;
+  }, 0);
+}
+
+export function computeDealTeamQuarterKpis(
+  settings: LeadTargetingSettings,
+  deals: DealTargetFields[],
+  wonStageIds: ReadonlySet<string>,
+): TeamQuarterKpi | null {
+  const q = getCurrentOrgQuarter();
+  const teamsByName = new Map<string, CurrentQuarterKpiRow[]>();
+
+  for (const ct of settings.currencyTargets) {
+    for (const teamAlloc of ct.teamAllocations ?? []) {
+      const target = getQuarterTarget(teamAlloc.quarters, q);
+      if (target <= 0) continue;
+      const achieved = computeDealTeamQuarterAchieved(
+        deals,
+        settings,
+        teamAlloc.teamName,
+        ct.currency,
+        q,
+        wonStageIds,
       );
       const rows = teamsByName.get(teamAlloc.teamName) ?? [];
       rows.push({

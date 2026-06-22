@@ -9,7 +9,8 @@ import {
   type PerformanceEntityRow,
 } from "@/data/leadsTargetsData";
 import { cn } from "@/lib/utils";
-import { PerformanceStatus, PillSelect } from "@/modules/sales-targeting/shared";
+import { PerformanceStatus, PillSelect, SALES_TARGETING_PAGE_CLASS } from "@/modules/sales-targeting/shared";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 
 type Level = "teams" | "persons";
 
@@ -141,7 +142,7 @@ export function SalesPerformanceSection({
     );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-[15px] font-semibold text-[#1c1e21]">Sales performance</h2>
@@ -172,27 +173,17 @@ export function SalesPerformanceSection({
           </div>
 
           {currencies.length > 0 ? (
-            <div className="flex gap-1 overflow-x-auto">
-              {currencies.map((currency) => (
-                <button
-                  key={currency}
-                  type="button"
-                  onClick={() => setActiveCurrency(currency)}
-                  className={cn(
-                    "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                    activeCurrency === currency
-                      ? "bg-[#eef2fd] text-[#4080f0]"
-                      : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
-                  )}
-                >
-                  {currency}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              items={currencies}
+              value={activeCurrency}
+              onChange={setActiveCurrency}
+              getKey={(currency) => currency}
+              getLabel={(currency) => currency}
+            />
           ) : null}
         </div>
 
-        <div className="space-y-5 p-4">{performanceContent}</div>
+        <div className="space-y-5 p-4 sm:p-6">{performanceContent}</div>
       </div>
     </div>
   );

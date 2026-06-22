@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CrmLead } from "@/data/leadsManagementData";
+import { cn } from "@/lib/utils";
 import {
   buildQuarterlyTargets,
   computeCurrencyTargetProgress,
@@ -16,6 +17,7 @@ import {
   AnnualSummary,
   CurrencyToolbar,
   PillSelect,
+  SALES_TARGETING_PAGE_CLASS,
   TeamDistributionStatus,
   addCurrencyToSettings,
   removeCurrencyFromSettings,
@@ -103,9 +105,9 @@ export function TargetDefinitionSection() {
   );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
       <div className="rounded-lg border border-[#e5e7eb] bg-white shadow-sm">
-        <div className="border-b border-[#e5e7eb] px-4 py-4">
+        <div className="border-b border-[#e5e7eb] px-4 py-4 sm:px-6">
           <p className="text-sm font-semibold text-[#1c1e21]">
             FY {settings.fiscalYear} target period
           </p>
@@ -133,8 +135,8 @@ export function TargetDefinitionSection() {
           }}
         />
 
-        <div className="space-y-5 p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="space-y-5 p-4 sm:p-6">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
             <AnnualSummary
               key={activeCurrency}
               compact

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,8 @@ import {
 } from "@/data/leadsTargetsData";
 
 const QUARTERS = [1, 2, 3, 4] as const;
+
+export const SALES_TARGETING_PAGE_CLASS = "mx-auto w-full max-w-[1400px]";
 
 const TEAM_DISTRIBUTION_COLORS = [
   "#4080f0",
@@ -88,33 +91,39 @@ export function CurrencyToolbar({
   const available = CURRENCY_OPTIONS.filter((currency) => !configured.includes(currency));
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5e7eb] px-4 py-3">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {settings.currencyTargets.map((ct) => (
-          <button
-            key={ct.currency}
+    <div className="border-b border-[#e5e7eb] px-4 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SegmentedControl
+          items={settings.currencyTargets.map((ct) => ct.currency)}
+          value={activeCurrency}
+          onChange={onSelectCurrency}
+          getKey={(currency) => currency}
+          getLabel={(currency) => currency}
+        />
+        {settings.currencyTargets.length > 1 ? (
+          <Button
             type="button"
-            onClick={() => onSelectCurrency(ct.currency)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              activeCurrency === ct.currency
-                ? "bg-[#eef2fd] text-[#4080f0]"
-                : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
-            )}
+            variant="ghost"
+            size="sm"
+            className="h-9 text-xs text-[#9ca3af] hover:text-[#ef4444]"
+            onClick={() => onRemoveCurrency(activeCurrency)}
           >
-            {ct.currency}
-          </button>
-        ))}
-        {available.length > 0 ? (
+            <Trash2 size={14} className="mr-1" />
+            Remove {activeCurrency}
+          </Button>
+        ) : null}
+      </div>
+      {available.length > 0 ? (
+        <div className="mt-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-8 gap-1 border-dashed border-[#d1d5db] text-xs text-[#6b7280] shadow-none"
+                className="h-9 gap-1.5 border-dashed border-[#d1d5db] text-sm text-[#6b7280] shadow-none"
               >
-                <Plus size={13} />
+                <Plus size={14} />
                 Add currency
               </Button>
             </DropdownMenuTrigger>
@@ -126,19 +135,7 @@ export function CurrencyToolbar({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : null}
-      </div>
-      {settings.currencyTargets.length > 1 ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 text-xs text-[#9ca3af] hover:text-[#ef4444]"
-          onClick={() => onRemoveCurrency(activeCurrency)}
-        >
-          <Trash2 size={14} className="mr-1" />
-          Remove {activeCurrency}
-        </Button>
+        </div>
       ) : null}
     </div>
   );
@@ -156,7 +153,7 @@ export function SectionShell({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-[15px] font-semibold text-[#1c1e21]">{title}</h2>

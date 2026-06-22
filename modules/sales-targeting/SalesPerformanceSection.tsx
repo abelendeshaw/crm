@@ -9,8 +9,15 @@ import {
   type PerformanceEntityRow,
 } from "@/data/leadsTargetsData";
 import { cn } from "@/lib/utils";
-import { PerformanceStatus, PillSelect, SALES_TARGETING_PAGE_CLASS } from "@/modules/sales-targeting/shared";
-import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
+  PerformanceStatus,
+  PerformanceTable,
+  SALES_TARGETING_PAGE_CLASS,
+  SalesTargetingTableArea,
+  SalesTargetingTableFooter,
+  SimpleCurrencyDropdown,
+  SimpleSelectDropdown,
+} from "@/modules/sales-targeting/shared";
 
 type Level = "teams" | "persons";
 
@@ -20,8 +27,8 @@ const levels: { id: Level; label: string }[] = [
 ];
 
 const levelStatusLabels: Record<Level, string> = {
-  teams: "Team performance status",
-  persons: "Rep performance status",
+  teams: "Team performance",
+  persons: "Rep performance",
 };
 
 export function SalesPerformanceSection({
@@ -84,76 +91,15 @@ export function SalesPerformanceSection({
     }
   }, [level, personTeams, activeTeamName, activeCurrency]);
 
-  const renderPerformanceStatus = (section: "all" | "summary" | "table") => (
-    <PerformanceStatus
-      key={`${activeCurrency}-${section}`}
-      sections={section}
-      label={`${levelStatusLabels[level]} · ${activeCurrency}`}
-      currency={activeCurrency}
-      totalTarget={activeRows.reduce((sum, row) => sum + row.target, 0)}
-      items={activeRows.map((row) => ({
-        name: row.label,
-        target: row.target,
-        achieved: row.achieved,
-      }))}
-      emptyMessage={
-        level === "persons"
-          ? "No rep targets set for this team."
-          : "No targets set for this level."
-      }
-    />
-  );
-
-  const performanceContent =
-    activeRows.length === 0 ? (
-      <p className="py-8 text-center text-sm text-[#9ca3af]">
-        {level === "persons"
-          ? "No rep targets set for this team."
-          : `No targets set for ${activeCurrency} at this level.`}
-      </p>
-    ) : level === "persons" && personTeams.length > 0 ? (
-      <div className="space-y-5">
-        {renderPerformanceStatus("summary")}
-
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <aside className="w-full shrink-0 sm:w-44">
-            <div className="hidden h-[31px] items-center sm:flex">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-                Team
-              </p>
-            </div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af] sm:hidden">
-              Team
-            </p>
-            <PillSelect
-              items={personTeams}
-              value={activeTeamName}
-              onChange={setActiveTeamName}
-              getKey={(name) => name}
-              getLabel={(name) => name}
-            />
-          </aside>
-
-          <div className="min-w-0 flex-1">{renderPerformanceStatus("table")}</div>
-        </div>
-      </div>
-    ) : (
-      renderPerformanceStatus("all")
-    );
+  const emptyMessage =
+    level === "persons"
+      ? "No rep targets set for this team."
+      : `No targets set for ${activeCurrency} at this level.`;
 
   return (
-    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={cn(SALES_TARGETING_PAGE_CLASS)}>
+      <div className="flex flex-shrink-0 flex-col gap-3 border-b border-[#e5e7eb] bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[15px] font-semibold text-[#1c1e21]">Sales performance</h2>
-          <p className="mt-0.5 text-[13px] text-[#6b7280]">
-            Contract-signed leads vs targets for Q{overview.q} · FY {overview.fiscalYear}
-          </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-[#e5e7eb] bg-white shadow-sm">
-        <div className="flex flex-col gap-2 border-b border-[#e5e7eb] px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-1 overflow-x-auto">
             {levels.map((item) => (
               <button
@@ -171,20 +117,75 @@ export function SalesPerformanceSection({
               </button>
             ))}
           </div>
+          <p className="mt-2 text-[13px] text-[#6b7280]">
+            Contract-signed leads vs targets for Q{overview.q} · FY {overview.fiscalYear}
+          </p>
+        </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          {level === "persons" && personTeams.length > 0 ? (
+            <SimpleSelectDropdown
+              items={personTeams}
+              value={activeTeamName}
+              onChange={setActiveTeamName}
+              placeholder="Select team"
+            />
+          ) : null}
           {currencies.length > 0 ? (
-            <SegmentedControl
-              items={currencies}
+            <SimpleCurrencyDropdown
+              currencies={currencies}
               value={activeCurrency}
               onChange={setActiveCurrency}
-              getKey={(currency) => currency}
-              getLabel={(currency) => currency}
             />
           ) : null}
         </div>
-
-        <div className="space-y-5 p-4 sm:p-6">{performanceContent}</div>
       </div>
+
+      {activeRows.length === 0 ? (
+        <div className="flex flex-1 items-center justify-center px-6 py-10 text-sm text-[#6b7280]">
+          {emptyMessage}
+        </div>
+      ) : (
+        <>
+          <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white">
+            <PerformanceStatus
+              key={`${level}-${activeCurrency}-${activeTeamName}-summary`}
+              sections="summary"
+              label={`${levelStatusLabels[level]} · ${activeCurrency}`}
+              currency={activeCurrency}
+              totalTarget={activeRows.reduce((sum, row) => sum + row.target, 0)}
+              items={activeRows.map((row) => ({
+                name: row.label,
+                target: row.target,
+                achieved: row.achieved,
+              }))}
+              emptyMessage={emptyMessage}
+            />
+          </div>
+
+          <SalesTargetingTableArea>
+            <PerformanceTable
+              rows={activeRows.map((row) => ({
+                id: row.id,
+                name: row.label,
+                achieved: row.achieved,
+                target: row.target,
+              }))}
+              currency={activeCurrency}
+              emptyMessage={emptyMessage}
+            />
+          </SalesTargetingTableArea>
+
+          <SalesTargetingTableFooter>
+            <span className="text-[12px] text-[#6b7280]">
+              Showing {activeRows.length}{" "}
+              {level === "persons"
+                ? `rep${activeRows.length !== 1 ? "s" : ""}`
+                : `team${activeRows.length !== 1 ? "s" : ""}`}
+            </span>
+          </SalesTargetingTableFooter>
+        </>
+      )}
     </div>
   );
 }

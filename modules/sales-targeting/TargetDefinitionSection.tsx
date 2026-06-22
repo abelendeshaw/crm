@@ -105,37 +105,37 @@ export function TargetDefinitionSection() {
   );
 
   return (
-    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
-      <div className="rounded-lg border border-[#e5e7eb] bg-white shadow-sm">
-        <div className="border-b border-[#e5e7eb] px-4 py-4 sm:px-6">
-          <p className="text-sm font-semibold text-[#1c1e21]">
-            FY {settings.fiscalYear} target period
-          </p>
-          <p className="mt-1 text-[12px] text-[#6b7280]">
-            {activeFiscalYear
-              ? formatFiscalYearQuartersSummary(activeFiscalYear.quarterDefinitions)
-              : "Quarter periods not configured"}
-          </p>
-        </div>
+    <div className={cn(SALES_TARGETING_PAGE_CLASS)}>
+      <div className="flex-shrink-0 border-b border-[#e5e7eb] bg-white px-6 py-3">
+        <p className="text-sm font-semibold text-[#1c1e21]">
+          FY {settings.fiscalYear} target period
+        </p>
+        <p className="mt-1 text-[12px] text-[#6b7280]">
+          {activeFiscalYear
+            ? formatFiscalYearQuartersSummary(activeFiscalYear.quarterDefinitions)
+            : "Quarter periods not configured"}
+        </p>
+      </div>
 
-        <CurrencyToolbar
-          settings={settings}
-          activeCurrency={activeCurrency}
-          onSelectCurrency={setActiveCurrency}
-          onAddCurrency={(currency) => {
-            setSettings((current) => addCurrencyToSettings(current, currency));
-            setActiveCurrency(currency);
-          }}
-          onRemoveCurrency={(currency) => {
-            setSettings((current) => removeCurrencyFromSettings(current, currency));
-            if (activeCurrency === currency) {
-              const remaining = settings.currencyTargets.filter((ct) => ct.currency !== currency);
-              setActiveCurrency(remaining[0]?.currency ?? "ETB");
-            }
-          }}
-        />
+      <CurrencyToolbar
+        settings={settings}
+        activeCurrency={activeCurrency}
+        onSelectCurrency={setActiveCurrency}
+        onAddCurrency={(currency) => {
+          setSettings((current) => addCurrencyToSettings(current, currency));
+          setActiveCurrency(currency);
+        }}
+        onRemoveCurrency={(currency) => {
+          setSettings((current) => removeCurrencyFromSettings(current, currency));
+          if (activeCurrency === currency) {
+            const remaining = settings.currencyTargets.filter((ct) => ct.currency !== currency);
+            setActiveCurrency(remaining[0]?.currency ?? "ETB");
+          }
+        }}
+      />
 
-        <div className="space-y-5 p-4 sm:p-6">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="border-b border-[#e5e7eb] px-6 py-4">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
             <AnnualSummary
               key={activeCurrency}
@@ -157,64 +157,58 @@ export function TargetDefinitionSection() {
               teams={teamDistribution}
             />
           </div>
+        </div>
 
-          <div className="space-y-5 border-t border-[#e5e7eb] pt-5">
-            <div>
-              <p className="text-sm font-semibold text-[#1c1e21]">Team annual targets</p>
-              <p className="mt-0.5 text-[12px] text-[#6b7280]">
-                Set yearly targets for Sales teams.
-              </p>
+        <div className="space-y-5 px-6 py-4">
+          <p className="text-sm font-semibold text-[#1c1e21]">Team annual targets</p>
+
+          <PillSelect
+            layout="row"
+            items={departments.map((d) => d.departmentName)}
+            value={activeDepartment}
+            onChange={setActiveDepartment}
+            getKey={(name) => name}
+            getLabel={(name) => name}
+          />
+
+          {activeDepartment === "Sales" && teamSections.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {teamSections.map((row) => (
+                <section key={row.team.teamName}>
+                  <AnnualSummary
+                    key={`${activeCurrency}-${row.team.teamName}`}
+                    compact
+                    label={`${row.team.teamName} · ${activeCurrency}`}
+                    currency={activeCurrency}
+                    annual={row.annual}
+                    achieved={row.achieved}
+                    onAnnualChange={(value) => {
+                      updateCurrencyTargets(activeCurrency, (current) => {
+                        current.teamAllocations = current.teamAllocations.map((team) =>
+                          team.teamName === row.team.teamName
+                            ? {
+                                ...team,
+                                quarters: buildQuarterlyTargets(value),
+                              }
+                            : team,
+                        );
+                        Object.assign(
+                          current,
+                          syncDepartmentQuartersFromTeams(current, "Sales"),
+                        );
+                      });
+                    }}
+                  />
+                </section>
+              ))}
             </div>
-
-            <PillSelect
-              layout="row"
-              label="Department"
-              items={departments.map((d) => d.departmentName)}
-              value={activeDepartment}
-              onChange={setActiveDepartment}
-              getKey={(name) => name}
-              getLabel={(name) => name}
-            />
-
-            {activeDepartment === "Sales" && teamSections.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {teamSections.map((row) => (
-                  <section key={row.team.teamName}>
-                    <AnnualSummary
-                      key={`${activeCurrency}-${row.team.teamName}`}
-                      compact
-                      label={`${row.team.teamName} · ${activeCurrency}`}
-                      currency={activeCurrency}
-                      annual={row.annual}
-                      achieved={row.achieved}
-                      onAnnualChange={(value) => {
-                        updateCurrencyTargets(activeCurrency, (current) => {
-                          current.teamAllocations = current.teamAllocations.map((team) =>
-                            team.teamName === row.team.teamName
-                              ? {
-                                  ...team,
-                                  quarters: buildQuarterlyTargets(value),
-                                }
-                              : team,
-                          );
-                          Object.assign(
-                            current,
-                            syncDepartmentQuartersFromTeams(current, "Sales"),
-                          );
-                        });
-                      }}
-                    />
-                  </section>
-                ))}
-              </div>
-            ) : activeDepartment === "Sales" ? (
-              <p className="text-sm text-[#9ca3af]">No Sales teams configured.</p>
-            ) : (
-              <p className="text-sm text-[#9ca3af]">
-                Team targets are configured under Sales.
-              </p>
-            )}
-          </div>
+          ) : activeDepartment === "Sales" ? (
+            <p className="text-sm text-[#9ca3af]">No Sales teams configured.</p>
+          ) : (
+            <p className="text-sm text-[#9ca3af]">
+              Team targets are configured under Sales.
+            </p>
+          )}
         </div>
       </div>
     </div>

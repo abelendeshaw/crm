@@ -3,14 +3,22 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { CURRENCY_OPTIONS, type DealCurrency } from "@/data/dealsManagementData";
 import {
@@ -30,11 +38,20 @@ import {
   type LeadQuarter,
   type LeadQuarterTarget,
   type LeadTargetingSettings,
+  type PersonAllocation,
+  type SalesTeamAllocation,
 } from "@/data/leadsTargetsData";
 
 const QUARTERS = [1, 2, 3, 4] as const;
 
-export const SALES_TARGETING_PAGE_CLASS = "mx-auto w-full max-w-[1400px]";
+export const PIPELINE_TABLE_HEAD_CLASS =
+  "py-3 text-[11px] font-semibold uppercase tracking-wider text-[#6b7280]";
+export const PIPELINE_TABLE_HEAD_FIRST_CLASS = cn("pl-5", PIPELINE_TABLE_HEAD_CLASS);
+export const PIPELINE_TABLE_HEAD_CELL_CLASS = cn("px-4", PIPELINE_TABLE_HEAD_CLASS);
+export const PIPELINE_TABLE_CELL_FIRST_CLASS = "pl-5 py-3.5 font-medium text-[#1c1e21]";
+export const PIPELINE_TABLE_CELL_CLASS = "px-4 py-3.5 text-sm text-[#374151]";
+
+export const SALES_TARGETING_PAGE_CLASS = "flex min-h-0 flex-1 flex-col overflow-hidden bg-white";
 
 const TEAM_DISTRIBUTION_COLORS = [
   "#4080f0",
@@ -80,64 +97,226 @@ export function CurrencyToolbar({
   onSelectCurrency,
   onAddCurrency,
   onRemoveCurrency,
+  leading,
 }: {
   settings: LeadTargetingSettings;
   activeCurrency: DealCurrency;
   onSelectCurrency: (currency: DealCurrency) => void;
   onAddCurrency: (currency: DealCurrency) => void;
   onRemoveCurrency: (currency: DealCurrency) => void;
+  leading?: ReactNode;
 }) {
   const configured = settings.currencyTargets.map((ct) => ct.currency);
   const available = CURRENCY_OPTIONS.filter((currency) => !configured.includes(currency));
 
   return (
-    <div className="border-b border-[#e5e7eb] px-4 py-3 sm:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl
-          items={settings.currencyTargets.map((ct) => ct.currency)}
-          value={activeCurrency}
-          onChange={onSelectCurrency}
-          getKey={(currency) => currency}
-          getLabel={(currency) => currency}
-        />
-        {settings.currencyTargets.length > 1 ? (
+    <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e5e7eb] bg-white px-6 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="h-9 text-xs text-[#9ca3af] hover:text-[#ef4444]"
-            onClick={() => onRemoveCurrency(activeCurrency)}
+            className="h-9 min-w-[120px] justify-between gap-2 border-[#e5e7eb] bg-white px-3 text-sm font-medium text-[#374151] shadow-none"
           >
-            <Trash2 size={14} className="mr-1" />
-            Remove {activeCurrency}
+            <span>{activeCurrency}</span>
+            <ChevronDown size={14} className="text-[#9ca3af]" />
           </Button>
-        ) : null}
-      </div>
-      {available.length > 0 ? (
-        <div className="mt-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-9 gap-1.5 border-dashed border-[#d1d5db] text-sm text-[#6b7280] shadow-none"
-              >
-                <Plus size={14} />
-                Add currency
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[120px]">
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-[160px]">
+          {settings.currencyTargets.map((ct) => (
+            <DropdownMenuItem
+              key={ct.currency}
+              onClick={() => onSelectCurrency(ct.currency)}
+              className="justify-between"
+            >
+              <span>{ct.currency}</span>
+              {activeCurrency === ct.currency ? (
+                <Check size={14} className="text-[#4080f0]" />
+              ) : null}
+            </DropdownMenuItem>
+          ))}
+          {available.length > 0 ? (
+            <>
+              <DropdownMenuSeparator />
               {available.map((currency) => (
-                <DropdownMenuItem key={currency} onClick={() => onAddCurrency(currency)}>
-                  {currency}
+                <DropdownMenuItem
+                  key={currency}
+                  onClick={() => onAddCurrency(currency)}
+                  className="text-[#4080f0]"
+                >
+                  <Plus size={14} />
+                  Add {currency}
                 </DropdownMenuItem>
               ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            </>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
+        {leading}
+      </div>
+      {settings.currencyTargets.length > 1 ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-9 text-xs text-[#9ca3af] hover:text-[#ef4444]"
+          onClick={() => onRemoveCurrency(activeCurrency)}
+        >
+          <Trash2 size={14} className="mr-1" />
+          Remove {activeCurrency}
+        </Button>
       ) : null}
     </div>
+  );
+}
+
+export function SimpleSelectDropdown({
+  items,
+  value,
+  onChange,
+  placeholder = "Select…",
+  minWidth = "220px",
+}: {
+  items: string[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  minWidth?: string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 max-w-full justify-between gap-2 border-[#e5e7eb] bg-white px-3 text-sm font-medium text-[#374151] shadow-none"
+          style={{ minWidth }}
+        >
+          <span className="truncate">{value || placeholder}</span>
+          <ChevronDown size={14} className="shrink-0 text-[#9ca3af]" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="min-w-[var(--radix-dropdown-menu-trigger-width)]"
+      >
+        {items.map((item) => (
+          <DropdownMenuItem
+            key={item}
+            onClick={() => onChange(item)}
+            className="justify-between"
+          >
+            <span className="truncate">{item}</span>
+            {value === item ? <Check size={14} className="shrink-0 text-[#4080f0]" /> : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+export function SimpleCurrencyDropdown({
+  currencies,
+  value,
+  onChange,
+}: {
+  currencies: DealCurrency[];
+  value: DealCurrency;
+  onChange: (currency: DealCurrency) => void;
+}) {
+  return (
+    <SimpleSelectDropdown
+      items={[...currencies]}
+      value={value}
+      onChange={(next) => onChange(next as DealCurrency)}
+      placeholder="Currency"
+      minWidth="120px"
+    />
+  );
+}
+
+export function PerformanceTable({
+  rows,
+  currency,
+  emptyMessage = "No items to display.",
+}: {
+  rows: { id: string; name: string; achieved: number; target: number }[];
+  currency: DealCurrency;
+  emptyMessage?: string;
+}) {
+  if (!rows.length) {
+    return (
+      <div className="flex items-center justify-center px-6 py-10 text-center text-sm text-[#6b7280]">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  const sorted = [...rows].sort((a, b) => {
+    const aPct = computeLeadTargetPct(a.achieved, a.target);
+    const bPct = computeLeadTargetPct(b.achieved, b.target);
+    if (bPct !== aPct) return bPct - aPct;
+    return b.achieved - a.achieved;
+  });
+
+  return (
+    <Table>
+      <TableHeader className="sticky top-0 z-10 bg-white">
+        <TableRow>
+          <TableHead className={PIPELINE_TABLE_HEAD_FIRST_CLASS}>Name</TableHead>
+          <TableHead className={cn(PIPELINE_TABLE_HEAD_CELL_CLASS, "text-right")}>
+            Achieved
+          </TableHead>
+          <TableHead className={cn(PIPELINE_TABLE_HEAD_CELL_CLASS, "text-right")}>
+            Target
+          </TableHead>
+          <TableHead className={PIPELINE_TABLE_HEAD_CELL_CLASS}>Progress</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody className="bg-white">
+        {sorted.map((row) => {
+          const pct = computeLeadTargetPct(row.achieved, row.target);
+          return (
+            <TableRow key={row.id}>
+              <TableCell className={PIPELINE_TABLE_CELL_FIRST_CLASS}>{row.name}</TableCell>
+              <TableCell className={cn(PIPELINE_TABLE_CELL_CLASS, "text-right tabular-nums")}>
+                {formatCompactMoney(row.achieved, currency)}
+              </TableCell>
+              <TableCell
+                className={cn(PIPELINE_TABLE_CELL_CLASS, "text-right tabular-nums text-[#6b7280]")}
+              >
+                {row.target > 0 ? formatCompactMoney(row.target, currency) : "—"}
+              </TableCell>
+              <TableCell className={PIPELINE_TABLE_CELL_CLASS}>
+                <div className="flex items-center gap-3">
+                  <div className="h-1.5 min-w-[80px] flex-1 overflow-hidden rounded-full bg-[#eef2fd]">
+                    <div
+                      className="h-full rounded-full bg-[#4080f0] transition-all"
+                      style={{ width: `${Math.min(pct, 100)}%` }}
+                    />
+                  </div>
+                  <span
+                    className={cn(
+                      "w-10 shrink-0 text-right text-sm font-semibold tabular-nums",
+                      pct >= 100
+                        ? "text-[#16a34a]"
+                        : pct > 0
+                          ? "text-[#4080f0]"
+                          : "text-[#9ca3af]",
+                    )}
+                  >
+                    {row.target > 0 ? `${pct}%` : "—"}
+                  </span>
+                </div>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -147,23 +326,27 @@ export function SectionShell({
   actions,
   children,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className={cn(SALES_TARGETING_PAGE_CLASS, "space-y-4")}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-[15px] font-semibold text-[#1c1e21]">{title}</h2>
-          {description ? (
-            <p className="mt-0.5 text-[13px] text-[#6b7280]">{description}</p>
+    <div className={cn(SALES_TARGETING_PAGE_CLASS)}>
+      {title || actions ? (
+        <div className="flex flex-shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[#e5e7eb] px-6 py-4">
+          {title ? (
+            <div>
+              <h2 className="text-[15px] font-semibold text-[#1c1e21]">{title}</h2>
+              {description ? (
+                <p className="mt-0.5 text-[13px] text-[#6b7280]">{description}</p>
+              ) : null}
+            </div>
           ) : null}
+          {actions}
         </div>
-        {actions}
-      </div>
-      <div className="rounded-lg border border-[#e5e7eb] bg-white shadow-sm">{children}</div>
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }
@@ -457,6 +640,163 @@ export function CompactQuarterTable({
         </div>
       ))}
     </div>
+  );
+}
+
+export function DistributionCard({ children }: { children: ReactNode }) {
+  return <div className={cn(SALES_TARGETING_PAGE_CLASS)}>{children}</div>;
+}
+
+export function SalesTargetingTableArea({ children }: { children: ReactNode }) {
+  return <div className="min-h-0 flex-1 overflow-auto">{children}</div>;
+}
+
+export function SalesTargetingTableFooter({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex shrink-0 items-center border-t border-[#e5e7eb] bg-white px-6 py-3">
+      {children}
+    </div>
+  );
+}
+
+export type QuarterMatrixRow = {
+  id: string;
+  label: string;
+  subtitle?: string;
+  quarters: LeadQuarterTarget[];
+  readOnly?: boolean;
+};
+
+export function QuarterTargetsMatrix({
+  rows,
+  rowLabel,
+  currency,
+  quarterDefinitions,
+  onQuarterChange,
+  emptyMessage = "Nothing to display.",
+}: {
+  rows: QuarterMatrixRow[];
+  rowLabel: string;
+  currency: DealCurrency;
+  quarterDefinitions: LeadTargetingSettings["quarterDefinitions"];
+  onQuarterChange: (id: string, q: LeadQuarter, value: number) => void;
+  emptyMessage?: string;
+}) {
+  if (!rows.length) {
+    return (
+      <div className="flex items-center justify-center px-6 py-10 text-center text-sm text-[#6b7280]">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader className="sticky top-0 z-10 bg-white">
+        <TableRow>
+          <TableHead className={PIPELINE_TABLE_HEAD_FIRST_CLASS}>{rowLabel}</TableHead>
+          {QUARTERS.map((q) => (
+            <TableHead key={q} className={PIPELINE_TABLE_HEAD_CELL_CLASS}>
+              <span className="block">Q{q}</span>
+              <span className="mt-0.5 block font-normal normal-case tracking-normal text-[#9ca3af]">
+                {getQuarterPeriodLabel(quarterDefinitions, q)}
+              </span>
+            </TableHead>
+          ))}
+          <TableHead className={cn(PIPELINE_TABLE_HEAD_CELL_CLASS, "text-right")}>
+            Annual
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody className="bg-white">
+        {rows.map((row) => (
+          <TableRow key={row.id}>
+            <TableCell className={PIPELINE_TABLE_CELL_FIRST_CLASS}>{row.label}</TableCell>
+            {QUARTERS.map((q) => (
+              <TableCell key={q} className={PIPELINE_TABLE_CELL_CLASS}>
+                {row.readOnly ? (
+                  <span className="tabular-nums text-[#6b7280]">
+                    {getQuarterTarget(row.quarters, q) > 0
+                      ? formatCompactMoney(getQuarterTarget(row.quarters, q), currency)
+                      : "—"}
+                  </span>
+                ) : (
+                  <Input
+                    type="number"
+                    min={0}
+                    value={getQuarterTarget(row.quarters, q) || ""}
+                    onChange={(e) =>
+                      onQuarterChange(row.id, q, Number(e.target.value) || 0)
+                    }
+                    className="h-9 w-full min-w-[5rem] border-[#e5e7eb] bg-white text-sm tabular-nums"
+                    placeholder="0"
+                  />
+                )}
+              </TableCell>
+            ))}
+            <TableCell
+              className={cn(PIPELINE_TABLE_CELL_CLASS, "text-right tabular-nums text-[#6b7280]")}
+            >
+              {quarterSum(row) > 0 ? formatCompactMoney(quarterSum(row), currency) : "—"}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+export function TeamTargetsMatrix({
+  teams,
+  currency,
+  quarterDefinitions,
+  onQuarterChange,
+}: {
+  teams: SalesTeamAllocation[];
+  currency: DealCurrency;
+  quarterDefinitions: LeadTargetingSettings["quarterDefinitions"];
+  onQuarterChange: (teamName: string, q: LeadQuarter, value: number) => void;
+}) {
+  return (
+    <QuarterTargetsMatrix
+      rowLabel="Team"
+      currency={currency}
+      quarterDefinitions={quarterDefinitions}
+      emptyMessage="No sales teams configured."
+      rows={teams.map((team) => ({
+        id: team.teamName,
+        label: team.teamName,
+        quarters: team.quarters,
+      }))}
+      onQuarterChange={onQuarterChange}
+    />
+  );
+}
+
+export function PersonTargetsMatrix({
+  persons,
+  currency,
+  quarterDefinitions,
+  onQuarterChange,
+}: {
+  persons: PersonAllocation[];
+  currency: DealCurrency;
+  quarterDefinitions: LeadTargetingSettings["quarterDefinitions"];
+  onQuarterChange: (personName: string, q: LeadQuarter, value: number) => void;
+}) {
+  return (
+    <QuarterTargetsMatrix
+      rowLabel="Rep"
+      currency={currency}
+      quarterDefinitions={quarterDefinitions}
+      emptyMessage="No reps on this team."
+      rows={persons.map((person) => ({
+        id: person.personName,
+        label: person.personName,
+        quarters: person.quarters,
+      }))}
+      onQuarterChange={onQuarterChange}
+    />
   );
 }
 
@@ -754,16 +1094,8 @@ export function PerformanceStatus({
   return (
     <div className="flex w-full flex-col">
       {showSummary ? (
-      <div className="flex flex-col gap-5 border-b border-[#e5e7eb] pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
-            {label}
-          </p>
-          <p className="mt-1 text-[13px] text-[#6b7280]">
-            {items.length} {items.length === 1 ? "entity" : "entities"} tracked
-          </p>
-        </div>
-
+      <div className="border-b border-[#e5e7eb] px-6 py-4">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-5 sm:gap-8">
           <div className="relative flex size-[88px] shrink-0 items-center justify-center">
             <svg
@@ -838,90 +1170,30 @@ export function PerformanceStatus({
             </div>
           </div>
         </div>
+
+        <div className="sm:text-right">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#6b7280]">
+            {label}
+          </p>
+          <p className="mt-1 text-[13px] text-[#6b7280]">
+            {items.length} {items.length === 1 ? "entity" : "entities"} tracked
+          </p>
+        </div>
+      </div>
       </div>
       ) : null}
 
       {showTable ? (
-      sortedItems.length > 0 ? (
-        <div className={cn(showSummary ? "mt-4" : "mt-0", "overflow-hidden rounded-lg border border-[#e5e7eb]")}>
-          <div className="hidden border-b border-[#e5e7eb] bg-[#f9fafb] px-4 py-2 sm:grid sm:grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_4rem] sm:gap-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-              Name
-            </p>
-            <p className="text-right text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-              Achieved
-            </p>
-            <p className="text-right text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-              Target
-            </p>
-            <p className="text-right text-[11px] font-semibold uppercase tracking-wide text-[#9ca3af]">
-              Progress
-            </p>
-          </div>
-
-          <div className="divide-y divide-[#f3f4f6]">
-            {sortedItems.map((item) => {
-              const itemPct = computeLeadTargetPct(item.achieved, item.target);
-              const itemRemaining = Math.max(0, item.target - item.achieved);
-
-              return (
-                <div
-                  key={item.name}
-                  className="px-4 py-3 transition-colors hover:bg-[#fafbfc] sm:grid sm:grid-cols-[minmax(0,1fr)_5.5rem_5.5rem_4rem] sm:items-center sm:gap-4"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-[#1c1e21]">{item.name}</p>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#eef2fd] sm:mt-2.5">
-                      <div
-                        className="h-full rounded-full bg-[#4080f0] transition-all duration-300"
-                        style={{ width: `${Math.min(itemPct, 100)}%` }}
-                      />
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#9ca3af] sm:hidden">
-                      {formatCompactMoney(item.achieved, currency)} /{" "}
-                      {item.target > 0 ? formatCompactMoney(item.target, currency) : "—"}
-                    </p>
-                  </div>
-
-                  <p className="hidden text-right text-[12px] font-medium tabular-nums text-[#374151] sm:block">
-                    {formatCompactMoney(item.achieved, currency)}
-                  </p>
-                  <p className="hidden text-right text-[12px] tabular-nums text-[#6b7280] sm:block">
-                    {item.target > 0 ? formatCompactMoney(item.target, currency) : "—"}
-                  </p>
-                  <div className="mt-2 flex items-center justify-between gap-2 sm:mt-0 sm:justify-end">
-                    <p className="text-[12px] tabular-nums text-[#9ca3af] sm:hidden">
-                      {item.target > 0 ? `${itemPct}%` : "—"}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-sm font-semibold tabular-nums",
-                        itemPct >= 100
-                          ? "text-[#16a34a]"
-                          : itemPct > 0
-                            ? "text-[#4080f0]"
-                            : "text-[#9ca3af]",
-                      )}
-                    >
-                      {item.target > 0 ? `${itemPct}%` : "—"}
-                    </p>
-                  </div>
-
-                  {item.target > 0 && itemRemaining > 0 ? (
-                    <p className="col-span-full mt-1 text-[11px] text-[#9ca3af]">
-                      {formatCompactMoney(itemRemaining, currency)} to go
-                    </p>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <p className={cn(showSummary ? "mt-4" : "mt-0", "py-8 text-center text-sm text-[#9ca3af]")}>
-          {emptyMessage}
-        </p>
-      )
+        <PerformanceTable
+            rows={sortedItems.map((item) => ({
+              id: item.name,
+              name: item.name,
+              achieved: item.achieved,
+              target: item.target,
+            }))}
+            currency={currency}
+            emptyMessage={emptyMessage}
+          />
       ) : null}
     </div>
   );

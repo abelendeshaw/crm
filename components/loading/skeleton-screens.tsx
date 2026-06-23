@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { QuarterlyTargetKpiSkeleton } from "@/modules/LeadsPipelineKpiCards";
 
 export function PageHeaderSkeleton({
   withAction = false,
@@ -24,7 +25,7 @@ export function PipelinePageSkeleton({ withKpi = false }: { withKpi?: boolean })
       <PageHeaderSkeleton withAction />
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
         <div className="flex-shrink-0 space-y-4 border-b bg-white px-6 py-4">
-          {withKpi ? <Skeleton className="h-20 w-full rounded-lg" /> : null}
+          {withKpi ? <QuarterlyTargetKpiSkeleton /> : null}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
               <Skeleton className="h-9 w-full max-w-[320px]" />

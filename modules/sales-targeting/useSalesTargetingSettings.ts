@@ -39,13 +39,26 @@ export function useSalesTargetingSettings() {
   );
 
   const updateCurrencyTargets = useCallback(
-    (currency: DealCurrency, updater: (ct: CurrencyQuarterlyTargets) => void) => {
+    (
+      currency: DealCurrency,
+      updater: (ct: CurrencyQuarterlyTargets) => void,
+      options?: { persist?: boolean },
+    ) => {
       setSettings((current) => {
         const next = cloneLeadTargetingSettings(current);
         const row = next.currencyTargets.find((ct) => ct.currency === currency);
         if (!row) return next;
+
         updater(row);
-        return next;
+
+        if (!options?.persist) return next;
+
+        const synced = cloneLeadTargetingSettings(next);
+        synced.currencyTargets = synced.currencyTargets.map((ct) => syncAllTargetingLayers(ct));
+        mockLeadStore.targetingSettings = synced;
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        return synced;
       });
     },
     [],

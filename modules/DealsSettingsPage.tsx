@@ -513,7 +513,6 @@ export function DealsSettingsPage() {
           </div>
         </div>
 
-        {/* Tab Bar - same pattern as UserManagement */}
         <div className="mt-4 -mb-4 flex items-center gap-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button

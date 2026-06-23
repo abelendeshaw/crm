@@ -14,7 +14,6 @@ import {
   Menu,
   X,
   Bell,
-  HelpCircle,
   Search,
   LogOut,
   UserCircle,
@@ -298,15 +297,6 @@ export function CRMLayout({ children }: CRMLayoutProps) {
               className="text-[#9ca3af] hover:text-[#1c1e21] size-8"
             >
               <Bell className="w-4 h-4" />
-            </Button>
-
-            {/* Help */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-[#9ca3af] hover:text-[#1c1e21] size-8"
-            >
-              <HelpCircle className="w-4 h-4" />
             </Button>
 
             <div className="h-5 w-px bg-[#e5e7eb]" />

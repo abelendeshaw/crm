@@ -21,7 +21,6 @@ import {
   Star,
   ShieldCheck,
   AlertCircle,
-  Target,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -95,14 +94,8 @@ import {
   type PqqFormValues,
 } from "@/data/pqqTemplateData";
 import { mockLeadStore, mockDealStore } from "@/data/mockStore";
-import {
-  applyContractSignedStageUpdate,
-  cloneLeadTargetingSettings,
-  hasOrgSalesTargets,
-  type LeadTargetingSettings,
-} from "@/data/leadsTargetsData";
+import { applyContractSignedStageUpdate } from "@/data/leadsTargetsData";
 import { PQQ_UI_ENABLED } from "@/lib/featureFlags";
-import { LeadSalesTargetDetail } from "@/modules/LeadSalesTargetDisplay";
 import { DealPqqSection } from "@/modules/DealPqqSection";
 import { DynamicPqqForm } from "@/modules/DynamicPqqForm";
 
@@ -114,6 +107,9 @@ function initials(name: string) {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+const leadDetailTabTriggerClass =
+  "h-auto flex-none rounded-md border-transparent px-3 py-1.5 text-sm font-medium transition-colors text-[#6b7280] shadow-none hover:bg-[#f9fafb] hover:text-[#374151] data-active:bg-[#eef2fd] data-active:text-[#4080f0] after:hidden";
 
 function formatMoney(amount: number, currency: string) {
   try {
@@ -170,9 +166,6 @@ export function LeadDetailPage({ id }: { id: string }) {
   const [pqqSettings, setPqqSettings] = useState<LeadPqqSettings>(() => ({
     ...mockLeadStore.pqqSettings,
   }));
-  const [targetingSettings, setTargetingSettings] = useState<LeadTargetingSettings>(() =>
-    cloneLeadTargetingSettings(mockLeadStore.targetingSettings),
-  );
   const defaultPqqFormDefinition = useMemo(
     () => getDefaultPqqFormDefinition(pqqTemplates),
     [pqqTemplates],
@@ -197,15 +190,11 @@ export function LeadDetailPage({ id }: { id: string }) {
     const unsubPqqSettings = mockLeadStore.subscribePqqSettings((nextSettings) => {
       setPqqSettings({ ...nextSettings });
     });
-    const unsubTargeting = mockLeadStore.subscribeTargetingSettings((next) => {
-      setTargetingSettings(cloneLeadTargetingSettings(next));
-    });
     return () => {
       unsubActivities();
       unsubStages();
       unsubPqqTemplates();
       unsubPqqSettings();
-      unsubTargeting();
     };
   }, []);
 
@@ -472,11 +461,17 @@ export function LeadDetailPage({ id }: { id: string }) {
             className="w-full"
           >
             <div className="mb-4">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="activities">Activities</TabsTrigger>
+              <TabsList className="h-auto gap-1.5 bg-transparent p-0">
+                <TabsTrigger value="overview" className={leadDetailTabTriggerClass}>
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="activities" className={leadDetailTabTriggerClass}>
+                  Activities
+                </TabsTrigger>
                 {PQQ_UI_ENABLED && (
-                  <TabsTrigger value="discovery">Discovery & BANT</TabsTrigger>
+                  <TabsTrigger value="discovery" className={leadDetailTabTriggerClass}>
+                    Discovery & BANT
+                  </TabsTrigger>
                 )}
               </TabsList>
             </div>
@@ -685,24 +680,6 @@ export function LeadDetailPage({ id }: { id: string }) {
                     </div>
                   </CardContent>
                 </Card>
-
-                {hasOrgSalesTargets(targetingSettings) ? (
-                  <Card className="border-[#e5e7eb] shadow-none">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-sm font-medium text-[#1c1e21]">
-                        <Target size={15} className="text-[#4080f0]" />
-                        Sales Target
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <LeadSalesTargetDetail
-                        lead={detailDraft}
-                        allLeads={leads}
-                        settings={targetingSettings}
-                      />
-                    </CardContent>
-                  </Card>
-                ) : null}
                   </div>
 
                   <div className="space-y-4 lg:col-span-4">

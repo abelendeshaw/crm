@@ -1110,6 +1110,9 @@ export function CustomerManagementPage({
   );
 }
 
+const customerDetailTabTriggerClass =
+  "h-auto flex-none rounded-md border-transparent px-3 py-1.5 text-sm font-medium transition-colors text-[#6b7280] shadow-none hover:bg-[#f9fafb] hover:text-[#374151] data-active:bg-[#eef2fd] data-active:text-[#4080f0] after:hidden";
+
 function CustomerAccountDetailView({
   account,
   accountContacts,
@@ -1345,9 +1348,13 @@ function CustomerAccountDetailView({
               className="w-full"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
-                <TabsList>
-                  <TabsTrigger value="profile">Profile</TabsTrigger>
-                  <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsList className="h-auto gap-1.5 bg-transparent p-0">
+                  <TabsTrigger value="profile" className={customerDetailTabTriggerClass}>
+                    Profile
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" className={customerDetailTabTriggerClass}>
+                    Activity
+                  </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-2">
                   {detailTab === "profile" && (

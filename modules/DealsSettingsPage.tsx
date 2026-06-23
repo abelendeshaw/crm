@@ -42,6 +42,12 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { TabbedSettingsPageSkeleton } from "@/components/loading/skeleton-screens";
+import {
+  finalizationToCategory,
+  categoryToFinalization,
+  StageFinalizationFields,
+  type FinalizationOutcome,
+} from "@/components/pipeline/StageFinalizationFields";
 import { usePageLoading } from "@/hooks/usePageLoading";
 import { mockDealStore } from "@/data/mockStore";
 import { PipelineStage, ActivityType, CrmDeal } from "@/data/dealsManagementData";
@@ -132,6 +138,9 @@ export function DealsSettingsPage() {
   const [newStageName, setNewStageName] = useState("");
   const [newStagePresetIndex, setNewStagePresetIndex] = useState("1");
   const [newStagePlacement, setNewStagePlacement] = useState("end");
+  const [newStageIsFinalization, setNewStageIsFinalization] = useState(false);
+  const [newStageFinalizationOutcome, setNewStageFinalizationOutcome] =
+    useState<FinalizationOutcome>("won");
   const [agingWarningDays, setAgingWarningDays] = useState(() => mockDealStore.dealAgingWarningDays);
   const [agingDraftValue, setAgingDraftValue] = useState(() => String(mockDealStore.dealAgingWarningDays));
   const [agingSaved, setAgingSaved] = useState(false);
@@ -149,6 +158,8 @@ export function DealsSettingsPage() {
     name: string;
     presetIndex: number;
     placementAfterStageId: string;
+    isFinalization: boolean;
+    finalizationOutcome: FinalizationOutcome;
   } | null>(null);
   const dropTargetStageIdRef = useRef<string | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(() =>
@@ -316,6 +327,8 @@ export function DealsSettingsPage() {
     setNewStageName("");
     setNewStagePresetIndex("1");
     setNewStagePlacement("end");
+    setNewStageIsFinalization(false);
+    setNewStageFinalizationOutcome("won");
     setAddStageDialogOpen(true);
   };
 
@@ -325,7 +338,7 @@ export function DealsSettingsPage() {
     const newStage: PipelineStage = {
       id: `stage-custom-${crypto.randomUUID()}`,
       name: stageName,
-      category: "open",
+      category: finalizationToCategory(newStageIsFinalization, newStageFinalizationOutcome),
       order: 0,
       columnClass: preset.columnClass,
       borderClass: preset.borderClass,
@@ -663,17 +676,26 @@ export function DealsSettingsPage() {
                               if (!selectedStage) return;
                               if (!isStageConfigEditing) {
                                 const currentIdx = orderedStages.findIndex((s) => s.id === selectedStage.id);
+                                const finalization = categoryToFinalization(selectedStage.category);
                                 setStageConfigDraft({
                                   name: selectedStage.name,
                                   presetIndex: selectedStagePresetIndex,
                                   placementAfterStageId: currentIdx === 0 ? "" : orderedStages[currentIdx - 1]?.id ?? "",
+                                  isFinalization: finalization.isFinalization,
+                                  finalizationOutcome: finalization.outcome,
                                 });
                                 setIsStageConfigEditing(true);
                                 return;
                               }
                               if (!stageConfigDraft) return;
                               const nextName = stageConfigDraft.name.trim() || selectedStage.name;
-                              updateStage(selectedStage.id, { name: nextName });
+                              updateStage(selectedStage.id, {
+                                name: nextName,
+                                category: finalizationToCategory(
+                                  stageConfigDraft.isFinalization,
+                                  stageConfigDraft.finalizationOutcome,
+                                ),
+                              });
                               setPreset(selectedStage.id, stageConfigDraft.presetIndex);
                               const currentIds = orderedStages.map((s) => s.id);
                               const withoutCurrent = currentIds.filter((id) => id !== selectedStage.id);
@@ -798,6 +820,29 @@ export function DealsSettingsPage() {
                             </SelectContent>
                           </Select>
                         </div>
+
+                        <StageFinalizationFields
+                          entityLabel="deal"
+                          isFinalization={
+                            stageConfigDraft?.isFinalization ??
+                            categoryToFinalization(selectedStage.category).isFinalization
+                          }
+                          outcome={
+                            stageConfigDraft?.finalizationOutcome ??
+                            categoryToFinalization(selectedStage.category).outcome
+                          }
+                          onFinalizationChange={(value) =>
+                            setStageConfigDraft((prev) =>
+                              prev ? { ...prev, isFinalization: value } : prev,
+                            )
+                          }
+                          onOutcomeChange={(value) =>
+                            setStageConfigDraft((prev) =>
+                              prev ? { ...prev, finalizationOutcome: value } : prev,
+                            )
+                          }
+                          disabled={!isStageConfigEditing}
+                        />
 
                         {stageDetailsFeedback && (
                           <p className="text-xs text-[#4080f0]">{stageDetailsFeedback}</p>
@@ -1010,6 +1055,13 @@ export function DealsSettingsPage() {
                           </SelectContent>
                         </Select>
                       </div>
+                      <StageFinalizationFields
+                        entityLabel="deal"
+                        isFinalization={newStageIsFinalization}
+                        outcome={newStageFinalizationOutcome}
+                        onFinalizationChange={setNewStageIsFinalization}
+                        onOutcomeChange={setNewStageFinalizationOutcome}
+                      />
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setAddStageDialogOpen(false)}>

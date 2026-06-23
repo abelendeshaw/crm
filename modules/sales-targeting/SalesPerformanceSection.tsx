@@ -99,27 +99,22 @@ export function SalesPerformanceSection({
   return (
     <div className={cn(SALES_TARGETING_PAGE_CLASS)}>
       <div className="flex flex-shrink-0 flex-col gap-3 border-b border-[#e5e7eb] bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex gap-1 overflow-x-auto">
-            {levels.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setLevel(item.id)}
-                className={cn(
-                  "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
-                  level === item.id
-                    ? "bg-[#eef2fd] text-[#4080f0]"
-                    : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-[13px] text-[#6b7280]">
-            Contract-signed leads vs targets for Q{overview.q} · FY {overview.fiscalYear}
-          </p>
+        <div className="flex gap-1 overflow-x-auto">
+          {levels.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setLevel(item.id)}
+              className={cn(
+                "shrink-0 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                level === item.id
+                  ? "bg-[#eef2fd] text-[#4080f0]"
+                  : "text-[#6b7280] hover:bg-[#f9fafb] hover:text-[#374151]",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

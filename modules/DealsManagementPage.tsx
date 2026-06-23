@@ -17,6 +17,7 @@ import {
   Settings,
 } from "lucide-react";
 import { PipelinePageSkeleton } from "@/components/loading/skeleton-screens";
+import { PresalesMemberSelect } from "@/components/presales/PresalesMemberSelect";
 import { usePageLoading } from "@/hooks/usePageLoading";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -1167,21 +1168,10 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                           </Select>
                         </FormField>
                         <FormField label="Pre-sales">
-                          <Select
+                          <PresalesMemberSelect
                             value={createForm.presales}
                             onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          />
                         </FormField>
                         <FormField label="Channel">
                           <Select
@@ -1393,23 +1383,12 @@ const setDeals = (newDeals: CrmDeal[] | ((prev: CrmDeal[]) => CrmDeal[])) => {
                           </Select>
                         </FormField>
                         <FormField label="Pre-sales">
-                          <Select
+                          <PresalesMemberSelect
                             value={convertForm.presales}
                             onValueChange={(v) =>
                               setConvertForm((p) => ({ ...p, presales: v }))
                             }
-                          >
-                            <SelectTrigger className="h-9 border-[#e5e7eb]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ownerOptions.map((o) => (
-                                <SelectItem key={o} value={o}>
-                                  {o}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          />
                         </FormField>
                         <FormField label="Channel">
                           <Select

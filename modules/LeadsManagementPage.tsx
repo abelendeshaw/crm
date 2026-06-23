@@ -21,6 +21,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { PipelinePageSkeleton } from "@/components/loading/skeleton-screens";
+import { PresalesMemberSelect } from "@/components/presales/PresalesMemberSelect";
 import { usePageLoading } from "@/hooks/usePageLoading";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -1554,21 +1555,10 @@ export function LeadsManagementPage() {
                       </Select>
                     </FormField>
                     <FormField label="Pre-sales">
-                      <Select
+                      <PresalesMemberSelect
                         value={createForm.presales}
                         onValueChange={(v) => setCreateForm((p) => ({ ...p, presales: v }))}
-                      >
-                        <SelectTrigger className="h-9 border-[#e5e7eb]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ownerOptions.map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </FormField>
                     <FormField label="Channel">
                       <Select
